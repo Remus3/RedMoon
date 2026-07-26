@@ -35,22 +35,41 @@ built and run in BOTH hosts. R17, R2, R11, S4, S1(a), S1(c), S1(d), S2 and S5 ar
 CLOSED by measurement. S6 is partial and cheap. S3 has the item and recipe
 mapping. `docs/BRIDGE_SPIKES.md` carries every number and how it was observed.
 
+Steps 1 through 4 of the previous plan are DONE (ledger 002c). The plugin is
+built, it ran live in the dedicated server, and the first real dump is INGESTED:
+`items.json` carries 425 rows at `schema_version` 2 and `recipes.json` carries
+663. That is the first item stat data ever to enter this repository, and it is
+the thing cycle 2 exists to deliver.
+
+The ability school is FOUND: `DealDamageParameters.MainType` on the ability's
+`_Hit` entity, six varying samples. The prefab total is 23583, not the 1189 that
+was a mid-load artifact. `items.stats` is a ONE-HOP read and the recorded
+two-hop finding was wrong. All of it is in `docs/BRIDGE_SPIKES.md`.
+
 Remaining, in order:
 
-1. The IN-GAME CLIENT sample, which is the only thing left in S1(b). At the main
-   menu the client has two worlds and NO prefab-carrying world, so a client-side
-   dump is UNPROVEN. Needs a character loaded. It also unblocks the rest of S3:
-   the ability school, V Blood level and blood bonus tiers want a live entity's
-   real component list, not more metadata reading.
-2. `PrefabDumper.cs` for `items` and `recipes` only - those two are mapped.
-   `abilities`, `vbloods` and `blood_types` are not yet writable.
-3. The first dump, then `rmdata_ingest` WITHOUT `--accept`: read the shape census
-   and the `unmapped` array before deciding whether the schemas or
-   `core/table_deep.py` need amending. One amendment is already expected:
-   `items.stats` as a flat name-to-number map cannot carry
-   `ModifyUnitStatBuff_DOTS.ModificationType`, and an additive and a
-   multiplicative modifier of the same value are not the same stat.
-4. Then the full bridge and the live gate once per host.
+1. The IN-GAME CLIENT sample - the last open half of S1(b), and the only item
+   that needs the operator. `Client_0` read `Count=0` at the load instant and the
+   probe that took the sample could not re-measure. The count-tracking probe is
+   deployed to the client but has not run there. Until it does, "the client can
+   serve a dump" stays UNPROVEN. Note a Private Game spawns a child
+   `VRisingServer.exe` that does NOT load BepInEx, so in that configuration
+   neither host serves a dump.
+2. `items.tier` is FABRICATED as 0 on all 425 rows. The schema requires it and no
+   per-item tier component exists on this build. It owes a real source before any
+   cycle 3 consumer trusts it. Do not close this by parsing the `_T0x` name
+   token - name-convention guessing already produced one wrong answer this cycle.
+3. `items.name` is the prefab name, not a localized display name, and
+   `localization_guid` is omitted rather than faked. The prefab-to-localization
+   join is unmeasured.
+4. `StateReader.cs`. `/state` honestly returns `state: null` today, so
+   `bridge_probe --motion-diff` cannot pass.
+5. Smaller open ends: `recipes.station_guid` (the station references the recipe,
+   not the reverse); the ability-group-to-`_Hit` join needed to assemble an
+   `abilities` row; `VBloodConsumeSource.Tier` is metadata-read, not
+   value-measured; `Unload()`'s graceful path is still unobserved; and the 4
+   `unmapped` recipes are almost certainly `RecipeOutputUnitBuffer` recipes that
+   produce a unit rather than an item.
 
 The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
 schema-valid envelope per table name in `core/tables.py`. The dump fills those

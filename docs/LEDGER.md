@@ -14,6 +14,39 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002c - Cycle 2 part 3: RedMoon.Bridge ships and the first real dump lands (2026-07-26)
+
+Shipped `bridge/src/RedMoon.Bridge/` - `RedMoon.Bridge.csproj`, `HostDetect.cs`,
+`Plugin.cs`, `BridgeServer.cs`, `PrefabDumper.cs` - plus `tests/test_bridge_project.py`.
+
+Verified in the main session rather than taken from the build agent: `dotnet
+build -c Release` exit 0 with 0 warnings, `python -m pytest` 272 passed, `ruff`
+clean, `ascii_guard` exit 0, no port literal in any C# file, no `BuffGuid`
+follow in `PrefabDumper.cs`.
+
+Proven LIVE in the dedicated server, not just compiled. Banner
+`RedMoon.Bridge v0.1.0 host=server port=8780` carries all three contract tokens.
+`/health` reported `ready:false` at `prefab_count:3212` and `ready:true` at
+23583, so the readiness gate was observed doing its job mid-load.
+`/dump/prefabs` returned 425 items and 663 recipes in 276 ms with 4 unmapped.
+`rmdata_ingest` without `--accept` produced the shape census, then `--accept`
+promoted it: `items.json` 425 rows at `schema_version` 2, `recipes.json` 663.
+
+Schema ruling, made on the census rather than in advance: `items.stats` becomes
+an array because three modification kinds occur (Add 665, AddToBase 232,
+MultiplyBaseAdd 2). The duplicate-StatType argument for the same change was
+measured FALSE (0 of 425) and discarded.
+
+Corrected four recorded findings: `items.stats` is one hop not two; the prefab
+count is 23583 not 1189; the ability school is `DealDamageParameters.MainType`
+on the `_Hit` entity; `vbloods` had the wrong marker component.
+
+Commits `7a06e61`, `98d6a09`, `87d80c8`, `1f76090`, `7568323` on `cycle-2-bridge`.
+
+Cycle 2 is NOT done. Open: the in-game client sample, the fabricated
+`items.tier`, `items.name` being the prefab name, `StateReader.cs`, and
+`recipes.station_guid`.
+
 ## 002b - Cycle 2 part 2: the probe plugin closes seven spikes (2026-07-26)
 
 Cycle 2 is still NOT done and no bridge code exists yet. This is the spike-closure

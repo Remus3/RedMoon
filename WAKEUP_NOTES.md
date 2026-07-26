@@ -3,6 +3,72 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - Cycle 2 part 3: the plugin ships, the first real dump lands, four recorded findings corrected
+
+Branch `cycle-2-bridge`, five commits on top of `46e405f`. Ledger entry 002c.
+
+State at close, every number observed in one run after the last edit:
+`python -m pytest` **272 passed**, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, `dotnet build -c Release` on
+`bridge/src/RedMoon.Bridge` exit 0 with 0 warnings. The build and the suite were
+re-run by this session rather than taken from the build agent's report.
+
+**The headline: `data/rmdata/1.1.13.0-r99712/tables/items.json` has 425 rows and
+`recipes.json` has 663.** The plugin loaded in the dedicated server, bound 8780,
+answered `/health` and `/dump/prefabs`, and `rmdata_ingest` validated and
+promoted the result. That is the first item stat data ever to enter this repo.
+
+Four things that were WRITTEN DOWN and turned out wrong. All four were corrected
+by running something, and the corrections are the real value of the session:
+
+1. **`items.stats` is a ONE-HOP read.** `ModifyUnitStatBuff_DOTS` is populated
+   directly on the item prefab. The buff prefab named by `EquippableData.BuffGuid`
+   has NO stat buffer at all. The two-hop path in `BRIDGE_SPIKES.md` was inferred
+   from a field list and presented as measurement.
+2. **The prefab count is 23583, not 1189.** The map fills over about 1.7 s and
+   1189 was a mid-load sample. `GameDataInitialized` flips exactly as it settles,
+   so it is a real readiness gate. A census taken at first non-zero count returns
+   castle tiles and blueprints and looks complete while being wrong - that
+   happened on the first run and is why the gate exists.
+3. **The ability school is `DealDamageParameters.MainType`** on the `_Hit`
+   entity, `ProjectM.MainDamageType`. Not on `_Cast`, `_AbilityGroup`, `_Buff` or
+   `_Projectile`, all four checked against real component lists. Six samples were
+   taken deliberately because one `Physical` reading cannot be told from a
+   default; `MainType` and `MainFactor` both vary.
+4. **`vbloods` was probed with the wrong marker.** `ShadowVBloodUnitTagComponent`
+   is a runtime tag, so its zero was a true absence AND misleading. The real
+   types are `VBloodUnit`, `VBloodConsumeSource`, `VBloodAbilityBuffEntry`,
+   `VBloodUnlockTechBuffer`.
+
+The schema amendment was ruled ON EVIDENCE and one of its own arguments was
+discarded. `items.stats` went to an array at `schema_version` 2 because three
+modification kinds occur in the real data (Add 665, AddToBase 232,
+MultiplyBaseAdd 2). The "a map would collapse duplicate StatTypes" argument was
+MEASURED FALSE - zero of 425 items repeat a StatType - and is not used to
+justify the change. `blood_types.bonuses[].stats` is a different field and was
+deliberately left alone.
+
+Three things the next session must not get wrong:
+
+1. **`items.tier` is fabricated as 0 on every one of the 425 rows.** The schema
+   requires it, no per-item tier component exists on this build, and the dumper
+   emits a placeholder. Do NOT let a cycle 3 consumer treat it as real, and do
+   NOT close it by parsing the `_T0x` name token.
+2. **Nothing has been run in the CLIENT.** The client half of S1(b) is still
+   open: `Client_0` read `Count=0` at the load instant and was never re-measured.
+   A Private Game spawns a child `VRisingServer.exe` that does not load BepInEx,
+   so in that configuration neither host can serve a dump. The reason it does not
+   load is a HYPOTHESIS, not a measurement.
+3. `/state` returns `state: null` honestly - there is no `StateReader.cs` yet, so
+   `bridge_probe --motion-diff` cannot pass and should not be expected to.
+
+Process note worth keeping: the build agent wrote into the MAIN working tree
+despite being launched with worktree isolation, and `git worktree list` never
+showed a second tree. Nothing was lost, but the "never commit while agents live"
+rule did real work here. It also read one instruction in its brief against
+`docs/API.md` D3, followed the repo rule, and flagged the conflict instead of
+silently choosing - which is the behaviour that should be reinforced.
+
 ## 2026-07-26 - Cycle 2 part 2: the probe plugin, and seven spikes closed by running it
 
 Branch `cycle-2-bridge`, three commits on top of `5933cfe`. Cycle 2 is still NOT

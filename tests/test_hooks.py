@@ -1,8 +1,12 @@
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from core import ports
 from tools import precommit_gate, text_first_guard
 
 REPO = Path(__file__).resolve().parents[1]
@@ -25,7 +29,7 @@ def test_text_first_guard_denies_a_screen_text_reader():
     inner = decision["hookSpecificOutput"]
     assert inner["hookEventName"] == "PreToolUse"
     assert inner["permissionDecision"] == "deny"
-    assert "8778" in inner["permissionDecisionReason"]
+    assert str(ports.DASHBOARD) in inner["permissionDecisionReason"]
 
 
 def test_text_first_guard_allows_screenshots_and_ordinary_tools():
@@ -82,5 +86,54 @@ def test_settings_json_references_no_other_project():
 def test_rm_facts_runs_and_reports_ports():
     result = run_hook("rm_facts.py", {"hook_event_name": "SessionStart"})
     assert result.returncode == 0
-    assert "8777" in result.stdout
+    assert str(ports.BRIDGE) in result.stdout
     assert "1.1.13.0-r99712" in result.stdout or "not installed" in result.stdout
+
+
+NON_OBJECT_JSON_PAYLOADS = ["null", "42", "[1, 2]", '"just a string"']
+
+
+@pytest.mark.parametrize("script", ["text_first_guard.py", "precommit_gate.py", "pytest_guard.py"])
+@pytest.mark.parametrize("bad_stdin", NON_OBJECT_JSON_PAYLOADS)
+def test_hooks_exit_zero_on_non_object_json_stdin(script, bad_stdin):
+    """A syntactically valid but non-object top-level JSON value on stdin
+
+    (null, a bare number, a list, a bare string) must never crash a hook -
+    payload.get(...) on a non-dict raises AttributeError, and a crashing
+    PreToolUse hook would block every tool call for the whole session.
+    """
+    result = subprocess.run(
+        [sys.executable, str(REPO / "tools" / script)],
+        input=bad_stdin,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+    )
+    assert result.returncode == 0, (
+        f"{script} with stdin {bad_stdin!r} exited {result.returncode}: {result.stderr}"
+    )
+
+
+def _init_repo_with_ruff_toml(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    shutil.copy(REPO / "ruff.toml", tmp_path / "ruff.toml")
+
+
+def test_precommit_gate_blocks_a_staged_python_file_with_a_ruff_finding(tmp_path):
+    _init_repo_with_ruff_toml(tmp_path)
+    bad = tmp_path / "bad.py"
+    bad.write_text("import os\n\n\ndef unused():\n    pass\n", encoding="utf-8")
+    subprocess.run(["git", "add", "bad.py", "ruff.toml"], cwd=tmp_path, check=True)
+    reasons = precommit_gate.check_staged(tmp_path)
+    assert any("ruff" in reason for reason in reasons)
+
+
+def test_precommit_gate_passes_a_clean_staged_python_file(tmp_path):
+    _init_repo_with_ruff_toml(tmp_path)
+    good = tmp_path / "good.py"
+    good.write_text(
+        '"""A clean module."""\n\n\ndef greet() -> str:\n    return "hi"\n',
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "good.py", "ruff.toml"], cwd=tmp_path, check=True)
+    assert precommit_gate.check_staged(tmp_path) == []

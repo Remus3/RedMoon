@@ -60,10 +60,16 @@ def main() -> int:
     try:
         raw = sys.stdin.read()
         payload = json.loads(raw) if raw.strip() else {}
+        if not isinstance(payload, dict):
+            # A syntactically valid but non-object top-level JSON value (null,
+            # a number, a list, a bare string) must not reach decide() as-is -
+            # treat it as an empty payload rather than relying on the except
+            # below to catch the AttributeError from payload.get(...).
+            payload = {}
         decision = decide(payload)
         if decision is not None:
             sys.stdout.write(json.dumps(decision))
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError, AttributeError):
         pass
     return 0
 

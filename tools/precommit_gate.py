@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """PreToolUse commit gate.
 
-Blocks a commit whose staged authored files contain non-ASCII codepoints, and
-reports net-new ruff findings on staged Python files. See CLAUDE.md hard rules.
+Blocks a commit whose staged authored files contain non-ASCII codepoints, or
+whose staged Python files have any ruff finding. Ruff runs over the full
+current content of each staged .py file and blocks on any finding, including
+pre-existing lint debt on lines the commit never touched - this is not a
+net-new-only check. See CLAUDE.md hard rules.
 
 Never raises: a crashing gate must not block tooling.
 """
@@ -24,12 +27,16 @@ REPO = Path(__file__).resolve().parents[1]
 
 def staged_files(repo: Path | None = None) -> list[str]:
     """Repo-relative POSIX paths of files staged for commit."""
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-        cwd=str(repo or REPO),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            cwd=str(repo or REPO),
+            capture_output=True,
+            text=True,
+            timeout=10,  # comfortably under the 60s PreToolUse hook timeout
+        )
+    except subprocess.TimeoutExpired:
+        return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
@@ -58,12 +65,16 @@ def check_staged(repo: Path | None = None) -> list[str]:
             )
 
     if python_files:
-        result = subprocess.run(
-            [sys.executable, "-m", "ruff", "check", *python_files],
-            cwd=str(root),
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "ruff", "check", *python_files],
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                timeout=30,  # comfortably under the 60s PreToolUse hook timeout
+            )
+        except subprocess.TimeoutExpired:
+            return reasons
         if result.returncode not in (0, 1):
             return reasons
         if result.returncode == 1:
@@ -78,6 +89,12 @@ def main() -> int:
     try:
         raw = sys.stdin.read()
         payload = json.loads(raw) if raw.strip() else {}
+        if not isinstance(payload, dict):
+            # A syntactically valid but non-object top-level JSON value (null,
+            # a number, a list, a bare string) must not reach .get(...) as-is -
+            # treat it as an empty payload rather than relying on the except
+            # below to catch the AttributeError.
+            payload = {}
         command = str(payload.get("tool_input", {}).get("command", ""))
         if "git commit" not in command:
             return 0
@@ -91,7 +108,7 @@ def main() -> int:
                 }
             }
             sys.stdout.write(json.dumps(out))
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError, AttributeError):
         pass
     return 0
 

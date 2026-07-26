@@ -55,11 +55,15 @@ def data_build() -> str:
 
 
 def scheduled_tasks() -> list[str]:
-    result = subprocess.run(
-        ["schtasks", "/query", "/fo", "csv", "/nh"],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["schtasks", "/query", "/fo", "csv", "/nh"],
+            capture_output=True,
+            text=True,
+            timeout=5,  # comfortably under the 10s SessionStart hook timeout
+        )
+    except subprocess.TimeoutExpired:
+        return []
     names = []
     for line in result.stdout.splitlines():
         name = line.split(",")[0].strip('"').lstrip("\\")

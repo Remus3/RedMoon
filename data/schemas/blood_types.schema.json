@@ -1,0 +1,12 @@
+{
+  "table": "blood_types",
+  "schema_version": 1,
+  "description": "Blood types and their quality-scaled bonuses. Filled by the cycle 2 bridge prefab dump.",
+  "required": ["prefab_guid", "name"],
+  "fields": {
+    "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
+    "name": {"type": "string", "description": "Resolved English display name, such as Warrior or Rogue."},
+    "localization_guid": {"type": "string", "description": "Key into strings.json."},
+    "bonuses": {"type": "array", "description": "Ordered bonus tiers, each with a quality threshold and scaled stat values."}
+  }
+}

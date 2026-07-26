@@ -15,6 +15,68 @@ from tools.rmdata_extract import (
 
 BUILD = "1.1.13.0-r99712"
 
+FAKE_BUILD = "9.9.9.9-r12345"
+
+
+@pytest.fixture
+def fake_install(tmp_path):
+    """Build a minimal but complete synthetic install tree under tmp_path.
+
+    Mirrors the real install's shape so extract() gets real coverage of its
+    own orchestration on machines without V Rising installed.
+    """
+    root = tmp_path / "fake_install"
+    root.mkdir()
+    (root / "VERSION").write_text(
+        "VRising: v9.9.9.9-r12345-b01 (202601010000)", encoding="utf-8"
+    )
+
+    streaming = root / "VRising_Data" / "StreamingAssets"
+
+    loc_dir = streaming / "Localization"
+    loc_dir.mkdir(parents=True)
+    (loc_dir / "English.json").write_text(
+        json.dumps(
+            {
+                "Codes": [
+                    {"Key": "</c>", "Value": "</color>", "Description": ""},
+                    {"Key": "<red1>", "Value": "<color=#C52443>", "Description": ""},
+                ],
+                "Nodes": [
+                    {"Guid": "guid-1", "Text": "<red1>Blood</c>"},
+                    {"Guid": "guid-2", "Text": "Bear Form"},
+                    {"Guid": "guid-3", "Text": "Wolf Form"},
+                ],
+            }
+        ),
+        encoding="utf-8-sig",
+    )
+
+    difficulty_dir = streaming / "GameDifficultyPresets"
+    difficulty_dir.mkdir(parents=True)
+    (difficulty_dir / "Difficulty_Easy.json").write_text(
+        json.dumps({"Name": "Easy", "Multiplier": 0.5}), encoding="utf-8-sig"
+    )
+    (difficulty_dir / "Difficulty_Normal.json").write_text(
+        json.dumps({"Name": "Normal", "Multiplier": 1.0}), encoding="utf-8-sig"
+    )
+    (difficulty_dir / "Difficulty_Brutal.json").write_text(
+        json.dumps({"Name": "Brutal", "Multiplier": 2.0}), encoding="utf-8-sig"
+    )
+
+    settings_dir = streaming / "Settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "ServerGameSettings.json").write_text(
+        json.dumps({"ServerName": "fake-game", "MaxPlayers": 40}),
+        encoding="utf-8-sig",
+    )
+    (settings_dir / "ServerHostSettings.json").write_text(
+        json.dumps({"ServerName": "fake-host", "Port": 9876}),
+        encoding="utf-8-sig",
+    )
+
+    return root
+
 
 def test_parse_build_id_from_the_real_version_string():
     assert parse_build_id("VRising: v1.1.13.0-r99712-b17 (202605251526)") == BUILD
@@ -100,3 +162,106 @@ def test_extract_is_idempotent(tmp_path):
     first = digest(extract(DEFAULT_INSTALL, tmp_path))
     second = digest(extract(DEFAULT_INSTALL, tmp_path))
     assert first == second
+
+
+def test_extract_against_fake_install_produces_the_expected_layout(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    assert build_dir.name == FAKE_BUILD
+    assert (build_dir / "strings.json").is_file()
+    assert (build_dir / "codes.json").is_file()
+    assert (build_dir / "meta.json").is_file()
+    for name in ("Difficulty_Easy", "Difficulty_Normal", "Difficulty_Brutal"):
+        assert (build_dir / "difficulty" / f"{name}.json").is_file()
+    for name in ("ServerGameSettings", "ServerHostSettings"):
+        assert (build_dir / "settings" / f"{name}.json").is_file()
+
+
+def test_extract_against_fake_install_strings_match_load_localization(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    loc_path = (
+        fake_install
+        / "VRising_Data"
+        / "StreamingAssets"
+        / "Localization"
+        / "English.json"
+    )
+    expected_strings, expected_codes = load_localization(loc_path)
+
+    strings = json.loads((build_dir / "strings.json").read_text(encoding="utf-8"))
+    codes = json.loads((build_dir / "codes.json").read_text(encoding="utf-8"))
+
+    assert strings == expected_strings
+    assert codes == expected_codes
+    assert strings["guid-1"] == "<color=#C52443>Blood</color>"
+    assert strings["guid-2"] == "Bear Form"
+    assert strings["guid-3"] == "Wolf Form"
+
+
+def test_extract_against_fake_install_difficulty_and_settings_round_trip(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    streaming = fake_install / "VRising_Data" / "StreamingAssets"
+
+    for name in ("Difficulty_Easy", "Difficulty_Normal", "Difficulty_Brutal"):
+        src = json.loads(
+            (streaming / "GameDifficultyPresets" / f"{name}.json").read_text(
+                encoding="utf-8-sig"
+            )
+        )
+        out = json.loads(
+            (build_dir / "difficulty" / f"{name}.json").read_text(encoding="utf-8")
+        )
+        assert out == src
+
+    for name in ("ServerGameSettings", "ServerHostSettings"):
+        src = json.loads(
+            (streaming / "Settings" / f"{name}.json").read_text(encoding="utf-8-sig")
+        )
+        out = json.loads(
+            (build_dir / "settings" / f"{name}.json").read_text(encoding="utf-8")
+        )
+        assert out == src
+
+
+def test_extract_against_fake_install_meta_json_shape(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    meta = json.loads((build_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["build"] == FAKE_BUILD
+    assert meta["string_count"] == 3
+    assert meta["code_count"] == 2
+    assert meta["schema_version"] == 1
+
+
+def test_extract_against_fake_install_writes_current_pointer(fake_install, tmp_path):
+    extract(fake_install, tmp_path)
+    current = (tmp_path / "data" / "rmdata" / "current.txt").read_text(encoding="utf-8")
+    assert current.strip() == FAKE_BUILD
+
+
+def test_extract_against_fake_install_is_idempotent(fake_install, tmp_path):
+    def digest(root: Path) -> dict[str, str]:
+        out = {}
+        for path in sorted(root.rglob("*")):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                out[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        return out
+
+    first = digest(extract(fake_install, tmp_path))
+    second = digest(extract(fake_install, tmp_path))
+    assert first == second
+
+
+def test_extract_raises_and_does_not_publish_pointer_on_missing_source(fake_install, tmp_path):
+    missing = (
+        fake_install
+        / "VRising_Data"
+        / "StreamingAssets"
+        / "GameDifficultyPresets"
+        / "Difficulty_Brutal.json"
+    )
+    missing.unlink()
+
+    with pytest.raises(FileNotFoundError):
+        extract(fake_install, tmp_path)
+
+    assert not (tmp_path / "data" / "rmdata" / "current.txt").exists()

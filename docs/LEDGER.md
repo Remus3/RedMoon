@@ -55,7 +55,7 @@ closing:
    footnote, so no cycle 3 code scaffolds weapon damage on an assumed source.
 
 VERIFICATION: `python -m pytest` 317 passed, `python tools/ascii_guard.py` exit
-0, `python -m ruff check .` clean. Commit `TBD`.
+0, `python -m ruff check .` clean. Commit `b78fe2a`.
 
 THE LESSON CYCLE 2 LEAVES BEHIND, promoted out of the session notes because it
 outlives them: a real measurement can answer the RIGHT question about the WRONG

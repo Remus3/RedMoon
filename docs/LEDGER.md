@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003c - Cycle 3 phase 1: the component inventory (2026-07-26)
 
-Commit `68f6d57`. Exploratory only: no schema, no table, no ingest gate, no
+Commits `68f6d57` (endpoint plus inventory) and `4724092` (ledger, notes,
+ROADMAP). Exploratory only: no schema, no table, no ingest gate, no
 combat math. Stops at the operator gate by design.
 
 WHAT SHIPPED. `GET /dump/components` in `bridge/src/RedMoon.Bridge/`, taking

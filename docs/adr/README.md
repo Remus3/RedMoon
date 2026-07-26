@@ -6,6 +6,7 @@ Before re-litigating a past choice, read the relevant record here first.
 - [ADR-002](ADR-002-bepinex-bridge-live-source.md) - A BepInEx plugin is the live game data source
 - [ADR-003](ADR-003-port-map.md) - Port map
 - [ADR-004](ADR-004-bridge-hosts-client-and-server.md) - RedMoon.Bridge targets both the client and the dedicated server
+- [ADR-005](ADR-005-second-bridge-port.md) - A second bridge port instead of arbitration (amends ADR-003)
 
 ## Format
 

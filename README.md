@@ -7,7 +7,8 @@ combat, progression, economy and castle math in an engine called Bloodforge, and
 serves a local dashboard.
 
 - Game build pin: `1.1.13.0-r99712`
-- Ports: bridge 8777, dashboard 8778, vision 8779, engine 8783
+- Ports: bridge client 8777, dashboard 8778, vision 8779, bridge server 8780,
+  engine 8783
 - Agent context and doctrine: `CLAUDE.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Decisions: `docs/adr/README.md`

@@ -34,6 +34,24 @@ of the spec has been amended to match; this section is the short index.
    generalize to any other download. See section 8, step 0.
 6. **ADR-004 is written**, at `docs/adr/ADR-004-bridge-hosts-client-and-server.md`,
    and listed in `docs/adr/README.md`.
+7. **The D1 ARBITRATION OF 8777 IS OVERRIDDEN, 2026-07-26, by ADR-005.** A fifth
+   port is minted. The client host binds 8777 (`ports.BRIDGE`), the dedicated
+   server binds 8780 (`ports.BRIDGE_SERVER`), and the choice is a pure function
+   of the detected host via `core.ports.bridge_port_for_host`. Everything in D1
+   about bind-time first-come, the losing host standing down, and the mandated
+   server-first start order is SUPERSEDED and must not be implemented. Also
+   struck: install step 6b, acceptance criterion 5b, and risk R15. `/health`
+   still reports `host` and `bridge_probe.py` still takes `--expect-host`; their
+   role changes from arbitration safety to a host-detection assertion. The rest
+   of D1 - one assembly, two install targets, host detection, per-host proof -
+   stands unchanged. See `docs/adr/ADR-005-second-bridge-port.md`.
+8. **S4 IS CLOSED, 2026-07-26, by measurement.** A `net6.0` class library builds
+   clean under the only installed SDK, 10.0.301, with no .NET 6 targeting pack
+   installed and no `global.json`; NuGet restored the reference pack itself.
+   Resolution: NEITHER of the fallbacks in S4 is needed. Risk R2 is retired for
+   the bare TFM. What is still unproven is the build with the BepInEx and
+   Il2CppInterop references added, which is a reference-resolution question, not
+   a targeting-pack one.
 
 STILL OPEN. The six technical spikes in section 9 (S1, S2, S3 with S3a, S4, S5,
 S6) are UNRESOLVED by these rulings. Nothing in this section confirms a type

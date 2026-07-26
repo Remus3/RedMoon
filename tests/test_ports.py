@@ -26,6 +26,8 @@ SKIPPED_DIR_PARTS = frozenset(
         "build",
         "dist",
         "data",
+        # .NET build intermediates and the BepInEx pack land here (spec D8).
+        "_scratch",
     }
 )
 
@@ -35,8 +37,13 @@ OWN_PORT_ALLOWLIST = frozenset(
     {
         "core/ports.py",
         "docs/adr/ADR-003-port-map.md",
+        "docs/adr/ADR-005-second-bridge-port.md",
         "CLAUDE.md",
         "README.md",
+        # GENERATED from core/ports.py by tools/gen_bridge_ports.py. The C# side
+        # cannot import the registry, so exactly one machine-written file is
+        # permitted to spell the numbers. Spec D2, approved 2026-07-26.
+        "bridge/src/RedMoon.Bridge/Generated/RmPorts.g.cs",
     }
 )
 
@@ -64,8 +71,26 @@ def test_port_values_match_adr_003():
     assert ports.ENGINE == 8783
 
 
+def test_bridge_server_port_matches_adr_005():
+    """The dedicated-server bridge is a distinct port, not a contended one."""
+    assert ports.BRIDGE_SERVER == 8780
+    assert ports.BRIDGE_SERVER != ports.BRIDGE
+
+
+def test_bridge_port_for_host_is_total_and_deterministic():
+    """Host detection selects the port. There is no bind-time race (ADR-005)."""
+    assert ports.bridge_port_for_host("client") == ports.BRIDGE
+    assert ports.bridge_port_for_host("server") == ports.BRIDGE_SERVER
+    for bad in ("Client", "", "both", "dedicated"):
+        try:
+            ports.bridge_port_for_host(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"bridge_port_for_host accepted {bad!r}")
+
+
 def test_all_is_the_complete_disjoint_set():
-    assert ports.ALL == frozenset({8777, 8778, 8779, 8783})
+    assert ports.ALL == frozenset({8777, 8778, 8779, 8780, 8783})
     assert ports.ALL.isdisjoint(FORBIDDEN)
 
 
@@ -97,7 +122,7 @@ def test_own_port_literals_appear_only_in_the_allowlist():
     unnoticed. tests/ is allowed because the port registry test asserts the
     values, which means spelling them.
     """
-    pattern = re.compile(r"\b(8777|8778|8779|8783)\b")
+    pattern = re.compile(r"\b(8777|8778|8779|8780|8783)\b")
     offenders = []
     examined = 0
     for rel, text in _scanned_sources(skip_tests=False):

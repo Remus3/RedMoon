@@ -22,10 +22,15 @@ every live reader finds the bridge. See `core/ports.py`.
 
 | Service | Port |
 |---|---|
-| RedMoon.Bridge (live game JSON) | 8777 |
+| RedMoon.Bridge, client host (live game JSON) | 8777 |
 | Dashboard (HTTPS) | 8778 |
 | Vision server | 8779 |
+| RedMoon.Bridge, dedicated-server host (ADR-005) | 8780 |
 | Bloodforge engine | 8783 |
+
+One plugin assembly loads in both hosts (ADR-004) and the port is a pure
+function of the detected host, `core.ports.bridge_port_for_host` (ADR-005).
+There is no bind-time race and no mandated start order.
 
 ## Paths
 

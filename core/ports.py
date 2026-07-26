@@ -8,7 +8,20 @@ in a comment) would trip it. The full rationale lives in ADR-003.
 from __future__ import annotations
 
 BRIDGE = 8777
-"""RedMoon.Bridge BepInEx plugin, local live game JSON (cycle 2)."""
+"""RedMoon.Bridge in the V Rising CLIENT process, local live game JSON (cycle 2).
+
+The client keeps the original bridge port because the solo client is the
+dominant topology and tools/rm_facts.py already probes this number.
+"""
+
+BRIDGE_SERVER = 8780
+"""RedMoon.Bridge in the DEDICATED SERVER process (ADR-005).
+
+One plugin assembly loads in both hosts (ADR-004), and both hosts can run at
+once on this machine. Rather than race for a single port and have the loser
+stand down, each host binds the port its own detected host type selects. See
+bridge_port_for_host.
+"""
 
 DASHBOARD = 8778
 """Dashboard, HTTPS (cycle 4)."""
@@ -19,7 +32,27 @@ VISION = 8779
 ENGINE = 8783
 """Bloodforge combat math server (cycle 3)."""
 
-ALL = frozenset({BRIDGE, DASHBOARD, VISION, ENGINE})
+ALL = frozenset({BRIDGE, BRIDGE_SERVER, DASHBOARD, VISION, ENGINE})
+
+BRIDGE_HOSTS = ("client", "server")
+"""The two V Rising hosts the bridge assembly can load into (ADR-004)."""
+
+_BRIDGE_PORT_BY_HOST = {"client": BRIDGE, "server": BRIDGE_SERVER}
+
+
+def bridge_port_for_host(host: str) -> int:
+    """Return the bridge port a host binds. Total over BRIDGE_HOSTS, else raises.
+
+    This is the whole of the ADR-005 arbitration rule: the port is a pure
+    function of the detected host, so two hosts running at once never contend
+    and no start order has to be remembered.
+    """
+    try:
+        return _BRIDGE_PORT_BY_HOST[host]
+    except KeyError:
+        raise ValueError(
+            f"unknown bridge host {host!r}, expected one of {BRIDGE_HOSTS}"
+        ) from None
 
 GAME_HOST_ENV = "RM_GAME_HOST"
 """Environment variable naming the host every live reader talks to.

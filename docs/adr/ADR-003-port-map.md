@@ -1,6 +1,8 @@
 # ADR-003 - Port map
 
-**Status:** Accepted, 2026-07-26
+**Status:** Accepted, 2026-07-26. AMENDED by ADR-005, 2026-07-26: the count is
+now five, not four. ADR-005 adds 8780 for the dedicated-server bridge. The
+"exactly four" wording below is superseded; everything else stands.
 
 ## Context
 
@@ -11,13 +13,14 @@ failure rather than a clear error.
 
 ## Decision
 
-Red Moon owns exactly four ports:
+Red Moon owns exactly four ports (now five, see ADR-005):
 
 | Service | Port |
 |---|---|
-| RedMoon.Bridge, live game JSON | 8777 |
+| RedMoon.Bridge, client host, live game JSON | 8777 |
 | Dashboard, HTTPS | 8778 |
 | Vision server | 8779 |
+| RedMoon.Bridge, dedicated-server host (ADR-005) | 8780 |
 | Bloodforge engine | 8783 |
 
 These are declared once, in `core/ports.py`. No port literal may appear anywhere

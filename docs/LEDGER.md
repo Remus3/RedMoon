@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 002d - Cycle 2 part 4: /state goes live, and two fabricated fields are retired (2026-07-26)
 
-Code commit `2bc26d5` on `master`. No merge hash: `cycle-2-bridge` was
+Code commit `2bc26d5` on `master`, docs commit `e014af7` carrying this entry.
+No merge hash: `cycle-2-bridge` was
 fast-forwarded into `master` this session at `6acbc66` and work continued
 directly on `master`, so the code commit IS the carrying hash. The
 fast-forward was deliberate - a `merge:` commit would have recorded a cycle 2

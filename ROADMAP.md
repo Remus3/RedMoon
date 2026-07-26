@@ -16,6 +16,11 @@ BepInEx plugin serving live game JSON on 8777, plus the runtime
 `PrefabCollectionSystem` dump that populates the cycle 1 table schemas with real
 item and ability stat data.
 
+Spec: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md` (APPROVED
+2026-07-26). The plugin targets both the client and the dedicated server, per
+ADR-004. `PrefabCollectionSystem` above is an unverified label, not a confirmed
+type name; spike S1 in the spec resolves it.
+
 The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
 schema-valid envelope per table name in `core/tables.py`. The dump fills those
 files in place, and `tools/rmdata_extract.py` never overwrites a populated one.

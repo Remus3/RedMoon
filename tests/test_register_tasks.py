@@ -1,10 +1,14 @@
+import ctypes
 import subprocess
+import sys
+from ctypes import wintypes
 
 from ops.register_tasks import (
     TASKS,
+    _build_create_argv_from_spec,
     build_create_command,
     build_delete_command,
-    _build_create_argv_from_spec,
+    main,
 )
 
 
@@ -45,19 +49,52 @@ def test_unknown_task_raises():
         build_create_command("RM-DoesNotExist")
 
 
-def test_create_command_quoting_with_spaces_in_paths():
-    """Verify that paths with spaces are properly quoted.
+def _tokenize(cmdline: str) -> list[str]:
+    """Tokenize a command line using Windows CommandLineToArgvW API.
 
-    This test exercises the quoting behavior by constructing a synthetic
-    task spec with spaces in both the pythonw path and script path. We then
-    verify that when the argv is passed through subprocess.list2cmdline
-    (which is how the --show output is rendered), the /tr value preserves
-    both quoted paths as a single argument. Without proper quoting, Windows
-    schtasks would split the /tr argument at the space between the exe and
-    script paths, causing the script path to become a stray token that
-    schtasks would reject.
+    This mimics what the actual Windows shell does when parsing a command line,
+    ensuring that our list2cmdline output is faithful to real execution.
     """
-    # Synthetic task spec with spaces in paths
+    # Set up the function signature for CommandLineToArgvW
+    kernel32 = ctypes.WinDLL("kernel32", use_errno=True)
+    shell32 = ctypes.WinDLL("shell32", use_errno=True)
+
+    # CommandLineToArgvW(LPCWSTR lpCmdLine, int *pNumArgs) -> LPWSTR*
+    shell32.CommandLineToArgvW.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.POINTER(ctypes.c_int),
+    ]
+    shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.c_wchar_p)
+
+    argc = ctypes.c_int(0)
+    argv = shell32.CommandLineToArgvW(cmdline, ctypes.byref(argc))
+
+    if not argv:
+        return []
+
+    try:
+        # Extract the argument strings from the array
+        result = []
+        for i in range(argc.value):
+            result.append(argv[i])
+        return result
+    finally:
+        kernel32.LocalFree(argv)
+
+
+def test_create_command_quoting_round_trips_with_spaces():
+    """TEST A: Verify /tr value survives Windows tokenization with spaces.
+
+    Build a create command for a synthetic spec whose executable and script
+    paths both contain spaces. Render with subprocess.list2cmdline. Tokenize
+    back using CommandLineToArgvW. Assert the /tr value comes back as exactly
+    ONE argument containing both quoted paths.
+
+    This test FAILS if the /tr value is built unquoted, because the inner space
+    would split it into two tokens and the element after /tr would be only the
+    executable path, not the full quoted action string.
+    """
+    # Synthetic task spec with spaces in both paths
     synthetic_spec = {
         "script": r"C:\Program Files\Red Moon\tools\rmdata extract.py",
         "schedule": "DAILY",
@@ -66,22 +103,66 @@ def test_create_command_quoting_with_spaces_in_paths():
     }
 
     pythonw_with_space = r"C:\Program Files\Python314\pythonw.exe"
-    argv = _build_create_argv_from_spec("RM-TestSpaces", pythonw_with_space, synthetic_spec)
+    argv = _build_create_argv_from_spec(
+        "RM-TestSpaces", pythonw_with_space, synthetic_spec
+    )
 
     # The argv should have /tr as a single list element containing the quoted paths
     tr_index = argv.index("/tr")
     tr_value = argv[tr_index + 1]
-    # tr_value should be: "<pythonw_with_space>" "<script_with_space>"
-    assert tr_value == f'"{pythonw_with_space}" "{synthetic_spec["script"]}"'
+    expected_tr_value = f'"{pythonw_with_space}" "{synthetic_spec["script"]}"'
+    assert tr_value == expected_tr_value
 
-    # Now convert to command line (as --show does) and verify the quoting
-    # is preserved and the /tr value survives Windows tokenization
+    # Render to command line as --show does
     cmdline = subprocess.list2cmdline(argv)
 
-    # The cmdline should have the /tr value with inner quotes properly escaped
-    # or formatted so that when schtasks receives it, /tr captures both paths as one
-    assert "/tr" in cmdline
-    # Verify that the pythonw path and script path both appear in the cmdline
-    # and that they are quoted
-    assert f'"{pythonw_with_space}"' in cmdline or pythonw_with_space in cmdline
-    assert f'"{synthetic_spec["script"]}"' in cmdline or synthetic_spec["script"] in cmdline
+    # Tokenize back using the real Windows API
+    tokenized = _tokenize(cmdline)
+
+    # Find /tr in the tokenized result and assert the next element equals
+    # the original /tr value (both paths intact, not split)
+    tr_idx = tokenized.index("/tr")
+    tokenized_tr_value = tokenized[tr_idx + 1]
+
+    # This assertion FAILS if quoting is broken - the inner space would cause
+    # the value to split, and we'd get only the pythonw path
+    assert tokenized_tr_value == expected_tr_value
+
+
+def test_main_show_uses_list2cmdline_not_space_join(capsys):
+    """TEST B: Verify main() --show uses subprocess.list2cmdline.
+
+    Call main() with --show flag and capture stdout. Assert the output
+    uses proper quoting via list2cmdline. Assert it is NOT equal to the
+    naive space-join version.
+
+    This test FAILS if main()'s --show path is reverted to ' '.join(argv),
+    because the output would differ from the properly quoted version.
+    """
+    # Patch sys.argv to pass --show to main()
+    original_argv = sys.argv
+    try:
+        sys.argv = ["ops/register_tasks.py", "--show"]
+        main()
+    finally:
+        sys.argv = original_argv
+
+    # Capture the output
+    captured = capsys.readouterr()
+    output_line = captured.out.strip()
+
+    # Build what the correct output should be
+    argv = build_create_command("RM-DataRefresh")
+    correct_cmdline = subprocess.list2cmdline(argv)
+    expected_line = f"RM-DataRefresh: {correct_cmdline}"
+
+    # Build what the broken (space-join) version would be
+    broken_cmdline = " ".join(argv)
+    broken_line = f"RM-DataRefresh: {broken_cmdline}"
+
+    # Assert the output matches the correct version
+    assert output_line == expected_line
+
+    # Assert it is NOT the broken version (this is the key assertion that
+    # makes the test fail if someone reverts to space-join)
+    assert output_line != broken_line

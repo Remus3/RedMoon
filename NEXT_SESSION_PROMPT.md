@@ -5,132 +5,138 @@ Paste the fenced block below into a cleared session.
 ---
 
 ```
-Two items, in this order: wire the precommit gate as a real git hook, THEN cycle
-3 phase 1, the Bloodforge input spike exploratory pass. Read CLAUDE.md,
-MEMORY.md, ROADMAP.md, WAKEUP_NOTES.md,
-docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md and
-docs/BRIDGE_SPIKES.md, then git log --oneline -10.
+Cycle 3 phase 2: the schema'd dump. Read CLAUDE.md, MEMORY.md, ROADMAP.md,
+WAKEUP_NOTES.md, docs/BRIDGE_SPIKES.md (the "Cycle 3 phase 1" section is the
+whole input to this session) and
+docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md section 4,
+then git log --oneline -6.
 
-THE SPEC IS APPROVED. Do not re-litigate it and do not re-run the brainstorming
-skill. Do item 0, then phase 1, then STOP at the operator gate. Writing any
-schema, any table or any combat math this session violates the spec.
+THE SPEC IS APPROVED AND THE PHASE 1 GATE IS PASSED. Do not re-litigate either
+and do not re-run the brainstorming skill. Do not write combat math: that is a
+SECOND spec, opened only after this one lands.
 
-ITEM 0, DO THIS FIRST, BEFORE ANY BRIDGE WORK.
+CONTEXT, do not re-derive or re-verify:
 
-tools/precommit_gate.py exists and imports is_authored and scan_text from
-tools/ascii_guard.py, but it is NOT wired as a git hook: C:\RedMoon\.git\hooks
-holds only .sample files and `git config core.hooksPath` is unset. Verified
-2026-07-26. The gate is a script nothing calls.
-
-This is not hypothetical. Last session commit 2f14c4c landed a UTF-8 BOM in
-WAKEUP_NOTES.md even though `python tools/ascii_guard.py` had exited 1, because
-the shell chain used `;` and nothing structural blocked the commit. Fixed after
-the fact in f648367. A verification chained with `;` is a log line, not a gate.
-Windows PowerShell 5.1 has no `&&` (parse error) and pwsh 7 is NOT installed on
-this machine, so the shell cannot be relied on to solve this - the hook must.
-
-Install tools/precommit_gate.py so it BLOCKS a bad commit rather than reporting
-one. .git/hooks is not version-controlled, so a fresh clone must inherit the
-gate: prefer a committed hooks/ directory plus `git config core.hooksPath hooks`,
-or an installer under ops/. Both tools/precommit_gate.py and tools/ascii_guard.py
-are on the CLAUDE.md FROZEN list - do not modify either without explicit operator
-approval. The wiring lives OUTSIDE them.
-
-TDD per CLAUDE.md: write the failing test first, asserting the gate is reachable
-from the configured hook path. Then prove it end to end by staging a deliberate
-BOM or non-ASCII change and confirming the commit is actually REFUSED - a passing
-unit test is not evidence that git rejects anything. Tier 1 verification per R5.
-
-DO NOT act on this without asking first: pwsh 7 is absent, and migrating off
-Windows PowerShell 5.1 would change the stated rationale for the ASCII hard rule
-in CLAUDE.md, which is justified specifically by 5.1 ANSI-decoding a no-BOM .ps1.
-That is an ADR-level decision and is NOT part of this session.
-
-CONTEXT (do not re-derive, do not re-verify):
-- Repo C:\RedMoon, branch master, clean and pushed, ONE worktree (C:/RedMoon),
-  no stray branches. github.com/Remus3/RedMoon is PUBLIC as of 2026-07-26.
-  Confirm HEAD from the git log above rather than from a hash written here.
-- Last verified: pytest 317 passed, ruff clean, ascii_guard exit 0. NOTE this
-  repo's pytest config suppresses the "N passed" summary line - count progress
-  characters instead of reporting a number you did not see.
-- Cycle 2 is CLOSED. All five tables are on disk under
-  data/rmdata/1.1.13.0-r99712/tables/: items 425 (schema 3), recipes 663
-  (schema 2), abilities 54, vbloods 65, blood_types 13. data/rmdata/ is
-  gitignored and regenerable. Do not rebuild it.
+- Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
+  from the git log above rather than from a hash written here.
+- Last verified: pytest 324 passed, ruff clean, ascii_guard exit 0, dotnet build
+  -c Release -t:Rebuild on bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj exit 0
+  with 0 warnings. There is NO .sln - build the csproj.
+- The precommit gate is now WIRED: committed hooks/ plus core.hooksPath, proven
+  to refuse a real BOM commit. A bad commit is blocked structurally now, not by
+  a shell chain.
+- data/rmdata/ is gitignored and regenerable: items 425 (schema 3), recipes 663
+  (schema 2), abilities 54, vbloods 65, blood_types 13. Do not rebuild it.
 - Never write a port literal - import from core/ports.py.
 
-WHAT PHASE 1 IS, once item 0 is green. One throwaway endpoint and one document.
-Nothing else.
+WHAT PHASE 1 ESTABLISHED, which is what you build against.
 
-1. GET /dump/components in bridge/src/RedMoon.Bridge/, taking either guid, or
-   name as a prefix plus limit, plus instanced=1 to scan spawned entities rather
-   than prefabs. For every matched entity print: entity index, prefab_guid,
-   prefab name, the COMPLETE component-type list by full type name, and every
-   readable field of each blittable component with its type and value.
-   Exploratory: no schema, no ingest gates, never promoted. It DOES wait on the
-   GameDataInitialized readiness gate. Instanced scans skip
-   Unity.Entities.Prefab.
-2. The component inventory for all four subject classes, written into
-   docs/BRIDGE_SPIKES.md with every component and field NAMED.
+- T1 ProjectM.Health.MaxHealth (ModifiableFloat).
+- T2 ProjectM.UnitStats.PhysicalResistance, .SpellResistance, .FireResistance,
+  .CorruptionDamageReduction. Holy, Silver and Garlic have NO unit-side field
+  across 150 enumerated components. ProjectM.ResistanceData is a GLOBAL
+  per-rating coefficient block, NOT a per-boss vector.
+- T3 ProjectM.UnitLevel.Level. T4 and P2 candidates: UnitLevel.Level,
+  UnitStats.PhysicalPower / .SpellPower, WeaponLevelSource on the item,
+  WeaponLevel on the equip buff.
+- A1 ProjectM.AbilityCastTimeData.MaxCastTime and .PostCastTime, on _Cast.
+- A2 ProjectM.AbilityCooldownData.Cooldown plus ProjectM.GlobalCooldown.Value.
+- A3 ProjectM.DealDamageParameters.MainFactor, .RawDamageValue,
+  .RawDamagePercent, on the _Hit entity's DealDamageOnGameplayEvent buffer.
+- A4 .MainType. A5 PROVEN ABSENT as a field. A6 PARTIAL:
+  DealDamageOnGameplayEvent.DamageModifierPerHit and
+  .MultiplyMainFactorWithStacks exist; the multiplicity itself is buffer LENGTHS
+  (HitTrigger, CreateGameplayEventsOnHit, AbilitySpawnPrefabOnCast) and COUNTING
+  THEM IS A PHASE 2 JOB.
+- L1 CLOSED: item -> ProjectM.EquippableData.BuffGuid ->
+  EquipBuff_Weapon_<Family>_Base -> DynamicBuffer<ProjectM.ReplaceAbilityOnSlotBuff>
+  -> element .NewGroupId is the ability GROUP and .Slot is the bar slot.
+- L2: cycle 2's chain, AbilityGroupStartAbilitiesBuffer -> _Cast ->
+  AbilitySpawnPrefabOnCast, 1474 of 1474, one hop only.
+- ProjectM.WeaponAbilityData on a group means WEAPON ability;
+  ProjectM.VBloodAbilityData and ProjectM.AbilitySpellSchool mean spell.
 
-THE ONE HARD RULE. Never call HasComponent on a name you hoped for. Enumerate
-the entity's actual component types and print all of them. A HasComponent that
-returns false is evidence only when the type name was right, and at this stage
-you have no way to know that.
+DO NOT BUILD A GENERIC VALUE READER. It was attempted twice and both attempts
+are recorded as failures in docs/BRIDGE_SPIKES.md.
+EntityManagerDebug.GetComponentBoxed returns an object NOT backed by real chunk
+memory on this build: managed reflection read 539327184 for every Int32 and
+1.402156E-19 for every Single, and raw il2cpp field offsets off that pointer HARD
+CRASHED the dedicated server, as did the raw il2cpp_class_get_fields iterator.
+Read values with TYPED accessors, the way PrefabDumper.cs already does. The
+inventory tells you which type to spell.
 
-MINIMUM SAMPLES, fixed by the spec, not negotiable. Cycle 2's blood_types near
-miss came from sampling the first two rows, which were BloodType_VBlood and
-BloodType_GateBoss - both unrepresentative, and the result read as a family-wide
-absence.
-- at least three CHAR_*_VBlood prefabs spanning the level range: near 16, mid,
-  and near 91
-- at least three ability groups across different schools, plus at least one
-  WEAPON ability group
-- at least one LIVE INSTANCED boss entity
-- at least two weapon items from different weapon families, for the L1 hop
+CARRY THE CONTROL FORWARD. Every entity carries Stunlock.Core.PrefabGUID whose
+value the response already states from a typed read. Any new reader must restate
+a quantity that is already known, or its numbers are unfalsifiable. That control
+is the only reason phase 1 did not publish fiction.
 
-WHAT YOU ARE HUNTING, the 14 required fields from spec section 2. Report each as
-SOURCED with component and field named, PROVEN ABSENT, or NOT ATTEMPTED:
-T1 boss max health, T2 boss resistance per damage type (Physical, Spell, Fire,
-Holy, Silver, Garlic, Corruption), T3 boss unit level (HAVE - ProjectM.UnitLevel
-.Level, 16 to 91), T4 target-side input to the level/power-difference term,
-A1 cast time, A2 cooldown, A3 damage coefficient, A4 damage type (PARTIAL, 16 of
-54), A5 which power stat the ability scales off, A6 hits per cast, P1
-PhysicalPower/SpellPower (HAVE, 203 of 205), P2 player-side input to the diff
-term, L1 weapon item to ability group, L2 ability group to coefficients.
+WHAT PHASE 2 IS, per spec section 4.
 
-THE L1 ASYMMETRY, stated so you do not trip over it. EquippableData.BuffGuid is
-BARRED as a route to item STATS - items.stats is a one-hop read off the item
-prefab and cycle 2 settled that. For ABILITIES the equip buff is the CORRECT
-hop. The rule is field-specific, not blanket.
+1. vbloods to schema_version 2: max health, a resistance map keyed by damage
+   type, and the target-side diff-term field. New dataclass fields APPEND AT THE
+   END with a default (CLAUDE.md Python convention).
+2. ability_stats, new, schema_version 1, keyed on ability-GROUP guid: cast time,
+   cooldown, coefficient, power stat, hits per cast, damage type. abilities stays
+   the identity and school table and joins on prefab_guid.
+3. items to schema_version 4: an ability_group_guids ARRAY, copying ADR-006's
+   station_guids shape exactly - plural, and an empty list ships as [] so "grants
+   no ability" stays distinguishable from "the join did not run".
+4. Gates: shallow schema in core/tables.py, nested contract in
+   core/table_deep.py, duplicate_key_problems on ability_stats, and AN EXPLICIT
+   EXPECTED-COUNT ASSERTION ON EVERY TABLE. ability_stats has no known count
+   until it runs, so PIN the measured count as a constant in the same commit that
+   lands the table, together with the chain that produced it. A count that is
+   merely whatever the dumper emitted is not an assertion.
+5. ADR-007: the coefficient key space is the ability GROUP, not the ability and
+   not the school.
+6. Phase 3, in the same session if it fits: the prefab-versus-instance control.
+   You have a real subject on both sides - instanced CHAR_Vampire_Dracula_VBlood
+   is entity 322916 with no Unity.Entities.Prefab, the prefab is 29012 with it,
+   and every stat-bearing component is on BOTH. So this is a VALUE comparison,
+   not a presence check. Name which of the three branches happened, in writing:
+   they agree, they differ by a factor (that factor is spawn scaling and must be
+   sourced before any TTK is published), or the prefab carries nothing.
 
-USEFUL CYCLE 2 MEASUREMENTS. The chain
-AbilityGroupStartAbilitiesBuffer -> _Cast -> AbilitySpawnPrefabOnCast resolves a
-cast for 1474 of 1474 ability groups; a second spawn hop adds exactly 0, so one
-hop is the answer and the 912 groups that never reach damage genuinely do not.
-The ability school is DynamicBuffer<ProjectM.SpellSchoolAbility> on the
-<School>SpellSchoolAsset prefab, NOT DealDamageParameters.MainType, which is the
-DAMAGE type. Client and server component data are IDENTICAL (zero differing
-rows, five tables, diffed on prefab_guid), so either host may serve a dump.
+ABSENT STAYS ABSENT. A proven-absent field is DECLARED and OMITTED, never zero.
+Do not default anything to 1.0, 0 or a plausible guess. Holy, Silver and Garlic
+resistance are absent from the unit - do not write zeroes for them.
 
-OPERATIONS:
-- Launch the dedicated server yourself: VRisingServer.exe -persistentDataPath
-  C:\RedMoon\_scratch\vrserver -saveName world1 -batchMode -nographics. Bridge
-  answers http://127.0.0.1:8780/health and /dump/prefabs; poll for "ready":true
-  before dumping (about 9 s).
-- Try world1 on the dedicated server for the LIVE INSTANCED boss first. Only if
-  that produces no instanced boss, ASK the operator to launch the CLIENT (which
-  binds 8777). Do not attempt to launch the client yourself.
-- Never Stop-Process; taskkill /F via PowerShell (Git Bash mangles /F).
-- Output goes to _scratch\rmprobe as saved JSON, not committed. Never read a
-  number off a screenshot.
+NO BACKFILL PASS IS OWED. data/rmdata/ is gitignored and fully regenerable from
+one dump, so re-promoting IS the recovery. The spec records this exemption so it
+is not mistaken for an oversight.
 
-STOP AT THE GATE. When the component inventory is written, STOP and hand it to
-the operator for review. Phase 2 - the vbloods schema 2 bump, ability_stats,
-items schema 4, the ingest gates and ADR-007 - does not start until real type
-and field names are on paper and approved. If a required field looks absent, say
-which of the three states it is in and what negative control makes that
-readable; do not default it to 1.0, 0 or a plausible guess.
+TDD per CLAUDE.md: failing characterization tests before the dumper changes,
+including the guard-order regression - the dedupe Add must sit AFTER the marker
+component test, because && short-circuits left to right and an Add placed first
+claims the guid on behalf of every entity carrying it and then rejects the real
+row when it arrives.
+
+OPERATIONS.
+
+- Build: dotnet build bridge\src\RedMoon.Bridge\RedMoon.Bridge.csproj -c Release
+  -t:Rebuild. There is no .sln.
+- Deploy to exactly ONE path per host and CHECK FOR A SECOND COPY FIRST. A stale
+  flat plugins\RedMoon.Bridge.dll beside
+  plugins\RedMoon.Bridge\RedMoon.Bridge.dll cost a debug cycle: BepInEx loaded
+  both, the stale one bound the port, served /health perfectly and returned
+  not_found for the endpoint that had just been built.
+- Launch: VRisingServer.exe -persistentDataPath C:\RedMoon\_scratch\vrserver
+  -saveName world1 -batchMode -nographics. Poll http://127.0.0.1:8780/health for
+  "ready":true, about 15 s. If it dies immediately after a taskkill /F, wait a
+  few seconds and launch again - that works every time and is not investigated.
+- Never Stop-Process; taskkill /F through PowerShell.
+- Output to _scratch\rmprobe as saved JSON, not committed. Never read a number
+  off a screenshot.
+
+ACCEPTANCE, spec section 5. The spike closes only when all six hold: every field
+SOURCED or PROVEN ABSENT with NOT ATTEMPTED empty; the component inventories
+recorded (DONE in phase 1); the prefab-versus-instance control run with one
+branch named in writing; tables promoted with counts asserted (vbloods 65, items
+425, ability_stats at its measured count together with the chain that produced
+it); pytest, ruff, ascii_guard and dotnet build all green and RE-RUN by the
+closing agent rather than taken from a report; ADR-007 written,
+docs/BLOODFORGE.md's input table rewritten from the measurement, and ROADMAP
+cycle 3 gaps 1, 2 and 3 each closed or restated with evidence.
 
 Launch build work via subagents per CLAUDE.md, but note that a worktree-isolated
 agent has twice written into the MAIN tree while git worktree list showed no

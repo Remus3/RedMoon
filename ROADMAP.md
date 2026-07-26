@@ -92,6 +92,20 @@ Spec, first of two: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-de
 settles where the boss stat line and the ability coefficients come from. The
 combat math is a SECOND spec, opened only against what that spike returns.
 
+**Phase 1 is DONE and the OPERATOR GATE IS OPEN.** Ledger 003c, commit `68f6d57`.
+The exploratory `/dump/components` endpoint shipped and the component inventory
+for all four subject classes is in `docs/BRIDGE_SPIKES.md` with every component
+and field named. All 14 required fields are SOURCED or PROVEN ABSENT; NOT
+ATTEMPTED is empty. **Phase 2 - the `vbloods` schema 2 bump, `ability_stats`,
+`items` schema 4, the ingest gates and ADR-007 - does not start until that
+inventory is reviewed.**
+
+Gap 3 below is DISSOLVED by measurement: `ProjectM.WeaponAbilityData`
+distinguishes a weapon ability group from a spell one by COMPONENT, so weapon
+abilities need no `<Weapon>SpellSchoolAsset` to be addressable. Gaps 1 and 2 have
+their sources named and their VALUES unread - phase 2 reads them with typed
+accessors, because a generic value reader was measured impossible on this build.
+
 Verified inputs on disk, from cycle 2: `items` 425, `recipes` 663, `abilities`
 54, `vbloods` 65, `blood_types` 13, under `data/rmdata/1.1.13.0-r99712/tables/`.
 

@@ -3,6 +3,129 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - The hook that was never wired, and the cycle 3 component inventory
+
+Branch `master`. Ledger 003b and 003c. Commits `ca2d539` (hooks) and `68f6d57`
+(phase 1). **Phase 1 is COMPLETE and STOPPED AT THE OPERATOR GATE.** No schema,
+no table, no ingest gate, no combat math - the spec bars all four until the
+inventory is reviewed.
+
+State at close, observed in one run after the last edit: `python -m pytest`
+**324 passed in 19.10s** (the summary line DID print this time, unlike last
+session), `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0,
+`dotnet build -c Release -t:Rebuild` on the bridge csproj exit 0 with 0 warnings.
+
+### Item 0: the gate that was a script nothing called
+
+`tools/precommit_gate.py` has held the ASCII and ruff checks since cycle 1 and
+had NO CALLER. `.git/hooks` held only `.sample` files, `core.hooksPath` was
+unset. That is the whole explanation for last session's BOM in `2f14c4c`.
+
+The wiring lives entirely outside the two frozen files. `hooks/pre-commit` (sh,
+mode 100755) plus `hooks/precommit_hook.py`, committed and selected by
+`core.hooksPath`, with `ops/install_git_hooks.py --check` asserted by the suite.
+
+**Why a wrapper rather than pointing git at the gate.** `precommit_gate.main()`
+speaks Claude Code's PreToolUse protocol: it reads JSON on stdin and ALWAYS
+returns 0, emitting a refusal as a JSON permission decision. git reads an exit
+code and nothing else, so git could never have learned a refusal from it no
+matter how it was invoked. The wrapper also does NOT swallow exceptions the way
+the PreToolUse gate must - a crashing PreToolUse hook must not block unrelated
+tooling, a crashing commit gate must block the commit.
+
+**Proven against git, which is the only proof that counts.** Seven failing tests
+first. Then a real BOM file staged in this repo and `git commit` REFUSED:
+`COMMIT BLOCKED by hooks/pre-commit`, `U+FEFF` at 1:1, exit 1, HEAD unchanged.
+Both later commits then passed through the live gate, so it blocks the bad and
+admits the good.
+
+### Phase 1: the inventory, and the value reader that had to be thrown away twice
+
+`GET /dump/components` enumerates an entity's ACTUAL component types and prints
+all of them with declared fields, nested types expanded and enum members named.
+Subjects, at the spec's minimum samples: `CHAR_*_VBlood` at levels 16, 57 and 91
+(150 components each), four ability groups across schools INCLUDING a weapon
+group, two weapon families, and a LIVE INSTANCED boss.
+
+**THE THING TO CARRY FORWARD. It reads names, not values, and that is measured.**
+Two generic value readers were built and both failed:
+
+1. Managed reflection via `EntityManagerDebug.GetComponentBoxed` - correct field
+   names, GARBAGE values. Every `Int32` on every component of every entity read
+   **539327184**, every `Single` read **1.402156E-19**. Not a plausible wrong
+   number. The SAME number everywhere, which is the tell.
+2. Raw il2cpp field offsets off that boxed pointer HARD CRASHED the dedicated
+   server process on the first request. Twice. So did the raw
+   `il2cpp_class_get_fields` iterator, reading metadata only.
+
+`GetComponentBoxed` does not hand back an object backed by real chunk memory on
+this build. **Do not spend another session on a generic value reader.** Values
+are read the way cycle 2 reads them - typed, with the type spelled out - and the
+inventory now says which type to spell.
+
+**What caught failure 1 cost nothing and is the transferable part.** Every entity
+carries `Stunlock.Core.PrefabGUID`, whose value the same response ALREADY states
+from a typed read. The generic reader said 539327184 where the truth was
+-327335305. A reader with no such control would have shipped and every line of
+the inventory would have been fiction. When building any new reader, find the
+quantity you already know and make the new path restate it.
+
+### The 14 fields, and NOT ATTEMPTED is empty
+
+T1 `ProjectM.Health.MaxHealth`. T3 `UnitLevel.Level`. T4 and P2 named as
+candidates. A1 `AbilityCastTimeData.MaxCastTime`. A2
+`AbilityCooldownData.Cooldown` plus `GlobalCooldown.Value`. A3
+`DealDamageParameters.MainFactor`. A4 `.MainType`. L1 CLOSED as a four-hop chain:
+item -> `EquippableData.BuffGuid` -> `EquipBuff_Weapon_<Family>_Base` ->
+`DynamicBuffer<ReplaceAbilityOnSlotBuff>` -> `.NewGroupId`.
+
+**T2 splits and the split is the finding.** `UnitStats` carries
+`PhysicalResistance`, `SpellResistance`, `FireResistance` and
+`CorruptionDamageReduction`. Holy, Silver and Garlic have NO unit-side field
+anywhere in 150 enumerated components; `ResistanceData` holds only global
+per-rating conversion rates. Those are the anti-vampire types, so the absence is
+coherent rather than a miss - but it is a full enumeration, not a failed
+`HasComponent`, which is what makes it readable at all.
+
+A5 is PROVEN ABSENT as a field: no power-selector member on the `_Hit` entity's
+51 components, and `MainType` is the only discriminator present. A6 is the one
+PARTIAL and it is a counting job over buffer lengths, not a hunt.
+
+### Two cycle 2 statements corrected, both by a live component list
+
+- **`ProjectM.AbilitySpellSchool` DOES exist**, on the ability GROUP, carrying
+  `SpellSchool` (guid) and `Tier`. Cycle 2 recorded "there is no `SpellSchool`
+  component type" and joined through the `<School>SpellSchoolAsset` buffer
+  instead. Those 54 rows are not wrong; the type was missed by metadata scans and
+  a live list found it in one run. Exactly the `EquippableData` shape.
+- **`ProjectM.WeaponAbilityData` tells a weapon group from a spell group by
+  COMPONENT.** That is what dissolves ROADMAP cycle 3 gap 3 in data rather than
+  by argument. `VBloodAbilityData.AbilitySchool` is a second school source and
+  its enum carries `Shadow`, which the six-school join cannot produce.
+
+### The liveness assertion, and a real subject for the phase 3 control
+
+Instanced `CHAR_Vampire_Dracula_VBlood` is entity **322916** with NO
+`Unity.Entities.Prefab`; the prefab is entity **29012** with it. 151 components
+against 150. Instance-only: `AttachParentId`, `AttachedBuffer`,
+`DisabledDueToNoPlayersInRange`, `Unity.Entities.Disabled`. **Every stat-bearing
+component is on BOTH**, so phase 3's prefab-versus-instance control can be a
+VALUE comparison rather than a presence check.
+
+### Two operational traps that each cost a debug cycle
+
+- **Two plugin copies under `plugins\`.** A stale flat
+  `plugins\RedMoon.Bridge.dll` sat beside the fresh
+  `plugins\RedMoon.Bridge\RedMoon.Bridge.dll`. BepInEx loaded both; one bound
+  8780 and the other stood down, and the one answering was the STALE build. It
+  served `/health` perfectly and returned `not_found` for the endpoint that had
+  just been built. Check for a second copy before blaming the code.
+- **The server sometimes dies on a relaunch immediately after `taskkill /F`.**
+  Waiting a few seconds and launching again works every time. Not investigated.
+
+`docs/OPERATIONS.md` named a bridge `.sln` that has never existed; corrected, and
+it now records the two-copies trap.
+
 ## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
 
 Branch `master`. Ledger 003a. Commits `774d7d3` (spec plus ROADMAP) and the docs
@@ -172,105 +295,3 @@ boss health is the `items.tier` fabrication with a larger blast radius.
 **Cycle 3 opens** with verified inputs on disk (`items` 425, `recipes` 663,
 `abilities` 54, `vbloods` 65, `blood_types` 13), six named gaps, and a spec
 session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.
-
-## 2026-07-26 - Cycle 2 part 6: the client host, and a wrong number four gates could not see
-
-Branch `master`. Ledger 002f.
-
-State at close, every number observed in one run after the last edit:
-`python -m pytest` **317 passed**, `python -m ruff check .` clean,
-`python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on
-`bridge/src/RedMoon.Bridge` exit 0 with 0 warnings.
-
-**BOTH HOSTS RAN THE SAME BINARY AT THE SAME TIME.** The dedicated server on
-8780 and the operator's live client on 8777, concurrent, which is what made
-every comparison below like-for-like rather than a comparison of two builds.
-
-**1. The client item COMPONENT data is IDENTICAL to the server's.** Row-by-row
-diff keyed on `prefab_guid`, every field on every row of all five tables: ZERO
-differences. Matching counts would have proved nothing - two 425-row tables can
-disagree on every field - so this was diffed rather than counted. The client
-dump costs 103 ms against the server's 794.
-
-**2. `localization_guid` is WRITABLE, on the CLIENT only. The recorded absence
-was a HOST fact that had been read as a BUILD fact.** Same binary, same call,
-same session:
-
-```
-dedicated server   attempted=425  resolved=0    missed=425  quiet_hits=0
-client             attempted=425  resolved=425  missed=0    quiet_hits=0
-```
-
-All 425 client guids are real `strings.json` keys - `Item_Headgear_WolfTrophy01`
-to "Wolf Head". 342 distinct guids over 425 rows, because skins share a name.
-The offline heuristic that was rejected reached 53 of 425.
-
-The lesson is the session's inherited one, one layer up. Last session's warning
-was "a real measurement can still answer the wrong question". This one is: a
-real measurement can answer the right question about the wrong SUBJECT. `0 of
-425` was correct, reproducible, and had a proper negative control
-(`TryGetWithoutLogging`) - and it was a statement about a headless host that got
-written down as a statement about the game. Every dump now carries its own
-`localization` counter block and `rmdata_ingest` prints it, so a saved payload
-says for itself which host produced it.
-
-**3. `vbloods` is 65, not 66. A wrong number that four gates could not see.**
-Diffing by `prefab_guid` surfaced duplicate rows: `abilities` 56 rows over 54
-distinct guids on BOTH hosts (`AB_Blood_BloodRite_AbilityGroup` and
-`AB_Blood_Shadowbolt_AbilityGroup` twice each), and the server 66 vbloods over
-65 (`CHAR_Vampire_Dracula_VBlood` twice). More than one ENTITY can carry the
-same `PrefabGUID` and the dumper wrote one row per entity.
-
-Why it survived: every duplicate pair was BYTE-IDENTICAL. The shallow gate, the
-deep nested gate, the schema and the census all inspect one row at a time, and
-each of those rows was individually perfect. The only symptom was the COUNT, and
-66 had already been written into `ROADMAP.md` and ledger 002e as a finding.
-Fixed in the dumper (dedupe on first write) AND gated at ingest
-(`duplicate_key_problems`, a cross-ROW check) - the producer being fixed today is
-not the same as the defect being detectable tomorrow.
-
-A trap inside the fix, caught before it shipped: `&&` short-circuits left to
-right, so `seenItems.Add(guid)` placed BEFORE the marker-component test would
-claim the guid on behalf of every entity carrying it and then reject the real row
-when it arrived. That turns a duplicate bug into a missing-row bug. There is a
-test asserting the guard order.
-
-**4. `recipes.station_guids`, ADR-006.** The singular field is retired at
-`schema_version` 2 and the plural array is emitted. 911 unique (recipe, station)
-pairs from 942 raw references; 575 recipes reach a station, 88 reach none, 19 sit
-at TWELVE stations each. That histogram is why first-station-wins was barred: it
-would have been arbitrary for 138 recipes. The 88 empty lists ship as `[]`, so
-"reachable from no station" stays distinguishable from "the inversion did not
-run".
-
-**5. `Unload()` is still UNOBSERVED, and the reason is worth keeping.** Measured
-twice on a normal in-game quit: `LogOutput.log` gains nothing after
-`Chainloader startup complete`. But `Unload()` logged NOTHING, so that silence
-was equally consistent with "ran fine", "never ran" and "the logging pipeline
-was torn down first" - a zero three hypotheses predict is not evidence. It now
-appends to `BepInEx\redmoon-unload.log` via `File.AppendAllText`, OUTSIDE the
-logging pipeline, so the three outcomes are distinguishable.
-
-**CLOSED on the instrumented build: `Unload()` does NOT run.** A normal in-game
-quit left the marker ABSENT, the log unchanged, and 8777 with no LISTEN. The two
-channels fail independently, which eliminates "the pipeline was gone first", so
-BepInEx 6 IL2CPP does not invoke `BasePlugin.Unload()` at shutdown. The control
-that makes the silence readable: the observed run PROVABLY carried the
-instrumented build, because the dump it served included `station_guids`, which
-exists only there. Benign - R11 already measured that a hard kill releases the
-port, and a normal exit takes the identical path.
-
-The promoted dump is the CLIENT one: `items` 425 (schema 3, all 425 carrying
-`localization_guid`), `recipes` 663 (schema 2, with `station_guids`),
-`abilities` 54, `vbloods` 65, `blood_types` 13, in 103 ms.
-
-Process note, answering the operator's flashing-console report: a 120-second
-`Win32_Process` trace named them, and NONE is Red Moon's. They are
-`cmd.exe /d /s /c npx ...` MCP launchers, each spawning its own `conhost.exe` -
-`pathmode-mcp`, `desktop-commander`, `chrome-devtools-mcp`, `playwright-mcp` -
-fired in bursts by four concurrent `claude.exe` instances, plus another Claude
-session running a different project's `pytest` hook through Git Bash. Red Moon's own
-hooks all run under `pythonw.exe`, which is windowless and never appeared as a
-console. Last session's `statusLine` fix held: it did not appear in the trace at
-all. The remedy is disabling unused MCP plugins in the user `settings.json`,
-which currently lists 15 enabled.

@@ -14,6 +14,85 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003c - Cycle 3 phase 1: the component inventory (2026-07-26)
+
+Commit `68f6d57`. Exploratory only: no schema, no table, no ingest gate, no
+combat math. Stops at the operator gate by design.
+
+WHAT SHIPPED. `GET /dump/components` in `bridge/src/RedMoon.Bridge/`, taking
+guid, or name as a prefix plus limit, plus `instanced=1`. It ENUMERATES an
+entity's actual component types and prints all of them with declared fields,
+nested value types expanded and enum members named. It never calls
+`HasComponent` on a hoped-for name, waits on `GameDataInitialized`, and rides
+the existing main-thread handoff rather than opening a second one. Plus the
+inventory itself in `docs/BRIDGE_SPIKES.md`, all four subject classes at the
+spec's minimum samples: three `CHAR_*_VBlood` prefabs at levels 16, 57 and 91
+(150 components each), four ability groups across schools including a WEAPON
+group, two weapon families, and a live instanced boss.
+
+THE FINDING THAT COST THE MOST AND IS WORTH THE MOST. The endpoint reads NAMES
+and not VALUES, and that is measured rather than convenient. Two generic value
+readers were built and both failed. Managed reflection through
+`EntityManagerDebug.GetComponentBoxed` gave correct field names and GARBAGE
+values: every `Int32` read 539327184 and every `Single` read 1.402156E-19, the
+same number everywhere. Raw il2cpp field offsets off that same boxed pointer
+HARD CRASHED the dedicated server on the first request, twice, as did the raw
+`il2cpp_class_get_fields` iterator. `GetComponentBoxed` is not backed by real
+chunk memory on this build.
+
+What caught the first failure was a control that cost nothing: every entity
+carries `Stunlock.Core.PrefabGUID`, whose value the same response ALREADY states
+from a typed read. The reader said 539327184 where the truth was -327335305.
+Without it the numbers would have shipped and every line of the inventory would
+have been fiction - `items.tier` again, caught before paper rather than after.
+
+THE 14 FIELDS. `NOT ATTEMPTED` is EMPTY. T1 `ProjectM.Health.MaxHealth`. T2
+`UnitStats.PhysicalResistance`, `.SpellResistance`, `.FireResistance`,
+`.CorruptionDamageReduction`, and Holy, Silver and Garlic PROVEN ABSENT from the
+unit across 150 enumerated components. A1 `AbilityCastTimeData.MaxCastTime`. A2
+`AbilityCooldownData.Cooldown`. A3 `DealDamageParameters.MainFactor`. A4
+`.MainType`. A5 proven absent as a field. A6 partial, a counting job. L1 closed
+as a four-hop chain ending at `ReplaceAbilityOnSlotBuff.NewGroupId`.
+
+TWO CYCLE 2 STATEMENTS CORRECTED by a live component list, the same way
+`EquippableData` was. `ProjectM.AbilitySpellSchool` DOES exist, on the ability
+group, carrying school guid and tier; three metadata scans missed it. And
+`ProjectM.WeaponAbilityData` tells a weapon group from a spell group by
+COMPONENT, which is what dissolves ROADMAP cycle 3 gap 3.
+
+VERIFIED. `python -m pytest` **324 passed**, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` exit 0
+with 0 warnings. The liveness assertion holds: instanced Dracula is entity 322916
+with no `Unity.Entities.Prefab` against prefab entity 29012 with it.
+
+## 003b - The precommit gate wired as a real git hook (2026-07-26)
+
+Commit `ca2d539`.
+
+THE PROBLEM. `tools/precommit_gate.py` has held the ASCII and ruff checks since
+cycle 1 and NOTHING CALLED IT. `.git/hooks` carried only `.sample` files and
+`core.hooksPath` was unset. That is how a UTF-8 BOM reached `master` in `2f14c4c`
+while `python tools/ascii_guard.py` exited 1 in the same shell chain: Windows
+PowerShell 5.1 has no `&&`, so a verification joined with `;` is a log line
+rather than a gate.
+
+WHAT SHIPPED, entirely OUTSIDE the two frozen files. `hooks/pre-commit`, a sh
+shim at mode 100755 where a missing interpreter FAILS the commit rather than
+passing quietly. `hooks/precommit_hook.py`, which calls the frozen
+`check_staged()` and turns a non-empty reason list into a non-zero exit - the
+only thing git reads. `precommit_gate.main()` speaks Claude Code's PreToolUse
+JSON protocol and always exits 0, so git could never have learned a refusal from
+it. `hooks/` is COMMITTED and selected by `core.hooksPath`, because `.git/hooks`
+is not version controlled and a fresh clone would inherit nothing.
+`ops/install_git_hooks.py` makes that one config command discoverable, and
+`--check` is what the suite asserts.
+
+VERIFIED AGAINST GIT, not only against the unit tests. Seven failing tests first
+per TDD. Then a deliberate BOM file was staged in this repo and `git commit` was
+REFUSED: `COMMIT BLOCKED by hooks/pre-commit`, `docs/bom_probe.md:1:1 non-ascii
+U+FEFF`, exit 1, HEAD unchanged. A passing unit test is not evidence that git
+rejects anything.
+
 ## 003a - Cycle 3 spike SPEC approved, no implementation (2026-07-26)
 
 Docs only. No production code changed, by instruction: cycle 3 cannot open by

@@ -20,5 +20,12 @@ Wrap this session.
 8. Write the next-session bootstrap into `NEXT_SESSION_PROMPT.md`.
 9. Print a short banner: what shipped, the verification that proved it, and what
    is next.
+10. Print the ENTIRE next-session prompt inline in the chat, verbatim, in a
+    fenced block. Writing it to `NEXT_SESSION_PROMPT.md` in step 8 does not
+    satisfy this and neither does summarising it or pointing at the file. The
+    next session starts from a cleared context and has only what the operator
+    pastes into it, so the prompt must be copy-pasteable straight out of the
+    chat. This applies whenever this ritual runs, whether `/done` was invoked
+    explicitly or merely inferred from the operator wrapping up.
 
 Run independent steps in parallel.

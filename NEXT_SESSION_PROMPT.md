@@ -47,9 +47,9 @@ in CLAUDE.md, which is justified specifically by 5.1 ANSI-decoding a no-BOM .ps1
 That is an ADR-level decision and is NOT part of this session.
 
 CONTEXT (do not re-derive, do not re-verify):
-- Repo C:\RedMoon, branch master at b8cfebe, clean and pushed, ONE worktree
-  (C:/RedMoon), no stray branches. github.com/Remus3/RedMoon is PUBLIC as of
-  2026-07-26.
+- Repo C:\RedMoon, branch master, clean and pushed, ONE worktree (C:/RedMoon),
+  no stray branches. github.com/Remus3/RedMoon is PUBLIC as of 2026-07-26.
+  Confirm HEAD from the git log above rather than from a hash written here.
 - Last verified: pytest 317 passed, ruff clean, ascii_guard exit 0. NOTE this
   repo's pytest config suppresses the "N passed" summary line - count progress
   characters instead of reporting a number you did not see.

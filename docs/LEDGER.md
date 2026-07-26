@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 002e - Cycle 2 part 5: all five tables populated, and two recorded findings corrected (2026-07-26)
 
-Code and docs on `master`. Commit hash backfilled below.
+Code and docs on `master`, commit `97d2a90`.
 
 WHAT SHIPPED. `PrefabDumper.cs` now writes every table in `core/tables.py`. One
 live `/dump/prefabs` against the standalone dedicated server, 714 ms, validated

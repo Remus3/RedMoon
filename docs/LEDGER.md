@@ -14,6 +14,79 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002b - Cycle 2 part 2: the probe plugin closes seven spikes (2026-07-26)
+
+Cycle 2 is still NOT done and no bridge code exists yet. This is the spike-closure
+entry. Entry 002 proper is appended when the plugin is live-proved.
+
+**The artifact is a probe, not the bridge.** `_scratch\rmprobe\`, a minimal
+enumerate-and-log BepInEx plugin, built and deployed into both hosts before any
+bridge code, because S1(b), S1(c), S1(d), S2, S5 and S6 are not answerable from
+static metadata. Scratch and deliberately not committed, the same rule as
+`_scratch\typedump\`: regenerable, and it must not become a second plugin to
+maintain per patch. It compiles the SAME generated `RmPorts.g.cs` the real plugin
+will, so the no-port-literal rule holds even in scratch, and it reads ECS only
+from `Update()` while its listener thread serves a constant, so it exercises both
+halves of D7 without violating D7 or risk R4.
+
+**R17 CLOSED, and the obvious diff was the wrong one.** The client was launched
+and generated its own `BepInEx\interop\`: 172 files, 169 `.dll`, matching the
+server exactly - which also explains the previously recorded "169 assemblies" as
+the dll count, so no correction was owed. Assembly name sets are identical. All
+169 SHA256 hashes differ, and that is NOT a divergence signal: Il2CppInterop
+codegen is non-deterministic, so a hash diff reports total divergence between any
+two generations and would have manufactured a blocking finding. The type-level
+diff is the one that decides the `.csproj`: 97 client-only and 591 server-only
+types, almost all of it per-build codegen noise
+(`__JobReflectionRegistrationOutput__<hash>`, `__UnmanagedPostProcessorOutput__<hash>`,
+closure and iterator types), with the real divergence confined to 499 server-only
+netcode serializers, about 17 server-only send-priority types in `ProjectM`, and
+client-only Rukhanka animation types. None is needed. `ProjectM.Shared`,
+`Stunlock.Core`, `Unity.Entities` and `ProjectM.Gameplay.Systems` have zero real
+divergence and every design-needed type was checked present in both sets by name.
+
+**S4 fully closed and R2 retired.** The build succeeds with the entire reference
+set added, not just the bare target framework. `Paths.BepInExVersion` returns a
+`SemanticVersioning.Version`, which forces one non-obvious reference.
+
+**S1(a)** is `World.All`. **S1(d)** is `BepInEx.Paths.ProcessName`, measured as
+`VRising` and `VRisingServer`. **S1(c)**: the server's target world is named
+`Server` with 710 systems, and selection must be BY NAME - `Default World` is also
+a Simulation world, sits at index 0, and throws `ArgumentException` when asked for
+the prefab map, while `LoadingWorld0` throws `InvalidOperationException`. Those
+two exceptions are the natural `world_not_ready` path and a genuine negative
+control that a stub cannot produce. **S2**: an Il2Cpp-injected `MonoBehaviour`
+`Update` reaches main thread 1 in both hosts, so no Harmony patch is needed and
+D7 is implementable as written. **S5 and R11**: `HttpListener` binds and serves in
+both hosts concurrently, which is the ADR-005 payoff observed rather than argued,
+and after `taskkill /F` the port holds no LISTEN while
+`bridge_probe.py --expect-unreachable` passes. **S6 partial**: the prefab lookup
+map reports `Count` 1189 in under a millisecond, so reading it needs no chunking;
+the dump itself is still unmeasured. **S3 advanced**: `items` and `recipes` are
+mapped, and the headline is that `EquippableData` carries NO stats, only a
+`BuffGuid`, so `items.stats` is a two-hop read through the buff prefab's
+`DynamicBuffer<ModifyUnitStatBuff_DOTS>`.
+
+**One real defect, found by the probe rather than by a test.** The suite carried a
+test whose comment read "nothing is listening on the bridge ports during the
+suite" and which depended on it being true. The probe bound the client port, the
+connection succeeded, and the test failed with no defect anywhere in the code
+under test - the mirror image of cycle 1's gate that could not fail. Fixed by
+pointing `RM_GAME_HOST` at `192.0.2.1`, RFC 5737 TEST-NET-1, so unreachability is
+a property of the test rather than of the machine.
+
+**Left open, honestly.** S1(b) has only the client MAIN MENU sample: two worlds,
+no prefab-carrying world, so a client-side dump is UNPROVEN. The remainder of S3
+is gated behind the same in-game sample. The operator chose to wrap rather than
+load a character.
+
+Verification, all observed in one run after the last edit: `python -m pytest` 245
+passed, `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0. The
+245 was observed with the probe still bound to the client port and answering
+`curl`, which is the exact condition that broke the old test.
+
+Commits: `9a036d2`, `46ec231`, `003d027`, plus the docs sync.
+
 ## 002a - Cycle 2 part 1: ADR-005, the Python half, and the spike environment (2026-07-26)
 
 Cycle 2 is NOT done. This is a partial entry for the part that shipped, written

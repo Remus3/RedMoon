@@ -29,17 +29,28 @@ the bridge client, the nested-shape gate, the VERSION-asserting installer, the
 ingest and quarantine path, and the wiredness probe. BepInEx is installed in
 both hosts and the dedicated server has generated its interop assemblies.
 
+Steps 1 through 3 are DONE (ledger 002b). The client was launched, the interop
+sets were diffed at type level, and a minimal enumerate-and-log probe plugin was
+built and run in BOTH hosts. R17, R2, R11, S4, S1(a), S1(c), S1(d), S2 and S5 are
+CLOSED by measurement. S6 is partial and cheap. S3 has the item and recipe
+mapping. `docs/BRIDGE_SPIKES.md` carries every number and how it was observed.
+
 Remaining, in order:
 
-1. Launch the CLIENT once so it generates its own `BepInEx\interop\`, then diff
-   the two interop sets. No `.csproj` reference may be pinned before that diff
-   (risk R17).
-2. Build a MINIMAL enumerate-and-log plugin first, not the full bridge. Spike S1
-   parts b, c and d - the world names per host and the host-detection mechanism
-   - cannot be answered from static metadata and need a plugin in-process.
-3. Close S2 (main-thread scheduling), S3 (the field-by-field component mapping),
-   S5 (listener viability) and S6 (dump cost).
-4. Then the full bridge, the live gate once per host, and the first dump.
+1. The IN-GAME CLIENT sample, which is the only thing left in S1(b). At the main
+   menu the client has two worlds and NO prefab-carrying world, so a client-side
+   dump is UNPROVEN. Needs a character loaded. It also unblocks the rest of S3:
+   the ability school, V Blood level and blood bonus tiers want a live entity's
+   real component list, not more metadata reading.
+2. `PrefabDumper.cs` for `items` and `recipes` only - those two are mapped.
+   `abilities`, `vbloods` and `blood_types` are not yet writable.
+3. The first dump, then `rmdata_ingest` WITHOUT `--accept`: read the shape census
+   and the `unmapped` array before deciding whether the schemas or
+   `core/table_deep.py` need amending. One amendment is already expected:
+   `items.stats` as a flat name-to-number map cannot carry
+   `ModifyUnitStatBuff_DOTS.ModificationType`, and an additive and a
+   multiplicative modifier of the same value are not the same stat.
+4. Then the full bridge and the live gate once per host.
 
 The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
 schema-valid envelope per table name in `core/tables.py`. The dump fills those

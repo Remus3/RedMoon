@@ -2336,7 +2336,8 @@ if __name__ == "__main__":
 
 - [ ] **Step 7: Write `.claude/settings.json`**
 
-Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash.
+This is JSON, so each Windows path separator is written as `\\` and parses back
+to a single backslash. `pythonw.exe` avoids a console flash.
 
 ```json
 {
@@ -2359,7 +2360,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\precommit_gate.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\precommit_gate.py\"",
             "timeout": 60
           }
         ]
@@ -2369,7 +2370,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\text_first_guard.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\text_first_guard.py\"",
             "timeout": 10
           }
         ]
@@ -2381,7 +2382,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\pytest_guard.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\pytest_guard.py\"",
             "timeout": 60
           }
         ]
@@ -2392,7 +2393,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\rm_facts.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\rm_facts.py\"",
             "timeout": 10
           }
         ]

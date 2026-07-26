@@ -12,6 +12,7 @@ EXPECTED_MEMORY_ENTRIES = {
     "project_vrising_build_pin",
     "project_stats_require_bridge",
     "user_operator_profile",
+    "reference_vrising_install_shape",
 }
 
 

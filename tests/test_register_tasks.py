@@ -1,7 +1,6 @@
 import ctypes
 import subprocess
 import sys
-from ctypes import wintypes
 
 from ops.register_tasks import (
     TASKS,

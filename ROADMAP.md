@@ -88,7 +88,9 @@ and quality, jewels, passives and resistances, producing DPS, EHP and
 time-to-kill. Server on 8783, `ENGINE_VERSION` pinned to the game build
 `1.1.13.0-r99712`.
 
-Spec: TBD, its own session under `docs/superpowers/specs/`.
+Spec, first of two: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md`
+settles where the boss stat line and the ability coefficients come from. The
+combat math is a SECOND spec, opened only against what that spike returns.
 
 Verified inputs on disk, from cycle 2: `items` 425, `recipes` 663, `abilities`
 54, `vbloods` 65, `blood_types` 13, under `data/rmdata/1.1.13.0-r99712/tables/`.

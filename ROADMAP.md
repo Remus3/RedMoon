@@ -2,18 +2,23 @@
 
 Each cycle is its own session with its own spec under `docs/superpowers/specs/`.
 
-## Cycle 1 - Harness plus data floor (IN PROGRESS)
+## Cycle 1 - Harness plus data floor (DONE)
 
 Process harness, enforcement hooks, doctrine docs, memory namespace, and the
 offline extractor producing `data/rmdata/<build>/`.
 
 Spec: `docs/superpowers/specs/2026-07-26-redmoon-harness-design.md`
+Ledger: `docs/LEDGER.md` entry 001.
 
-## Cycle 2 - RedMoon.Bridge
+## Cycle 2 - RedMoon.Bridge (CURRENT)
 
 BepInEx plugin serving live game JSON on 8777, plus the runtime
 `PrefabCollectionSystem` dump that populates the cycle 1 table schemas with real
 item and ability stat data.
+
+The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
+schema-valid envelope per table name in `core/tables.py`. The dump fills those
+files in place, and `tools/rmdata_extract.py` never overwrites a populated one.
 
 ## Cycle 3 - Bloodforge core
 

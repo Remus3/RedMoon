@@ -59,8 +59,9 @@ every live reader finds the bridge. See `core/ports.py`.
   and never a piped string.
 - **State assumptions explicitly before coding.**
 - **Frozen files** (do not modify without explicit operator approval):
-  `core/ports.py`, `tools/ascii_guard.py`, `tools/precommit_gate.py`,
-  `tools/text_first_guard.py`, `tools/pytest_guard.py`.
+  `core/ports.py`, `core/tables.py`, `tools/ascii_guard.py`,
+  `tools/precommit_gate.py`, `tools/text_first_guard.py`,
+  `tools/pytest_guard.py`, `tools/rm_facts.py`, `ops/register_tasks.py`.
 
 ## Execution Efficiency and Tooling Rules
 
@@ -181,5 +182,5 @@ python tools/rmdata_extract.py
 `CLAUDE.md` is size-budgeted under 60 KB and is loaded every turn. Never append
 per-item ledger entries here - append them to `docs/LEDGER.md`.
 
-Cycle 1 (harness plus data floor) is the current work. Cycles 2 through 8 are
-listed in `ROADMAP.md`.
+Cycle 1 (harness plus data floor) is DONE. Cycle 2 (RedMoon.Bridge) is the
+current work. Cycles 3 through 8 are listed in `ROADMAP.md`.

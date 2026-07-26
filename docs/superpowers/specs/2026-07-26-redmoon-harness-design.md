@@ -96,10 +96,14 @@ Root documents:
     dashboard `:8778`, and `RM-*` scheduled tasks, and prints the caveman output
     dialect banner.
 - `agents/verifier.md` - read-only ground-truth verification subagent.
-- `commands/` - ports of `/done`, `/root-cause-fix`, `/sync-all-md`,
-  `/weekly-hygiene`, `/ship-batch`, `/game-monitor`.
+- `commands/` - `/done`, `/root-cause-fix`, `/sync-docs`. Deferred, because each
+  needs a subject that does not exist yet: `/ship-batch` and `/game-monitor`
+  wait for the engine and a live game (cycles 2 to 4), `/weekly-hygiene` waits
+  for enough history to be worth maintaining.
 
-`tools/`: the four scripts above plus `strip_em_dashes.py`.
+`tools/`: the four scripts above. No retroactive em-dash purge tool is needed -
+that is a migration tool for a repository with legacy content, and this one is
+new. `ascii_guard.py` detects, and the precommit gate blocks at the boundary.
 
 Memory: seed `C:\Users\Administrator\.claude\projects\C--RedMoon\memory\`
 with `MEMORY.md` and starter entries (operator profile, V Rising build pin, port

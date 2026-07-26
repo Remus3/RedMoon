@@ -40,6 +40,7 @@
     <Compile Include="BridgeServer.cs" />
     <Compile Include="PrefabDumper.cs" />
     <Compile Include="StateReader.cs" />
+    <Compile Include="Localization.cs" />
     <!--
       CLAUDE.md hard rule: never write a port literal. This generated file is
       the single machine-written exception (spec D2), rendered from
@@ -85,6 +86,18 @@
     <Reference Include="ProjectM"><HintPath>$(Interop)\ProjectM.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ProjectM.Shared"><HintPath>$(Interop)\ProjectM.Shared.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ProjectM.Gameplay.Systems"><HintPath>$(Interop)\ProjectM.Gameplay.Systems.dll</HintPath><Private>false</Private></Reference>
+    <!--
+      Added for Localization.cs. ManagedItemData.Name is a
+      Stunlock.Localization.LocalizationKey, so touching it forces this
+      reference the same way Paths.BepInExVersion forced SemanticVersioning.
+
+      R17 RE-RUN across this assembly rather than assumed, from the same
+      _scratch\types_client.txt and types_server.txt the original ruling used:
+      48 types in BOTH hosts, ZERO client-only and ZERO server-only. That is a
+      cleaner result than Unity.Transforms, which carries 4 per-build codegen
+      hash types in each direction. Re-run per patch.
+    -->
+    <Reference Include="Stunlock.Localization"><HintPath>$(Interop)\Stunlock.Localization.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
 </Project>

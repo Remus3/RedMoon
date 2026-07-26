@@ -14,6 +14,83 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002f - Cycle 2 part 6: the client host, and a wrong number four gates could not see (2026-07-26)
+
+Code and docs on `master`, commit `PENDING`.
+
+WHAT SHIPPED. The bridge now reads the localization join, inverts the station
+link, and refuses to emit a row twice. Both hosts ran the SAME binary
+CONCURRENTLY - dedicated server on 8780, live client on 8777 - which is what
+makes every comparison below like-for-like rather than a comparison of builds.
+
+| table | rows | schema_version | changed |
+|---|---|---|---|
+| `items` | 425 | 3 | all 425 now carry `localization_guid` |
+| `recipes` | 663 | 2 | `station_guid` retired for `station_guids` (ADR-006) |
+| `abilities` | 54 | 1 | was 56 rows over 54 guids |
+| `vbloods` | **65** | 1 | **was recorded as 66; the 66th was a duplicate** |
+| `blood_types` | 13 | 2 | unchanged |
+
+Promoted from the CLIENT dump, 103 ms, by `tools/rmdata_ingest.py --accept`.
+
+VERIFICATION, all four re-run by this session after the last edit rather than
+taken from a report: `python -m pytest` 317 passed, `python -m ruff check .`
+clean, `python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild`
+exit 0 with 0 warnings. Plus the live evidence: two dumps taken minutes apart
+from both hosts, diffed row by row.
+
+THE FOUR MEASUREMENTS.
+
+1. **Client item COMPONENT data is IDENTICAL to the server's.** The open
+   question was never counts - two 425-row tables can disagree on every field -
+   so both dumps were diffed row by row, keyed on `prefab_guid`, every field
+   compared. ZERO differing rows across all five tables. Either host may serve
+   the dump.
+
+2. **`localization_guid` is WRITABLE on the CLIENT and not on the server.** Same
+   binary, same call: `resolved=425` in the client, `resolved=0` in the
+   dedicated server. All 425 client guids are real `strings.json` keys, resolving
+   to real display names. The recorded ABSENCE was a true statement about a
+   HEADLESS HOST that had been written down as a statement about the build. Every
+   dump now carries its own `localization` counters and the ingest prints them,
+   so a saved payload states which host produced it.
+
+3. **`vbloods` is 65, not 66, and `abilities` was emitting 56 rows over 54
+   guids.** More than one ENTITY can carry the same `PrefabGUID`, and the dumper
+   wrote one row per entity, so `CHAR_Vampire_Dracula_VBlood` and two blood
+   ability groups were counted twice. Every duplicate pair was BYTE-IDENTICAL,
+   which is why the shallow gate, the deep gate, the schema and the census all
+   passed it: each inspects one row at a time and each of those rows was
+   individually perfect. The only symptom was the count - and that count was
+   already in `ROADMAP.md` and in ledger 002e as a finding. Fixed at BOTH ends:
+   the dumper dedupes on first write, and `duplicate_key_problems` in the ingest
+   refuses the whole promotion.
+
+4. **`recipes.station_guids` is ruled and writable (ADR-006).** 911 unique
+   (recipe, station) pairs from 942 raw buffer references. 575 recipes reach at
+   least one station, 88 reach none, and 19 sit at TWELVE stations each - which
+   is exactly why a first-station-wins value was barred rather than merely
+   discouraged.
+
+STILL OPEN, and deliberately not claimed. `Unload()`'s graceful path is
+UNOBSERVED. Two normal in-game quits produced no shutdown line of any kind, but
+`Unload()` logged nothing at all, so that silence was equally consistent with
+"ran fine", "never ran" and "the logging pipeline was gone first". It now appends
+to `BepInEx\redmoon-unload.log` outside BepInEx's logging, making the three
+outcomes distinguishable; one clean exit on the instrumented build settles it.
+`abilities` covers spell-school abilities only - weapon abilities have no school
+asset - and 38 of the 54 rows carry no `damage_type` because the projectile deals
+the damage. 4 recipes remain unmapped on an empty item output buffer.
+
+THE LESSON, one layer up from last session's. Last session recorded "a real
+measurement can still answer the wrong question". This one adds: a real
+measurement can answer the RIGHT question about the WRONG SUBJECT. The `0 of 425`
+localization result was correct, reproducible, and carried a proper negative
+control - and it described a host, not a game. Before generalizing a measurement,
+check what it was actually taken OF.
+
+---
+
 ## 002e - Cycle 2 part 5: all five tables populated, and two recorded findings corrected (2026-07-26)
 
 Code and docs on `master`, commit `97d2a90`.

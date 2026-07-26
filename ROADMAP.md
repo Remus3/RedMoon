@@ -90,6 +90,7 @@ join does not exist offline (0 of 425 on seven key forms).
 
 Status 2026-07-26, ledger 002e. **All five tables are populated.**
 `items` 425, `recipes` 663, `abilities` 54, `vbloods` 66, `blood_types` 13, from
+(the 66 was CORRECTED to 65 by the next pass - see ledger 002f)
 one live server dump in 714 ms. The six open measurements are all closed, and
 `docs/BRIDGE_SPIKES.md` "The cycle 2 measurement pass" carries every number.
 
@@ -105,20 +106,40 @@ The corrections that came out of it:
   prefab and every bonus magnitude reads 0, scaled from blood quality at runtime,
   so the table carries stat NAMES and never a fabricated number.
 
+Status 2026-07-26, ledger 002f. **The client-host pass.** Both hosts ran the
+same binary at once and every open item above is now measured. See
+`docs/BRIDGE_SPIKES.md`, "The client-host pass".
+
+- **The client and server item COMPONENT data are IDENTICAL.** Row-by-row diff
+  keyed on `prefab_guid`, every field: ZERO differing rows across all five
+  tables. Either host may serve the dump; the client costs 103 ms, the server
+  794.
+- **`localization_guid` is WRITABLE on the CLIENT.** The join resolves 425 of
+  425 there and 0 of 425 on the dedicated server, and all 425 client guids are
+  real `strings.json` keys. The recorded absence was true of the SERVER HOST, not
+  of the build. Every dump now carries its own `localization` counters.
+- **`recipes.station_guids` is RULED and WRITABLE** at `schema_version` 2,
+  ADR-006. 911 unique pairs over 663 recipes; 575 recipes reach a station, 88
+  reach none, and 19 sit at twelve stations each.
+- **`vbloods` is 65, not 66.** The dumper emitted one row per ENTITY and more
+  than one entity can carry the same `PrefabGUID`, so a duplicated Dracula was
+  counted twice - and two ability groups likewise, making 56 rows over 54 guids
+  on both hosts. Every duplicate pair was byte-identical, so no per-row gate
+  could see it. Fixed in the dumper AND gated at ingest.
+
 REMAINING before cycle 2 can close:
 
-- `recipes.station_guid` stays OMITTED. It is reverse-only (35 workstations plus
-  23 refinement stations reference 942 recipes) and ONE-TO-MANY, so the singular
-  schema field owes a decision before ingest can invert it.
-- `localization_guid` is measured ABSENT on the server host: 0 of 425
-  equippables resolve through `ManagedDataRegistry`. Whether the CLIENT host
-  registers it is untested.
-- Whether client item COMPONENT data matches the server's is UNTESTED; only the
-  prefab maps were compared. Same client run settles both this and the line
-  above.
-- `abilities` covers the 54 spell-school abilities only; weapon abilities have no
-  school asset, and 38 of the 54 rows carry no `damage_type`.
-- `Unload()`'s graceful path is unobserved, and 4 recipes remain unmapped.
+- `Unload()`'s graceful path is UNOBSERVED but is now observABLE: a normal client
+  quit writes nothing to `LogOutput.log`, which was consistent with three
+  different hypotheses, so `Unload()` now also appends to
+  `BepInExedmoon-unload.log` outside the logging pipeline. One clean exit on
+  the instrumented build settles it.
+- `abilities` covers the 54 spell-school abilities only. Weapon abilities have no
+  school asset and produce no row, and 38 of the 54 carry no `damage_type`
+  because the projectile deals the damage. Both are the measured edge of the
+  join, not defects.
+- 4 recipes remain unmapped, all `recipe prefab with an empty item output
+  buffer`.
 
 ## Cycle 3 - Bloodforge core
 

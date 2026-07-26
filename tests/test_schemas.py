@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from core.table_deep import deep_problems
 from core.tables import (
     SCHEMA_DIR,
     TABLE_NAMES,
@@ -21,7 +22,7 @@ EXPECTED_SCHEMA_VERSIONS = {
     "abilities": 1,
     "vbloods": 1,
     "blood_types": 2,
-    "recipes": 1,
+    "recipes": 2,
 }
 
 
@@ -132,3 +133,57 @@ def test_schema_files_are_ascii():
         text = path.read_text(encoding="utf-8")
         assert all(ord(c) <= 127 for c in text), f"{path.name} is not ascii"
         json.loads(text)
+
+
+# ---------------------------------------------------------------------------
+# recipes.station_guids - ADR-006
+# ---------------------------------------------------------------------------
+
+
+def test_recipes_station_field_is_plural_at_schema_version_2():
+    """ADR-006. MEASURED: 35 WorkstationRecipesBuffer prefabs hold 693 recipe
+    references and 23 RefinementstationRecipesBuffer prefabs hold 249, which is
+    942 references over 663 recipes. A recipe appears at several stations, so a
+    single integer cannot hold the answer and a first-station-wins value would be
+    indistinguishable from a measured one."""
+    schema = load_schema("recipes")
+
+    assert schema["schema_version"] == 2
+    assert "station_guid" not in schema["fields"], (
+        "the singular station_guid survives, so a consumer can still read it"
+    )
+    assert schema["fields"]["station_guids"]["type"] == "array"
+    assert "station_guids" not in schema["required"], (
+        "a recipe reachable from no station is real and must still validate"
+    )
+
+
+def test_a_recipe_row_carrying_many_stations_passes_both_gates():
+    row = {
+        "prefab_guid": 401,
+        "output_guid": 402,
+        "output_amount": 1,
+        "ingredients": [{"prefab_guid": 403, "amount": 8}],
+        "station_guids": [-1937548008, 1922056553],
+        "craft_duration": 10.0,
+    }
+    envelope = empty_table("recipes", "9.9.9.9-r12345")
+    envelope["rows"] = [row]
+
+    assert validate_table(envelope, load_schema("recipes")) == []
+    assert deep_problems("recipes", envelope) == []
+
+
+def test_an_empty_station_list_is_valid_and_is_not_the_same_as_the_field_missing():
+    """ADR-006 decision 2: an empty array says "measured, reachable from no
+    station". A missing field says "not measured". Collapsing them would make
+    the inversion unfalsifiable."""
+    base = {
+        "prefab_guid": 401,
+        "output_guid": 402,
+        "ingredients": [],
+    }
+    for rows in ([dict(base, station_guids=[])], [dict(base)]):
+        envelope = empty_table("recipes", "9.9.9.9-r12345")
+        envelope["rows"] = rows
+        assert validate_table(envelope, load_schema("recipes")) == []

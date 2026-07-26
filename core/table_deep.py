@@ -14,6 +14,12 @@ Contracts asserted here:
 
 1. recipes.ingredients   - list of objects, each with an integer prefab_guid and
                            an integer amount, and no undeclared keys.
+1b. recipes.station_guids - list of integers, unique and ascending, possibly
+                           empty. schema_version 2, ADR-006. The singular
+                           station_guid it replaced was MEASURED WRONG on both
+                           halves: nothing on a recipe entity names a station,
+                           and the reverse link is one-to-many at 942 references
+                           over 663 recipes.
 2. blood_types.bonuses   - list of objects, each naming a tier's buff prefab
                            and the stat names it modifies, ordered by ascending
                            tier within a slot. schema_version 2. The version 1
@@ -201,10 +207,48 @@ def _check_scalar_list(index: int, field: str, value: object, problems: list[str
         )
 
 
+def _check_station_guids(index: int, field: str, value: object, problems: list[str]) -> None:
+    """Assert the inverted station list is integers, unique, ascending.
+
+    ADR-006. The list is BUILT by the dumper by inverting
+    WorkstationRecipesBuffer and RefinementstationRecipesBuffer, so every
+    property here is a property of that inversion rather than of the game:
+
+      * integers, because a PrefabGUID that arrives as text has been through a
+        stringifying hop;
+      * unique, because the dumper accumulates into a set and a repeat means the
+        inversion is broken, not that the game lists a station twice;
+      * ascending, because order is the only thing that makes two dumps of the
+        same world byte-comparable.
+
+    An empty list is valid and means measured-and-reachable-from-no-station.
+    """
+    if not isinstance(value, list):
+        return
+
+    previous = None
+    seen: set[int] = set()
+    for position, entry in enumerate(value):
+        where = f"row {index} field {field}[{position}]"
+        if isinstance(entry, bool) or not isinstance(entry, int):
+            problems.append(f"{where} is {_kind(entry)}, expected an integer")
+            continue
+        if entry in seen:
+            problems.append(f"{where} repeats station {entry}")
+            continue
+        seen.add(entry)
+        if previous is not None and entry < previous:
+            problems.append(f"{where} is {entry}, which is below {previous} - expected ascending")
+        previous = entry
+
+
 _Check = Callable[[int, str, object, list[str]], None]
 
 _CHECKS: dict[str, tuple[tuple[str, _Check], ...]] = {
-    "recipes": (("ingredients", _check_ingredients),),
+    "recipes": (
+        ("ingredients", _check_ingredients),
+        ("station_guids", _check_station_guids),
+    ),
     "blood_types": (("bonuses", _check_bonuses),),
     "items": (("stats", _check_number_mapping),),
     "vbloods": (

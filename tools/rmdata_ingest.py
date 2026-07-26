@@ -228,6 +228,114 @@ def unmapped_summary(payload: dict, sample_size: int = UNMAPPED_SAMPLE) -> dict:
     return {"count": len(entries), "sample": entries[:sample_size], "present": True}
 
 
+def duplicate_key_problems(tables: dict[str, list]) -> list[str]:
+    """Report any table that repeats a prefab_guid.
+
+    MEASURED 2026-07-26: the dump emitted 56 ability rows over 54 distinct guids
+    on BOTH hosts, and 66 vblood rows over 65 distinct on the server. Every
+    duplicate pair was byte-identical, so no shape gate and no deep gate could
+    see it - the rows were individually valid and the COUNT was the lie. 66 had
+    already been written down as the V Blood total.
+
+    prefab_guid is the join key cycle 3 will index on. Identical duplicates are
+    not benign: they double-count, and a consumer building a dict silently keeps
+    whichever row it read last.
+
+    A row with no prefab_guid is skipped rather than folded in with the other
+    keyless rows. That is the shallow gate's error to report, and collapsing
+    them here would hide it behind a bogus collision.
+    """
+    problems: list[str] = []
+    for name in sorted(tables):
+        rows = tables[name]
+        if not isinstance(rows, list):
+            continue
+        seen: dict[object, int] = {}
+        for row in rows:
+            if not isinstance(row, dict) or "prefab_guid" not in row:
+                continue
+            guid = row["prefab_guid"]
+            seen[guid] = seen.get(guid, 0) + 1
+        repeated = sorted((guid, n) for guid, n in seen.items() if n > 1)
+        for guid, n in repeated:
+            problems.append(
+                f"{name}: prefab_guid {guid} appears {n} times - the key must be unique"
+            )
+    return problems
+
+
+def localization_summary(payload: dict) -> dict:
+    """Report the dump's prefab-to-localization join counters.
+
+    The join is a PER-HOST fact, not a build fact. MEASURED on the dedicated
+    server, `ManagedDataRegistry.TryGet<ManagedItemData>` returns false for all
+    425 equippables and the without-logging control agrees, so `localization_guid`
+    is unwritable there. Whether the client host registers the managed data is a
+    different question with a different answer, and the only honest way to know
+    which host produced a dump is for the dump to carry its own counters.
+
+    `quiet_hits` is the control and is reported alongside the miss count: a
+    nonzero value means the data IS registered and the logging path refused it,
+    which is a completely different diagnosis from "not registered".
+    """
+    block = payload.get("localization")
+    if not isinstance(block, dict):
+        return {"present": False, "registry": "", "attempted": 0, "resolved": 0,
+                "empty_key": 0, "missed": 0, "quiet_hits": 0,
+                "rate": None, "writable": False}
+
+    def count(key: str) -> int:
+        value = block.get(key)
+        return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+    attempted = count("attempted")
+    resolved = count("resolved")
+    # No attempts means no evidence either way. A rate of 0.0 would read as a
+    # measured absence, which is a stronger claim than the data supports.
+    rate = (resolved / attempted) if attempted > 0 else None
+
+    return {
+        "present": True,
+        "registry": str(block.get("registry", "")),
+        "attempted": attempted,
+        "resolved": resolved,
+        "empty_key": count("empty_key"),
+        "missed": count("missed"),
+        "quiet_hits": count("quiet_hits"),
+        "rate": rate,
+        "writable": resolved > 0,
+    }
+
+
+def format_localization(summary: dict) -> list[str]:
+    """Render the join counters as operator-readable lines.
+
+    A zero rate is stated as a measurement, never as an error: 0 of 425 on the
+    server host is the recorded finding, and a census that shouted about it
+    would train the operator to ignore the line that matters.
+    """
+    if not summary["present"]:
+        return ["localization: MISSING from the payload - the dumper owes these counters"]
+
+    head = (
+        f"localization: {summary['resolved']} of {summary['attempted']} resolved"
+        f" registry={summary['registry'] or '?'}"
+        f" empty_key={summary['empty_key']}"
+        f" missed={summary['missed']}"
+        f" quiet_hits={summary['quiet_hits']}"
+    )
+    lines = [head]
+    if summary["writable"]:
+        lines.append("  localization_guid is WRITABLE on the host that took this dump")
+    elif summary["rate"] is None:
+        lines.append("  no equippable was attempted - this dump is evidence of nothing here")
+    elif summary["quiet_hits"] > 0:
+        lines.append("  registered but the logging path refused it - NOT an absence")
+    else:
+        lines.append("  measured ABSENT on the host that took this dump, so the field is omitted")
+    return lines
+
+
 def format_census(census: dict, unmapped: dict) -> list[str]:
     """Render the census structure as operator-readable lines."""
     lines = ["", "shape census - observed, not asserted:"]
@@ -389,10 +497,17 @@ def ingest(
         deep = deep_problems(name, envelope)
         problems.extend(f"{name}: {problem}" for problem in deep)
 
+    # The uniqueness gate runs over the whole set at once because it is a
+    # cross-ROW fact: every individual row here already passed both the shallow
+    # and the deep gate, and the defect is only visible in the collection.
+    problems.extend(duplicate_key_problems({name: tables[name] for name in names}))
+
     # 7. census. Printed even on a failed gate - the census is how the operator
     # finds out WHY the shape is wrong.
     censused = {name: tables[name] for name in names}
     for line in format_census(shape_census(censused), unmapped_summary(payload)):
+        print(line, file=out)
+    for line in format_localization(localization_summary(payload)):
         print(line, file=out)
 
     counts = ", ".join(f"{name}={len(tables[name])}" for name in names)

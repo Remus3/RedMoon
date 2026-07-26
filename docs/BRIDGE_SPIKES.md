@@ -888,3 +888,151 @@ reads the interop assemblies with `System.Reflection.Metadata` and reports type
 names, fields and methods. It is deliberately NOT committed - it is scratch, it
 is regenerable, and it must not become a second thing to maintain per patch.
 Recreate it if another metadata question comes up.
+
+## The client-host pass, 2026-07-26: the join that only exists on one host
+
+Everything below was measured in ONE session with both hosts live at once - the
+standalone dedicated server on 8780 and the operator's client on 8777 - running
+the SAME plugin binary. That concurrency is the ADR-005 payoff used rather than
+argued, and it is what makes the comparisons like-for-like.
+
+### The client item COMPONENT diff: CLOSED, they are IDENTICAL
+
+The open question was whether client item component data matches the server's.
+Only the prefab MAPS had ever been compared, and matching COUNTS are not an
+answer - two 425-row tables can disagree on every field.
+
+Both dumps were taken minutes apart from the same binary and diffed ROW BY ROW,
+keyed on `prefab_guid`, every field compared:
+
+| table | server | client | shared rows differing |
+|---|---|---|---|
+| `items` | 425 | 425 | **0** |
+| `recipes` | 663 | 663 | **0** |
+| `abilities` | 54 | 54 | **0** |
+| `vbloods` | 65 | 65 | **0** |
+| `blood_types` | 13 | 13 | **0** |
+
+Zero differing rows across all five tables, on every field except
+`localization_guid`, which was held out because it is the one field the two hosts
+were expected to disagree on. The client dump costs 103 ms against the server's
+794. Either host may serve the table dump and cycle 3 need not care which did.
+
+### S7 and section E OVERTURNED on the client: the join resolves 425 of 425
+
+The runtime localization join was recorded as MEASURED ABSENT. That measurement
+was correct and it was HOST-SPECIFIC, which nobody had checked:
+
+| host | registry | attempted | resolved | missed | quiet_hits |
+|---|---|---|---|---|---|
+| dedicated server | present | 425 | **0** | 425 | 0 |
+| client | present | 425 | **425** | 0 | 0 |
+
+`GameDataSystem.ManagedDataRegistry.TryGet<ManagedItemData>` returns false for
+every equippable in the headless host and true for every one in the client. The
+route is exactly the one S7 read out of the interop metadata, unchanged:
+
+```
+GameDataSystem -> ManagedDataRegistry -> TryGet<ManagedItemData>(PrefabGUID)
+  -> .Name (Stunlock.Localization.LocalizationKey) -> .Key.ToGuid().ToString()
+```
+
+And the guids are not merely present, they JOIN: **425 of 425 client
+`localization_guid` values are keys in `strings.json`**, resolving to real
+display names - `Item_Headgear_WolfTrophy01` to "Wolf Head",
+`Item_Headgear_PopeMitre` to "Mitre". 342 distinct guids over 425 rows, because
+skins share a display name. Compare the best offline heuristic, 53 of 425.
+
+CONSEQUENCE: `localization_guid` is WRITABLE, on the client host only. The
+counters now ride inside every dump as its `localization` block and
+`tools/rmdata_ingest.py` prints them, so a saved payload states for itself which
+host produced it and whether the field was writable there. The earlier absence
+stands as a true statement about the dedicated server and was never a statement
+about the build.
+
+### The duplicate rows: a wrong number that four gates could not see
+
+Diffing by `prefab_guid` surfaced a defect nothing else had. MEASURED on BOTH
+hosts: `abilities` emitted **56 rows over 54 distinct guids** -
+`AB_Blood_BloodRite_AbilityGroup` and `AB_Blood_Shadowbolt_AbilityGroup` twice
+each - and the SERVER emitted **66 vblood rows over 65 distinct**, with
+`CHAR_Vampire_Dracula_VBlood` twice.
+
+More than one entity can carry the same `PrefabGUID`, so a straight pass over
+`GetAllEntities` writes the row once per entity. Every duplicate pair was
+BYTE-IDENTICAL, which is why it survived: the shallow gate, the deep nested gate,
+the schema and the census all inspect rows one at a time, and each of those rows
+was individually perfect. The only symptom was the COUNT.
+
+**`vbloods` is 65, not 66.** The 66 recorded in `ROADMAP.md` and ledger 002e was
+65 real V Bloods plus a duplicated Dracula. It is corrected there.
+
+Two fixes, because the defect has two homes. `PrefabDumper.cs` dedupes every
+table on first write - with the marker component tested BEFORE the set insert,
+since `&&` short-circuits and an insert placed first would claim the guid on
+behalf of entities that are not rows of that table at all. And
+`tools/rmdata_ingest.py` gained `duplicate_key_problems`, a cross-ROW gate that
+refuses the whole ingest, because the producer being fixed today is not the same
+as the defect being detectable tomorrow.
+
+Verified after the fix, both hosts: 425 / 663 / 54 / 65 / 13, zero duplicates.
+
+### `recipes.station_guids`: RULED and WRITABLE, ADR-006
+
+The singular `station_guid` was measured unrepresentable and is replaced by a
+plural array at `recipes` `schema_version` 2. The full reasoning is ADR-006; the
+numbers are the reverse-only, one-to-many result already recorded in section D.
+
+The inversion runs in the DUMPER, which already walks the whole world for the
+school index. MEASURED live over both hosts, identically:
+
+```
+663 recipes, 575 reachable from at least one station, 88 from none
+911 unique (recipe, station) pairs emitted from 942 raw buffer references
+stations per recipe: 0->88  1->437  2->113  3->4  4->2  12->19
+```
+
+That histogram is the ruling's whole justification standing up in the data: a
+first-station-wins value would have been arbitrary for **138 recipes**, and
+wrong-by-a-factor-of-twelve for 19 of them. The 88 empty lists are emitted as
+`[]` rather than omitted, so "reachable from no station" stays distinguishable
+from "the inversion did not run".
+
+### `Unload()`: the graceful path is still UNOBSERVED, and now it is observABLE
+
+MEASURED, twice, on a normal in-game quit of the client: `BepInEx\LogOutput.log`
+gains NOTHING after `Chainloader startup complete`. No shutdown line from the
+plugin and none from BepInEx itself.
+
+That is not yet an answer, and the reason is the point. `Unload()` logged nothing
+at all, so a silent log was consistent with "Unload ran fine" and with "Unload
+never ran" and with "the logging pipeline was torn down first". A zero that three
+hypotheses predict equally is not evidence - the same shape as the `items.tier`
+zero and the `ShadowVBloodUnitTagComponent` zero.
+
+`Unload()` now does two things: it logs, and it appends a timestamped line to
+`BepInEx\redmoon-unload.log` through `File.AppendAllText`, OUTSIDE BepInEx's
+logging pipeline. The file is the observation that does not depend on the thing
+being observed. If the marker appears, Unload ran; if only the marker appears and
+not the log line, the pipeline was already gone; if neither appears, Unload does
+not run on a normal exit. Three hypotheses, three distinguishable outcomes.
+
+### `abilities` coverage, stated rather than left implied
+
+54 rows, 9 in each of the six spell schools, and the shape of what is missing is
+known rather than suspected:
+
+- **Weapon abilities produce no row at all.** The school comes from the
+  `<School>SpellSchoolAsset` prefab's `SpellSchoolAbility` buffer, and there is
+  no weapon school asset. `abilities.school` declares `weapon` as a legal value
+  and nothing on this build can source it.
+- **38 of 54 rows carry no `damage_type`.** The one measured hop reaches
+  `DealDamageOnGameplayEvent` for 562 of 1474 ability groups; a spell whose
+  PROJECTILE deals the damage is not reached, and a second spawn hop was measured
+  to add exactly 0. `damage_type` is OMITTED for those 38, never defaulted to
+  `Physical` - which is also the enum's zero value and therefore unreadable as
+  evidence.
+
+Neither is a defect to fix by widening the join. Both are the honest edge of a
+measured chain, and cycle 3 must treat `abilities` as covering spell-school
+abilities only.

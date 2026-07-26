@@ -106,7 +106,7 @@ def good_tables():
                     {"prefab_guid": 601, "amount": 8},
                     {"prefab_guid": 602, "amount": 4},
                 ],
-                "station_guid": 701,
+                "station_guids": [701],
                 "craft_duration": 12.0,
             }
         ],
@@ -361,3 +361,159 @@ def test_bridge_unreachable_is_a_clean_nonzero_exit(repo, monkeypatch, capsys):
     assert "bridge" in captured.err.lower()
     assert "Traceback" not in captured.err
     assert not incoming_dir(repo).exists()
+
+
+# ---------------------------------------------------------------------------
+# the localization join census
+#
+# MEASURED on the dedicated server: 0 of 425 equippables resolve through
+# ManagedDataRegistry (BRIDGE_SPIKES.md, section E). Whether the CLIENT host
+# registers the managed data is a per-host question, so the dump must CARRY its
+# own join counters and the ingest must print them. Reading a plugin log to find
+# out whether a field is writable on this host is not a contract.
+# ---------------------------------------------------------------------------
+
+
+def test_localization_summary_reports_a_missing_block_as_owed():
+    """A dump with no localization block is a dumper that owes the counters.
+
+    Same rule as unmapped: absent is reported, never silently treated as zero.
+    """
+    summary = rmdata_ingest.localization_summary({})
+
+    assert summary["present"] is False
+    lines = rmdata_ingest.format_localization(summary)
+    assert any("MISSING" in line for line in lines)
+
+
+def test_localization_summary_reports_a_measured_absence_without_calling_it_an_error():
+    """registry present, 0 of 425 resolved - the measured server-host result.
+
+    This is a FINDING, not a failure, and the census must not read as one.
+    """
+    summary = rmdata_ingest.localization_summary(
+        {
+            "localization": {
+                "registry": "present",
+                "attempted": 425,
+                "resolved": 0,
+                "empty_key": 0,
+                "missed": 425,
+                "quiet_hits": 0,
+            }
+        }
+    )
+
+    assert summary["present"] is True
+    assert summary["attempted"] == 425
+    assert summary["resolved"] == 0
+    assert summary["rate"] == 0.0
+    assert summary["writable"] is False
+
+    text = " ".join(rmdata_ingest.format_localization(summary))
+    assert "0 of 425" in text
+    assert "registry=present" in text
+    # the without-logging control belongs in the operator's line, because it is
+    # what separates "not registered" from "the logging path refused it"
+    assert "quiet_hits=0" in text
+
+
+def test_localization_summary_reports_a_working_join_as_writable():
+    summary = rmdata_ingest.localization_summary(
+        {
+            "localization": {
+                "registry": "present",
+                "attempted": 425,
+                "resolved": 425,
+                "empty_key": 0,
+                "missed": 0,
+                "quiet_hits": 0,
+            }
+        }
+    )
+
+    assert summary["rate"] == 1.0
+    assert summary["writable"] is True
+    assert "425 of 425" in " ".join(rmdata_ingest.format_localization(summary))
+
+
+def test_localization_summary_survives_zero_attempts():
+    """A table-filtered dump attempts nothing. No divide by zero, no rate."""
+    summary = rmdata_ingest.localization_summary(
+        {"localization": {"registry": "absent", "attempted": 0, "resolved": 0}}
+    )
+
+    assert summary["rate"] is None
+    assert summary["writable"] is False
+    assert "registry=absent" in " ".join(rmdata_ingest.format_localization(summary))
+
+
+def test_localization_census_is_printed_by_a_real_ingest(repo, capsys):
+    """The counters reach the operator through the ingest, not through a log."""
+    payload = dump_payload()
+    payload["localization"] = {
+        "registry": "present",
+        "attempted": 2,
+        "resolved": 2,
+        "empty_key": 0,
+        "missed": 0,
+        "quiet_hits": 0,
+    }
+    dump = repo / "dump.json"
+    dump.write_text(json.dumps(payload), encoding="utf-8")
+
+    rmdata_ingest.main(["--repo", str(repo), "--from-file", str(dump), "--accept"])
+
+    assert "2 of 2" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# prefab_guid uniqueness
+#
+# MEASURED 2026-07-26 on both hosts: the dump emitted 56 ability rows over 54
+# distinct prefab_guids (AB_Blood_BloodRite_AbilityGroup and
+# AB_Blood_Shadowbolt_AbilityGroup twice each) and the SERVER emitted 66 vblood
+# rows over 65 distinct (CHAR_Vampire_Dracula_VBlood twice). The duplicate rows
+# were byte-identical, so nothing downstream would have raised - the count was
+# simply wrong, and 66 had already been written into ROADMAP.md as the V Blood
+# total.
+#
+# prefab_guid is the join key every cycle 3 consumer will use. A table that
+# repeats it is broken whether or not the repeated rows agree.
+# ---------------------------------------------------------------------------
+
+
+def test_duplicate_prefab_guid_is_a_gate_failure_even_when_rows_are_identical():
+    rows = good_tables()["items"]
+    duplicated = rows + [dict(rows[0])]
+
+    problems = rmdata_ingest.duplicate_key_problems({"items": duplicated})
+
+    assert problems, "an exactly repeated prefab_guid passed the gate"
+    assert "101" in " ".join(problems)
+    assert "items" in " ".join(problems)
+
+
+def test_distinct_prefab_guids_pass_the_uniqueness_gate():
+    assert rmdata_ingest.duplicate_key_problems(good_tables()) == []
+
+
+def test_rows_without_a_prefab_guid_are_not_folded_together():
+    """A missing key is the shallow gate's problem to report, not this one's.
+    Treating two absent keys as a collision would mask the real error."""
+    assert rmdata_ingest.duplicate_key_problems({"items": [{}, {}]}) == []
+
+
+def test_a_duplicated_row_fails_a_real_ingest_and_nothing_is_promoted(repo):
+    payload = dump_payload()
+    payload["tables"]["vbloods"] = payload["tables"]["vbloods"] + [
+        dict(payload["tables"]["vbloods"][0])
+    ]
+    dump = repo / "dump.json"
+    dump.write_text(json.dumps(payload), encoding="utf-8")
+
+    code = rmdata_ingest.main(["--repo", str(repo), "--from-file", str(dump), "--accept"])
+
+    assert code != 0
+    promoted = repo / "data" / "rmdata" / BUILD / TABLES_DIRNAME / "vbloods.json"
+    assert read_json(promoted)["rows"] == [], "a duplicated dump was promoted anyway"

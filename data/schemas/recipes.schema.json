@@ -1,14 +1,14 @@
 {
   "table": "recipes",
-  "schema_version": 1,
-  "description": "Crafting and refinement recipes. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that ingredients is a list; the described per-entry objects with prefab_guid and amount are documented but never checked. A passing validate_table is not a guarantee about what is inside ingredients.",
+  "schema_version": 2,
+  "description": "Crafting and refinement recipes. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that ingredients and station_guids are lists; the described per-entry objects with prefab_guid and amount are documented but never checked by it. core/table_deep.py promotes both into assertions. schema_version 2 replaced the singular station_guid with the plural station_guids on measurement (ADR-006): nothing on a recipe entity names a station, and the reverse link is one-to-many - 35 WorkstationRecipesBuffer prefabs hold 693 recipe references and 23 RefinementstationRecipesBuffer prefabs hold 249, which is 942 references over 663 recipes.",
   "required": ["prefab_guid", "output_guid", "ingredients"],
   "fields": {
     "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash of the recipe."},
     "output_guid": {"type": "integer", "description": "PrefabGUID of the produced item."},
     "output_amount": {"type": "integer", "description": "Units produced per craft."},
     "ingredients": {"type": "array", "description": "Objects with prefab_guid and amount."},
-    "station_guid": {"type": "integer", "description": "PrefabGUID of the required crafting station."},
+    "station_guids": {"type": "array", "description": "PrefabGUIDs of every station that can run this recipe, sorted ascending. Inverted by the dumper from WorkstationRecipesBuffer and RefinementstationRecipesBuffer, which are the only forward links that exist (ADR-006). An EMPTY array means measured and reachable from no station, which is real for AlwaysUnlocked player-crafted recipes; an ABSENT field means the inversion did not run. The two are deliberately distinguishable. Entries are integers."},
     "craft_duration": {"type": "number", "description": "Seconds per craft at base speed."}
   }
 }

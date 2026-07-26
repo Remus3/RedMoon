@@ -4,13 +4,16 @@
 // MonoBehaviour tick in Plugin.cs and never from the listener thread.
 //
 // What this file may emit is bounded by what was MEASURED against build
-// 1.1.13.0-r99712 (docs/BRIDGE_SPIKES.md, S3 live entity dump): items and
-// recipes only. The other three schemas are NOT writable yet - the ability
-// school is not on the _Cast entity, the V Blood level field is unpinned, and
-// the blood bonus buffer element fields are unread - so this file does not
-// pretend to fill them. tests/test_bridge_project.py fails if it starts to.
+// 1.1.13.0-r99712 (docs/BRIDGE_SPIKES.md). All five schemas are now writable:
+// the ability school is SpellSchoolAbility.AbilityGroup on the
+// <School>SpellSchoolAsset prefab (NOT DealDamageParameters.MainType, which is
+// the damage type), the V Blood level is UnitLevel.Level (NOT
+// VBloodConsumeSource.Tier, which has five members and cannot be a level), and
+// the blood bonus tiers are the two UnitBloodTypeBuffs buffers. Fields with no
+// measured source - items.tier, and localization_guid on a host whose registry
+// does not resolve - are OMITTED, never defaulted.
 //
-// Two measured traps are encoded here rather than commented around:
+// Three measured traps are encoded here rather than commented around:
 //
 //  1. READINESS. The prefab map fills in over about 1.7 s, climbing
 //     1189 -> 3212 -> 11760 -> 17400 -> 23583, and GameDataInitialized flips
@@ -20,7 +23,14 @@
 //  2. WORLD SELECTION IS BY NAME. "Default World" is a Simulation world sitting
 //     at index 0 in both hosts and it THROWS when asked for the prefab map, so
 //     "first Simulation world" is a wrong rule that happens to be plausible.
+//  3. PREFAB GUIDS REPEAT ACROSS ENTITIES. More than one entity can carry the
+//     same PrefabGUID, so a straight pass over GetAllEntities emits the same
+//     row twice. MEASURED on both hosts: 56 ability rows over 54 guids, and 66
+//     vblood rows over 65 on the server. The duplicate rows were IDENTICAL, so
+//     the only symptom was a wrong count - and that count had already been
+//     written down as a finding. Every table dedupes on first write.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using Unity.Collections;
@@ -211,6 +221,33 @@ namespace RedMoon.Bridge
             int bloodTypeCount = 0;
             int unmappedCount = 0;
 
+            // prefab_guid is the join key, and the world can hold MORE THAN ONE
+            // entity carrying the same one. MEASURED 2026-07-26 on both hosts:
+            // AB_Blood_BloodRite_AbilityGroup and AB_Blood_Shadowbolt_AbilityGroup
+            // each appeared twice (56 rows over 54 guids), and the SERVER also
+            // held CHAR_Vampire_Dracula_VBlood twice (66 rows over 65). Every
+            // duplicate pair was byte-identical, so no per-row gate could see it
+            // and the only symptom was a wrong COUNT - one that had already been
+            // written into ROADMAP.md as the V Blood total.
+            //
+            // First write wins. The rows were identical, so which one wins does
+            // not matter; that they are counted once does.
+            //
+            // ORDER MATTERS in the guards below: the marker component is tested
+            // BEFORE Add, never after. && short-circuits left to right, so an
+            // Add placed first would claim the guid on behalf of every entity
+            // carrying it - including ones that are not rows of that table at
+            // all - and then reject the real row when it came along later.
+            var seenItems = new HashSet<int>();
+            var seenRecipes = new HashSet<int>();
+            var seenAbilities = new HashSet<int>();
+            var seenVbloods = new HashSet<int>();
+            var seenBloodTypes = new HashSet<int>();
+
+            // Opened once per dump, never per row: the registry handle is the
+            // expensive part and the counters must accumulate across the pass.
+            LocalizationJoin localization = LocalizationJoin.Open(target);
+
             EntityManager em = target.EntityManager;
             NativeArray<Entity> all = em.GetAllEntities(Allocator.Temp);
 
@@ -219,7 +256,14 @@ namespace RedMoon.Bridge
             // dump measures 57 ms for 47573 entities.
             var schools = wantAbilities
                 ? BuildSchoolIndex(em, map, all)
-                : new System.Collections.Generic.Dictionary<int, string>();
+                : new Dictionary<int, string>();
+
+            // ADR-006. Same shape of work as the school index and for the same
+            // reason: the link runs from the STATION to the recipe, so a recipe
+            // row cannot be written until the whole world has been walked once.
+            var stations = wantRecipes
+                ? BuildStationIndex(em, all)
+                : new Dictionary<int, List<int>>();
 
             for (int i = 0; i < all.Length; i++)
             {
@@ -240,9 +284,10 @@ namespace RedMoon.Bridge
                     continue;
                 }
 
-                if (wantItems && Has<ProjectM.EquippableData>(em, e))
+                if (wantItems && Has<ProjectM.EquippableData>(em, e)
+                    && seenItems.Add(guid.GuidHash))
                 {
-                    if (TryWriteItem(items, itemCount, em, map, e, guid))
+                    if (TryWriteItem(items, itemCount, em, map, e, guid, localization))
                     {
                         itemCount++;
                     }
@@ -254,10 +299,11 @@ namespace RedMoon.Bridge
                     }
                 }
 
-                if (wantRecipes && Has<ProjectM.RecipeData>(em, e))
+                if (wantRecipes && Has<ProjectM.RecipeData>(em, e)
+                    && seenRecipes.Add(guid.GuidHash))
                 {
                     string reason;
-                    if (TryWriteRecipe(recipes, recipeCount, em, e, guid, out reason))
+                    if (TryWriteRecipe(recipes, recipeCount, em, e, guid, stations, out reason))
                     {
                         recipeCount++;
                     }
@@ -272,7 +318,8 @@ namespace RedMoon.Bridge
                 // group the school index does not name is not a defective row,
                 // it is a weapon or creature ability outside the six schools, so
                 // it is skipped rather than reported as unmapped.
-                if (wantAbilities && schools.ContainsKey(guid.GuidHash))
+                if (wantAbilities && schools.ContainsKey(guid.GuidHash)
+                    && seenAbilities.Add(guid.GuidHash))
                 {
                     if (TryWriteAbility(abilities, abilityCount, em, map, e, guid,
                                         schools[guid.GuidHash]))
@@ -292,7 +339,8 @@ namespace RedMoon.Bridge
                 // GateBossComponentsTemplate_Major, which have a UnitLevel and
                 // would look exactly like a boss row.
                 if (wantVbloods && Has<ProjectM.VBloodUnit>(em, e)
-                    && Has<ProjectM.VBloodConsumeSource>(em, e))
+                    && Has<ProjectM.VBloodConsumeSource>(em, e)
+                    && seenVbloods.Add(guid.GuidHash))
                 {
                     string reason;
                     if (TryWriteVBlood(vbloods, vbloodCount, em, map, e, guid, out reason))
@@ -309,7 +357,8 @@ namespace RedMoon.Bridge
                 // Selected by marker component, never by the BloodType_ name
                 // prefix: HasBuffer is a fact, a prefix is a guess about
                 // Stunlock's conventions.
-                if (wantBloodTypes && HasBuffer<ProjectM.Shared.PrimaryUnitBloodTypeBuffs>(em, e))
+                if (wantBloodTypes && HasBuffer<ProjectM.Shared.PrimaryUnitBloodTypeBuffs>(em, e)
+                    && seenBloodTypes.Add(guid.GuidHash))
                 {
                     if (TryWriteBloodType(bloodTypes, bloodTypeCount, em, map, e, guid))
                     {
@@ -343,7 +392,15 @@ namespace RedMoon.Bridge
             body.Append(",\"abilities\":[").Append(abilities).Append(']');
             body.Append(",\"vbloods\":[").Append(vbloods).Append(']');
             body.Append(",\"blood_types\":[").Append(bloodTypes).Append(']');
-            body.Append("},\"unmapped\":[").Append(unmapped).Append("]}");
+            body.Append("},\"unmapped\":[").Append(unmapped).Append(']');
+
+            // Emitted on EVERY dump, including one that resolved nothing. A
+            // measured zero is a result; a MISSING block is a dumper that owes
+            // the measurement, and tools/rmdata_ingest.py reports the two
+            // differently on purpose.
+            body.Append(",\"localization\":");
+            localization.Write(body);
+            body.Append('}');
             return body.ToString();
         }
 
@@ -369,6 +426,143 @@ namespace RedMoon.Bridge
             {
                 return false;
             }
+        }
+
+        // -------------------------------------------------------------------
+        // the station index
+        // -------------------------------------------------------------------
+        /// <summary>
+        /// Recipe PrefabGUID hash to the sorted, deduplicated list of station
+        /// PrefabGUID hashes that can run it. ADR-006.
+        ///
+        /// This index exists because the reference runs the WRONG WAY for a
+        /// per-recipe read. Nothing on a recipe entity names a station, and the
+        /// forward-looking candidate was checked and rejected: MEASURED, only 5
+        /// of 667 recipes carry ProjectM.RecipeLinkBuffer, its 56 links every one
+        /// resolve to another RECIPE rather than a station, and
+        /// Recipe_Ingredient_FakeGemDust alone links 24 gem recipes. It is a
+        /// recipe-group alias.
+        ///
+        /// The real links are the two station-side buffers. MEASURED over the
+        /// whole world: 35 prefabs carry WorkstationRecipesBuffer with 693 recipe
+        /// references and 23 carry RefinementstationRecipesBuffer with 249, which
+        /// is 942 references over 663 recipes - so the relation is ONE-TO-MANY
+        /// and the schema's old singular station_guid could not hold it.
+        ///
+        /// The two buffer types feed one list undifferentiated, per ADR-006
+        /// decision 4.
+        /// </summary>
+        private static Dictionary<int, List<int>> BuildStationIndex(
+            EntityManager em, NativeArray<Entity> all)
+        {
+            var index = new Dictionary<int, List<int>>();
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                Entity e = all[i];
+
+                Stunlock.Core.PrefabGUID station;
+                try
+                {
+                    if (!em.HasComponent<Stunlock.Core.PrefabGUID>(e))
+                    {
+                        continue;
+                    }
+
+                    station = em.GetComponentData<Stunlock.Core.PrefabGUID>(e);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                AddWorkstation(em, e, station.GuidHash, index);
+                AddRefinementstation(em, e, station.GuidHash, index);
+            }
+
+            // Sorted and deduplicated, because core/table_deep.py asserts both.
+            // Order is what makes two dumps of the same world comparable, and a
+            // repeat would mean this inversion is broken rather than that the
+            // game lists a station twice.
+            foreach (var pair in index)
+            {
+                pair.Value.Sort();
+                for (int i = pair.Value.Count - 1; i > 0; i--)
+                {
+                    if (pair.Value[i] == pair.Value[i - 1])
+                    {
+                        pair.Value.RemoveAt(i);
+                    }
+                }
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// The two buffers get one concrete reader each rather than a shared
+        /// generic. A generic constrained to `unmanaged` cannot touch a field, so
+        /// the only way to read the element is by name - and writing the name
+        /// once for a type whose layout was never measured would be a guess. Two
+        /// methods make the COMPILER check each field against the real type.
+        /// `.RecipeGuid` on WorkstationRecipesBuffer is measured, read live by
+        /// the spike probe.
+        /// </summary>
+        private static void AddWorkstation(EntityManager em, Entity e, int stationHash,
+                                           Dictionary<int, List<int>> index)
+        {
+            try
+            {
+                if (!em.HasBuffer<ProjectM.WorkstationRecipesBuffer>(e))
+                {
+                    return;
+                }
+
+                var buffer = em.GetBuffer<ProjectM.WorkstationRecipesBuffer>(e, true);
+                for (int k = 0; k < buffer.Length; k++)
+                {
+                    Record(index, buffer[k].RecipeGuid.GuidHash, stationHash);
+                }
+            }
+            catch (Exception)
+            {
+                // A station whose buffer cannot be read contributes nothing,
+                // which UNDERSTATES the list rather than inventing an entry.
+            }
+        }
+
+        private static void AddRefinementstation(EntityManager em, Entity e, int stationHash,
+                                                 Dictionary<int, List<int>> index)
+        {
+            try
+            {
+                if (!em.HasBuffer<ProjectM.RefinementstationRecipesBuffer>(e))
+                {
+                    return;
+                }
+
+                var buffer = em.GetBuffer<ProjectM.RefinementstationRecipesBuffer>(e, true);
+                for (int k = 0; k < buffer.Length; k++)
+                {
+                    Record(index, buffer[k].RecipeGuid.GuidHash, stationHash);
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static void Record(Dictionary<int, List<int>> index, int recipeHash,
+                                   int stationHash)
+        {
+            List<int> list;
+            if (!index.TryGetValue(recipeHash, out list))
+            {
+                list = new List<int>();
+                index[recipeHash] = list;
+            }
+
+            list.Add(stationHash);
         }
 
         // -------------------------------------------------------------------
@@ -762,7 +956,8 @@ namespace RedMoon.Bridge
         // -------------------------------------------------------------------
         private static bool TryWriteItem(StringBuilder sb, int index, EntityManager em,
                                          Stunlock.Core.PrefabLookupMap map, Entity e,
-                                         Stunlock.Core.PrefabGUID guid)
+                                         Stunlock.Core.PrefabGUID guid,
+                                         LocalizationJoin localization)
         {
             string category;
             string weaponType;
@@ -810,11 +1005,23 @@ namespace RedMoon.Bridge
             // is already published as gear_score, and headgear, cloaks and bags
             // carry no level component at all).
 
-            // localization_guid is OMITTED, not faked: MEASURED, the join does
-            // not exist offline - all 8379 strings.json keys are dashed UUIDs and
-            // zero of 425 rows join by name, by decimal guid or by six hex forms.
-            // The runtime route is GameDataSystem.ManagedDataRegistry, NOT
+            // localization_guid is ATTEMPTED per host and OMITTED when the join
+            // does not resolve. It is never faked: the offline join does not
+            // exist at all (all 8379 strings.json keys are dashed UUIDs, and 0
+            // of 425 rows join by name, decimal guid or six hex forms), and the
+            // runtime route is GameDataSystem.ManagedDataRegistry, NOT
             // PrefabLookupMap, which carries no localization member.
+            //
+            // MEASURED absent on the dedicated server, 0 of 425 with the
+            // without-logging control agreeing. The CLIENT host is a separate
+            // measurement, which is why this reads rather than assumes. The
+            // per-dump counters ride in the envelope's localization block.
+            string loc = localization.GuidFor(guid);
+            if (loc.Length > 0)
+            {
+                sb.Append(",\"localization_guid\":").Append(Json.Str(loc));
+            }
+
             // gear_score is emitted only when ArmorLevelSource is actually present.
             try
             {
@@ -888,6 +1095,7 @@ namespace RedMoon.Bridge
         // -------------------------------------------------------------------
         private static bool TryWriteRecipe(StringBuilder sb, int index, EntityManager em,
                                            Entity e, Stunlock.Core.PrefabGUID guid,
+                                           Dictionary<int, List<int>> stations,
                                            out string reason)
         {
             reason = "";
@@ -943,9 +1151,29 @@ namespace RedMoon.Bridge
             sb.Append(",\"output_amount\":").Append(outputAmount);
             sb.Append(",\"craft_duration\":").Append(Json.Num(duration));
 
-            // station_guid is OMITTED. It is OPEN in S3: the station references
-            // the recipe, not the reverse, so there is nothing on this entity to
-            // read and a guessed zero would be indistinguishable from a real one.
+            // station_guids, ADR-006. Nothing on THIS entity names a station -
+            // the reference runs the other way - so the value comes from the
+            // inverted index built in Dump(). Emitted even when empty, because
+            // "reachable from no station" is a real answer for an AlwaysUnlocked
+            // player-crafted recipe and must stay distinguishable from "the
+            // inversion did not run".
+            sb.Append(",\"station_guids\":[");
+            List<int> stationList;
+            if (stations.TryGetValue(guid.GuidHash, out stationList))
+            {
+                for (int i = 0; i < stationList.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.Append(',');
+                    }
+
+                    sb.Append(stationList[i]);
+                }
+            }
+
+            sb.Append(']');
+
             sb.Append(",\"ingredients\":[");
             try
             {

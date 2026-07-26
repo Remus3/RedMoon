@@ -25,7 +25,7 @@ from pathlib import Path
 from core import ports
 from core.table_deep import deep_problems
 from core.tables import load_schema, validate_table
-from tools import bridge_probe
+from tools import bridge_probe, rmdata_ingest
 
 REPO = Path(__file__).resolve().parents[1]
 BRIDGE = REPO / "bridge"
@@ -33,7 +33,8 @@ SRC = BRIDGE / "src" / "RedMoon.Bridge"
 CSPROJ = SRC / "RedMoon.Bridge.csproj"
 PROPS = BRIDGE / "Directory.Build.props"
 
-SOURCE_FILES = ("Plugin.cs", "HostDetect.cs", "BridgeServer.cs", "PrefabDumper.cs")
+SOURCE_FILES = ("Plugin.cs", "HostDetect.cs", "BridgeServer.cs", "PrefabDumper.cs",
+                "Localization.cs")
 
 GENERATED_REL = "Generated/RmPorts.g.cs"
 
@@ -59,6 +60,10 @@ REQUIRED_REFERENCES = frozenset(
         "ProjectM",
         "ProjectM.Shared",
         "ProjectM.Gameplay.Systems",
+        # Localization.cs touches ManagedItemData.Name, a
+        # Stunlock.Localization.LocalizationKey. R17 re-run across this assembly:
+        # 48 types in both hosts, zero divergence in either direction.
+        "Stunlock.Localization",
     }
 )
 
@@ -286,6 +291,119 @@ def test_vblood_level_is_unit_level_not_the_progression_tier():
 
 def test_dumper_carries_the_mandatory_unmapped_array():
     assert '"unmapped"' in _unescaped(SRC / "PrefabDumper.cs")
+
+
+# ---------------------------------------------------------------------------
+# the localization join
+#
+# MEASURED absent on the dedicated server (0 of 425, BRIDGE_SPIKES.md section
+# E). The join is a PER-HOST fact, so the dump carries its own counters and the
+# ingest prints them. These gates keep the C# key names and the Python reader
+# from drifting apart, which is the same reason the banner and its probe share
+# a matcher.
+# ---------------------------------------------------------------------------
+def test_station_guids_are_inverted_from_the_two_station_buffers():
+    """ADR-006. Nothing on a recipe entity names a station, so the value can only
+    come from inverting the station side. RecipeLinkBuffer looked like the
+    forward link and is NOT: 5 of 667 recipes carry it and every one of its 56
+    links resolves to another RECIPE."""
+    text = _read(SRC / "PrefabDumper.cs")
+    assert "WorkstationRecipesBuffer" in text
+    assert "RefinementstationRecipesBuffer" in text
+    # Named in a comment as the rejected candidate, which is the point of the
+    # comment. What must not appear is a READ of it.
+    assert "HasBuffer<ProjectM.RecipeLinkBuffer>" not in text, (
+        "the dumper reads the recipe-group alias as if it named a station"
+    )
+    assert "GetBuffer<ProjectM.RecipeLinkBuffer>" not in text
+
+
+def test_dumper_emits_the_plural_station_field_and_not_the_singular_one():
+    text = _unescaped(SRC / "PrefabDumper.cs")
+    assert '"station_guids"' in text
+    assert '"station_guid"' not in text, (
+        "the singular station_guid is emitted, which ADR-006 retired as unrepresentable"
+    )
+
+
+def test_station_list_is_sorted_before_it_is_emitted():
+    """core/table_deep.py rejects an unsorted or repeated list, so an unsorted
+    emit would fail at ingest rather than here - but it would fail on the LIVE
+    dump, after the operator has already run the game."""
+    text = _read(SRC / "PrefabDumper.cs")
+    assert ".Sort()" in text, "the station list is emitted in world-walk order"
+
+
+def test_every_table_dedupes_on_prefab_guid():
+    """MEASURED: more than one entity can carry the same PrefabGUID, so a
+    straight pass over GetAllEntities emits the row twice. The ingest gate
+    catches it, but the dumper is where it stops being produced."""
+    text = _read(SRC / "PrefabDumper.cs")
+    for table in WRITABLE_TABLES:
+        stem = "".join(part.capitalize() for part in table.split("_"))
+        assert f"seen{stem}.Add(guid.GuidHash)" in text, (
+            f"{table} rows are not deduped on prefab_guid"
+        )
+
+
+def test_dedupe_never_claims_a_guid_before_the_marker_component_is_tested():
+    """&& short-circuits left to right. An Add placed before the marker test
+    claims the guid on behalf of every entity carrying it, then rejects the real
+    row when it arrives - which turns a duplicate bug into a missing-row bug."""
+    text = _read(SRC / "PrefabDumper.cs")
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("if (want") or ".Add(guid.GuidHash)" not in stripped:
+            continue
+        raise AssertionError(
+            f"the guid is claimed on the same line as the want flag: {stripped!r}"
+        )
+
+
+def test_dump_envelope_carries_the_localization_counters():
+    assert '"localization"' in _unescaped(SRC / "PrefabDumper.cs")
+
+
+def test_localization_block_key_names_match_what_the_ingest_reads():
+    """The producer and the consumer are in different languages. Nothing but
+    this test stops a rename on one side from silently zeroing the other."""
+    text = _unescaped(SRC / "Localization.cs")
+    for key in ("registry", "attempted", "resolved", "empty_key", "missed", "quiet_hits"):
+        assert f'"{key}"' in text, f"Localization.cs never emits {key}"
+
+    absent = rmdata_ingest.localization_summary({"localization": {}})
+    for key in ("registry", "attempted", "resolved", "empty_key", "missed", "quiet_hits"):
+        assert key in absent, f"rmdata_ingest never reads {key}"
+
+
+def test_localization_join_uses_the_registry_not_the_prefab_lookup_map():
+    """CORRECTED in BRIDGE_SPIKES.md S6: PrefabLookupMap carries no localization
+    member at all, and its GetName returns the PREFAB name. The claim that it
+    served this join was a false line in the spikes doc."""
+    text = _read(SRC / "Localization.cs")
+    assert "ManagedDataRegistry" in text
+    assert "PrefabLookupMap" not in text, "the join reads the prefab lookup map"
+
+
+def test_localization_join_keeps_its_without_logging_control():
+    """A zero from TryGet alone is unreadable: it cannot separate "not
+    registered" from "registered and the logging path refused it". The control
+    is what makes the measured absence a result rather than a shrug."""
+    assert "TryGetWithoutLogging" in _read(SRC / "Localization.cs")
+
+
+def test_localization_guid_is_omitted_rather_than_written_empty():
+    """An empty localization_guid and a missing one are different claims, and
+    only the second one is true when the join does not resolve. Same rule that
+    retired the fabricated items.tier."""
+    text = _unescaped(SRC / "PrefabDumper.cs")
+    emitting = [line for line in text.splitlines() if '"localization_guid"' in line]
+    assert emitting, "the dumper never emits localization_guid"
+    for line in emitting:
+        assert line.lstrip().startswith("sb.Append"), (
+            f"localization_guid is written outside a guarded append: {line.strip()!r}"
+        )
+    assert "loc.Length > 0" in text, "localization_guid is emitted unconditionally"
 
 
 def test_item_stats_are_read_one_hop_off_the_item_prefab():

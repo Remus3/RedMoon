@@ -123,6 +123,24 @@ namespace RedMoon.Bridge
             }
         }
 
+        /// <summary>
+        /// The graceful shutdown path. `taskkill /F` skips it by definition, and
+        /// spike R11 already retired the hard-kill case: after a forced kill the
+        /// port held no LISTEN and bridge_probe --expect-unreachable PASSED.
+        ///
+        /// MEASURED 2026-07-26 and the reason for the marker file below: after a
+        /// NORMAL in-game quit the client's BepInEx LogOutput.log contained no
+        /// shutdown line of any kind - not from this plugin, which logged
+        /// nothing here, and not from BepInEx itself. A Log.LogInfo alone cannot
+        /// settle the question, because the logging pipeline may already be torn
+        /// down when Unload runs, and a missing line would then be unreadable in
+        /// exactly the same way the fabricated items.tier zero was.
+        ///
+        /// So the observation is a FILE, written outside BepInEx's logging: if
+        /// redmoon-unload.log gains a line, Unload ran. If it does not, Unload
+        /// did not run, or could not write. The two are then distinguishable by
+        /// whether the log line appears as well.
+        /// </summary>
         public override bool Unload()
         {
             BridgeServer server = Server;
@@ -132,7 +150,41 @@ namespace RedMoon.Bridge
                 server.Stop();
             }
 
+            try
+            {
+                Log.LogInfo("Unload: listener stopped, port released");
+            }
+            catch (Exception)
+            {
+                // The logging pipeline may already be gone. The marker below is
+                // the observation that does not depend on it.
+            }
+
+            MarkUnloaded(server != null);
             return true;
+        }
+
+        /// <summary>
+        /// Append one line to BepInEx\redmoon-unload.log. Appended rather than
+        /// replaced so consecutive sessions accumulate instead of the last one
+        /// erasing the evidence of the one before it.
+        /// </summary>
+        private static void MarkUnloaded(bool hadServer)
+        {
+            try
+            {
+                string path = Path.Combine(Paths.BepInExRootPath, "redmoon-unload.log");
+                string line = string.Format(CultureInfo.InvariantCulture,
+                                            "{0} host={1} listener_stopped={2}{3}",
+                                            DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                                            HostDetect.Detect(), hadServer, Environment.NewLine);
+                File.AppendAllText(path, line);
+            }
+            catch (Exception)
+            {
+                // A plugin that throws on the way out is worse than one that
+                // cannot record that it left.
+            }
         }
 
         /// <summary>The version off this plugin's own BepInPlugin attribute.</summary>

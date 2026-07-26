@@ -408,3 +408,59 @@ def test_abilities_effects_empty_list_passes():
     row = dict(VALID_ROWS["abilities"])
     row["effects"] = []
     assert deep_problems("abilities", _table("abilities", row)) == []
+
+
+# ---------------------------------------------------------------------------
+# recipes.station_guids - ADR-006
+# ---------------------------------------------------------------------------
+
+
+def _recipes(rows):
+    envelope = empty_table("recipes", BUILD)
+    envelope["rows"] = rows
+    return envelope
+
+
+def _recipe(**extra):
+    row = {"prefab_guid": 401, "output_guid": 402, "ingredients": []}
+    row.update(extra)
+    return row
+
+
+def test_station_guids_accepts_a_sorted_integer_list():
+    envelope = _recipes([_recipe(station_guids=[-1937548008, 1922056553])])
+    assert deep_problems("recipes", envelope) == []
+
+
+def test_station_guids_accepts_the_empty_list():
+    """ADR-006: measured, reachable from no station. A real answer."""
+    assert deep_problems("recipes", _recipes([_recipe(station_guids=[])])) == []
+
+
+def test_station_guids_rejects_a_string_entry():
+    """PrefabGUIDs are signed integers. A guid that arrives as text has been
+    through a stringifying hop, which is exactly the corruption this gate is for."""
+    problems = deep_problems("recipes", _recipes([_recipe(station_guids=["1922056553"])]))
+    assert problems
+    assert "station_guids[0]" in problems[0]
+
+
+def test_station_guids_rejects_a_boolean_entry():
+    """bool subclasses int in Python, so an unguarded isinstance check lets True
+    through as a PrefabGUID of 1."""
+    assert deep_problems("recipes", _recipes([_recipe(station_guids=[True])]))
+
+
+def test_station_guids_rejects_a_repeated_station():
+    """A station listed twice for one recipe double-counts it in any economy
+    solver, and the dumper builds the list from a set, so a repeat means the
+    inversion is broken rather than that the game says so."""
+    problems = deep_problems("recipes", _recipes([_recipe(station_guids=[7, 7])]))
+    assert problems
+    assert "7" in problems[0]
+
+
+def test_station_guids_rejects_an_unsorted_list():
+    """The schema says sorted ascending. Order is the only thing that makes two
+    dumps of the same world byte-comparable."""
+    assert deep_problems("recipes", _recipes([_recipe(station_guids=[9, 3])]))

@@ -48,9 +48,40 @@ Worth keeping: three independent guards fired on one missing file, and the
 session that created it saw none of them because it never re-ran the suite after
 writing memory. Writing a memory entry is a repo-affecting act here.
 
+**TWO CYCLE 3 BLOCKERS FOUND AT THE VERY END, and they are the most valuable
+thing in this session.** While writing the next-session prompt I read the
+promoted ROWS rather than the schema, and two of Bloodforge's declared inputs do
+not exist:
+
+1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
+   and `prefab_guid`. No health, no resistances, no damage. `docs/BLOODFORGE.md`
+   has named `tables/vbloods.json` as the source for "Boss stat line and
+   resistances" since cycle 1 - written as a design intention, never checked
+   against a real row, and false. **Time-to-kill is the engine's headline output
+   and its denominator is not on disk.**
+2. **There are no ABILITY COEFFICIENTS.** `abilities` carries identity, school
+   and (16 of 54) a damage type. No cast time, no cooldown, no damage scalar.
+
+The player side is NOT a gap and was checked in the same pass: 203 of 205 weapon
+items carry real `PhysicalPower` or `SpellPower` over 29 stat types, each with an
+explicit `modification`. The missing half is the TARGET side and the ABILITY
+side.
+
+This is the cycle 2 lesson landing one more time, from the other direction. Every
+number cycle 2 published is correct. What nobody had done was ask whether the
+correct numbers were the ones cycle 3 needs - "all five tables are populated" is
+true and was quietly read as "cycle 3 has its inputs". A schema being satisfied
+says nothing about a consumer being served.
+
+`docs/BLOODFORGE.md`'s input table now carries a per-input STATUS column instead
+of a bare source, and `ROADMAP.md` cycle 3 lists six named gaps instead of four,
+with the consequence stated in both: **cycle 3 cannot open by writing combat
+math.** It opens by settling those two inputs, because a TTK against an assumed
+boss health is the `items.tier` fabrication with a larger blast radius.
+
 **Cycle 3 opens** with verified inputs on disk (`items` 425, `recipes` 663,
-`abilities` 54, `vbloods` 65, `blood_types` 13) and four named input gaps in
-`ROADMAP.md`. Its spec is its own session, per `ROADMAP.md` line 3.
+`abilities` 54, `vbloods` 65, `blood_types` 13), six named gaps, and a spec
+session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.
 
 ## 2026-07-26 - Cycle 2 part 6: the client host, and a wrong number four gates could not see
 

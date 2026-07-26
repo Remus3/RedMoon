@@ -93,14 +93,39 @@ Spec: TBD, its own session under `docs/superpowers/specs/`.
 Verified inputs on disk, from cycle 2: `items` 425, `recipes` 663, `abilities`
 54, `vbloods` 65, `blood_types` 13, under `data/rmdata/1.1.13.0-r99712/tables/`.
 
-Known input gaps the spec must scope rather than assume away:
+Known input gaps the spec must scope rather than assume away. The first two are
+the large ones and were found by reading the promoted rows rather than the
+schema, at cycle 2 close:
 
-1. **Weapon abilities have no rows.** Weapon DPS cannot be scaffolded on
-   `abilities`. What weapon damage actually needs is a cycle 3 question.
-2. **`items.tier` is absent, not zero,** and no consumer may treat it as an
+1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
+   and `prefab_guid` - no health, no resistances, no damage. `docs/BLOODFORGE.md`
+   names `tables/vbloods.json` as the source for "Boss stat line and
+   resistances"; the data does not support that claim and the doc is annotated.
+   Time-to-kill needs a denominator that is not on disk. Sourcing it is a cycle 3
+   SPIKE against the live bridge, not an assumption.
+2. **There are no ABILITY COEFFICIENTS.** `abilities` rows carry `name`,
+   `prefab_guid`, `school` and, for 16 of 54, `damage_type`. No cast time, no
+   cooldown, no damage scalar. Spell DPS cannot be computed from this table as it
+   stands.
+3. **Weapon abilities have no rows at all.** No `<Weapon>SpellSchoolAsset` exists
+   to source a school from, so weapon DPS cannot be scaffolded on `abilities`
+   either.
+4. **`items.tier` is absent, not zero,** and no consumer may treat it as an
    ordinal.
-3. **`blood_types` magnitudes are runtime-scaled** and are not on the prefab.
-4. **`items.gear_score` must be computed** from three separate level systems.
+5. **`items.gear_score` is present on only 117 of 425 rows** and is a Red
+   Moon-COMPUTED quantity over three separate level systems, not a direct read.
+6. **`blood_types` carries stat NAMES and no magnitudes.** Every value is scaled
+   from blood quality at runtime and is not on the prefab.
+
+The PLAYER side is in good shape and is not a gap: 203 of 205 weapon items carry
+real `PhysicalPower` or `SpellPower` values, across 29 distinct stat types with
+an explicit `modification` on every entry.
+
+CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
+by settling where the boss stat line and the ability coefficients come from -
+almost certainly another measured bridge pass - because a time-to-kill computed
+against an assumed boss health is the `items.tier` mistake with a bigger blast
+radius.
 
 ## Cycle 4 - Dashboard
 

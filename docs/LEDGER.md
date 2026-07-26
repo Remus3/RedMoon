@@ -54,8 +54,33 @@ closing:
    carried into cycle 3 as a NAMED INPUT GAP in `ROADMAP.md` rather than a
    footnote, so no cycle 3 code scaffolds weapon damage on an assumed source.
 
+TWO CYCLE 3 BLOCKERS FOUND AT CLOSE, by reading the promoted ROWS rather than
+the schema. Both were about to become cycle 3 assumptions:
+
+1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
+   and `prefab_guid`. No health, no resistances, no damage. `docs/BLOODFORGE.md`
+   named `tables/vbloods.json` as the source for "Boss stat line and
+   resistances" - a claim written in cycle 1, never checked against real rows,
+   and false. Time-to-kill is the engine's headline output and its denominator
+   is not on disk.
+2. **There are no ABILITY COEFFICIENTS.** `abilities` carries identity, school
+   and (16 of 54) a damage type. No cast time, no cooldown, no damage scalar.
+
+The player side is NOT a gap and was checked in the same pass: 203 of 205 weapon
+items carry real `PhysicalPower` or `SpellPower` values over 29 distinct stat
+types, each with an explicit `modification`. The missing half is the TARGET side
+and the ABILITY side.
+
+`docs/BLOODFORGE.md`'s input table is corrected to carry a per-input STATUS
+column rather than a bare source, and `ROADMAP.md` cycle 3 now lists six named
+gaps instead of four. CONSEQUENCE recorded in both: cycle 3 cannot open by
+writing combat math. It opens by settling where those two inputs come from,
+because a TTK against an assumed boss health is the `items.tier` fabrication
+with a larger blast radius.
+
 VERIFICATION: `python -m pytest` 317 passed, `python tools/ascii_guard.py` exit
-0, `python -m ruff check .` clean. Commit `b78fe2a`.
+0, `python -m ruff check .` clean. Commits `b78fe2a` (the close) and `TBD` (the
+two blockers and the doc corrections).
 
 THE LESSON CYCLE 2 LEAVES BEHIND, promoted out of the session notes because it
 outlives them: a real measurement can answer the RIGHT question about the WRONG

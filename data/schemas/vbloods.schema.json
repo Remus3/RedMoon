@@ -1,0 +1,19 @@
+{
+  "table": "vbloods",
+  "schema_version": 1,
+  "description": "V Blood bosses. Stat lines and unlocks. Filled by the cycle 2 bridge prefab dump.",
+  "required": ["prefab_guid", "name", "level"],
+  "fields": {
+    "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
+    "name": {"type": "string", "description": "Resolved English display name."},
+    "localization_guid": {"type": "string", "description": "Key into strings.json."},
+    "level": {"type": "integer", "description": "Boss gear level."},
+    "max_health": {"type": "number", "description": "Base health pool before difficulty multipliers."},
+    "physical_power": {"type": "number", "description": "Base physical power."},
+    "spell_power": {"type": "number", "description": "Base spell power."},
+    "resistances": {"type": "object", "description": "Resistance name to numeric value."},
+    "blood_type": {"type": "string", "description": "Blood type dropped on defeat."},
+    "unlocks": {"type": "array", "description": "PrefabGUIDs of recipes and abilities granted on defeat."},
+    "region": {"type": "string", "description": "Map region the boss spawns in."}
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "table": "recipes",
+  "schema_version": 1,
+  "description": "Crafting and refinement recipes. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that ingredients is a list; the described per-entry objects with prefab_guid and amount are documented but never checked. A passing validate_table is not a guarantee about what is inside ingredients.",
+  "required": ["prefab_guid", "output_guid", "ingredients"],
+  "fields": {
+    "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash of the recipe."},
+    "output_guid": {"type": "integer", "description": "PrefabGUID of the produced item."},
+    "output_amount": {"type": "integer", "description": "Units produced per craft."},
+    "ingredients": {"type": "array", "description": "Objects with prefab_guid and amount."},
+    "station_guid": {"type": "integer", "description": "PrefabGUID of the required crafting station."},
+    "craft_duration": {"type": "number", "description": "Seconds per craft at base speed."}
+  }
+}

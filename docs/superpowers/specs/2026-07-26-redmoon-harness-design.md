@@ -67,7 +67,7 @@ Root documents:
 - `CLAUDE.md` - hard rules: 7-bit ASCII only (no em-dash, no en-dash, no smart
   quotes), atomic writes only, `py_compile` before restart, never `Stop-Process`
   (use `taskkill /F /PID`), restart via `restart_trigger.txt`, frozen-file list,
-  tiered verification R1-R11, TDD-first, subagent-first protocol, session
+  tiered verification R1-R10, TDD-first, subagent-first protocol, session
   workflow, `/done` ritual, 500-token output cap.
 - `ROADMAP.md`, `BACKLOG.md`, `WAKEUP_NOTES.md`, `README.md`,
   `NEXT_SESSION_PROMPT.md`.
@@ -86,15 +86,18 @@ Root documents:
 `.claude/`:
 
 - `settings.json` wiring three enforcement hooks and a SessionStart hook.
-  - PreToolUse `tools/precommit_gate.py` on `git commit` and PowerShell: blocks
-    banned glyphs and net-new ruff findings on staged lines.
+  - PreToolUse `tools/precommit_gate.py` on the shell tools: blocks banned
+    glyphs in any staged authored file, and any ruff finding in a staged `.py`
+    file. Ruff runs over the file's full current content, so pre-existing lint
+    debt on untouched lines blocks too; this is deliberately not a
+    net-new-only check. The matcher is a tool-name alternation - the gate
+    itself returns early unless `git commit` appears in the command.
   - PostToolUse `tools/pytest_guard.py`: `py_compile` only by default;
     `RM_FULL_SUITE=1` restores the full suite for a tier-2 batch.
   - PreToolUse `tools/text_first_guard.py`: denies pure screen-text readers and
     points at the text path. Escape hatch `ops/runtime/allow_visual.flag`.
   - SessionStart `tools/rm_facts.py`: probes bridge `:8777`, Bloodforge `:8783`,
-    dashboard `:8778`, and `RM-*` scheduled tasks, and prints the caveman output
-    dialect banner.
+    dashboard `:8778`, and `RM-*` scheduled tasks.
 - `agents/verifier.md` - read-only ground-truth verification subagent.
 - `commands/` - `/done`, `/root-cause-fix`, `/sync-docs`. Deferred, because each
   needs a subject that does not exist yet: `/ship-batch` and `/game-monitor`

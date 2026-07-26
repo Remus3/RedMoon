@@ -1,0 +1,61 @@
+{
+  "env": {
+    "PYTHONUTF8": "1",
+    "PYTHONIOENCODING": "utf-8",
+    "PYTHONPATH": "C:\\RedMoon"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(taskkill:*)",
+      "Bash(schtasks:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\precommit_gate.py\"",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__Windows-MCP__Scrape|mcp__computer-use__read_clipboard",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\text_first_guard.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\pytest_guard.py\"",
+            "timeout": 900
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\rm_facts.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

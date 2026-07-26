@@ -20,7 +20,7 @@ Every task's requirements implicitly include this section.
 - **Game install root:** `C:\Program Files (x86)\Steam\steamapps\common\VRising`.
 - **Build pin:** `1.1.13.0-r99712`, parsed from `VERSION` (`VRising: v1.1.13.0-r99712-b17 (202605251526)`).
 - **Repo root:** `C:\RedMoon`. All paths below are relative to it unless absolute.
-- **Commit style:** `type(scope): summary`, ASCII, imperative. Commit at the end of every task.
+- **Commit style:** `type(scope): summary`, ASCII, where the summary is a concise phrase naming what the commit delivers. Imperative mood is not required - the established practice across this repository is a noun phrase, and consistency with the existing history matters more than the mood. The scope is optional for repo-wide documentation commits that span several top-level files and have no single honest scope. Commit at the end of every task.
 - **Test command:** `python -m pytest` from the repo root.
 
 ---
@@ -68,11 +68,26 @@ def test_is_authored_accepts_source_and_docs():
     assert is_authored(Path(".claude/settings.json"))
 
 
+def test_is_authored_accepts_suffixless_authored_files():
+    assert is_authored(Path(".gitignore"))
+    assert is_authored(Path(".gitattributes"))
+
+
 def test_is_authored_rejects_binary_and_excluded_trees():
     assert not is_authored(Path("data/rmdata/1.1.13.0-r99712/strings.json"))
     assert not is_authored(Path("logs/2026-07-26.log"))
     assert not is_authored(Path(".git/COMMIT_EDITMSG"))
     assert not is_authored(Path("assets/icon.png"))
+
+
+def test_exclusions_beat_an_otherwise_authored_suffix():
+    # Each of these would pass the suffix check, so they prove the exclusion
+    # branches rather than re-proving the suffix filter.
+    assert not is_authored(Path("logs/app.py"))
+    assert not is_authored(
+        Path("data/rmdata/1.1.13.0-r99712/settings/ServerGameSettings.json")
+    )
+    assert not is_authored(Path(".superpowers/sdd/plan/task-1-report.md"))
 
 
 def test_repo_is_ascii_clean():
@@ -106,6 +121,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.superpowers/
 _scratch/
 logs/
 ops/runtime/
@@ -154,8 +170,20 @@ AUTHORED_SUFFIXES = frozenset(
     {".py", ".md", ".json", ".txt", ".ps1", ".bat", ".cmd", ".toml", ".ini", ".cs", ".yml"}
 )
 
+# Authored files that carry no suffix, so the suffix check alone would miss them.
+AUTHORED_NAMES = frozenset({".gitignore", ".gitattributes"})
+
 EXCLUDED_DIRS = frozenset(
-    {".git", "__pycache__", ".pytest_cache", ".ruff_cache", "logs", "_scratch", "assets"}
+    {
+        ".git",
+        ".superpowers",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        "logs",
+        "_scratch",
+        "assets",
+    }
 )
 
 # Generated or third-party trees: correctness is owned by their producer, and
@@ -180,7 +208,7 @@ def is_authored(path: Path) -> bool:
         return False
     if any(part in EXCLUDED_DIRS for part in path.parts):
         return False
-    return path.suffix.lower() in AUTHORED_SUFFIXES
+    return path.name in AUTHORED_NAMES or path.suffix.lower() in AUTHORED_SUFFIXES
 
 
 def scan_repo(root: Path) -> dict[str, list[tuple[int, int, str]]]:
@@ -218,7 +246,7 @@ if __name__ == "__main__":
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_ascii_guard.py -v`
-Expected: 6 passed.
+Expected: 8 passed.
 
 - [ ] **Step 6: Verify the CLI entry point works**
 
@@ -1093,8 +1121,9 @@ Create `docs/adr/ADR-001-separation-from-riot-commander.md`:
 
 ## Context
 
-Red Moon reproduces a working method proven on an existing League of Legends
-project on the same machine: doctrine in `CLAUDE.md`, enforcement hooks, living
+Red Moon reproduces a working method proven on Riot Commander, an existing
+League of Legends project on the same machine: doctrine in `CLAUDE.md`,
+enforcement hooks, living
 docs, an ADR index, an append-only ledger, a memory namespace, and a
 subagent-first build protocol. The obvious shortcut is to share code, tooling or
 data between the two.
@@ -1106,8 +1135,8 @@ a mod. Their data models, patch cadences and failure modes are unrelated.
 ## Decision
 
 Red Moon shares **no** code, data, keys, ports or scheduled-task namespace with
-any other project on this machine. What is reproduced is the method, by writing
-fresh files, not by importing or symlinking.
+Riot Commander or any other project on this machine. What is reproduced is the
+method, by writing fresh files, not by importing or symlinking.
 
 Concretely: its own git repository at `C:\RedMoon\`, its own Anthropic key at
 `C:\RedMoon\API-Key-Claude.txt`, its own memory namespace, the `RM-` prefix for
@@ -1120,7 +1149,7 @@ scheduled tasks, and the port set in ADR-003.
 - Improvements do not propagate automatically. Porting one is a deliberate act.
 - Neither project can break the other by refactoring shared code, because there
   is none.
-- A test asserts no root document mentions the other project by name or path.
+- A test asserts no root document mentions Riot Commander by name or path.
 ```
 
 Create `docs/adr/ADR-002-bepinex-bridge-live-source.md`:
@@ -1348,6 +1377,19 @@ def test_extract_is_idempotent(tmp_path):
     second = digest(extract(DEFAULT_INSTALL, tmp_path))
     assert first == second
 ```
+
+Amended after review (2026-07-26): the three tests above that exercise `extract()`
+are all `skipif`-gated on the real install, so on a machine without V Rising the
+orchestration is never exercised. Add a `fake_install` fixture that builds a
+minimal complete install tree under `tmp_path` - `VERSION` carrying a
+deliberately different build id (`v9.9.9.9-r12345-b01`) so a pass can never be an
+artifact of the real install, a BOM-encoded `English.json`, all three difficulty
+presets, and both settings files - and add ungated tests over it covering the
+output layout, code substitution in the extracted strings, JSON round-trip of the
+copies, `meta.json` contents, the `current.txt` pointer, and idempotence by
+digest. Add one partial-failure test: delete a difficulty preset, assert
+`extract()` raises, and assert `current.txt` was never created, proving the
+pointer is published only after a fully successful extraction.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -2294,7 +2336,8 @@ if __name__ == "__main__":
 
 - [ ] **Step 7: Write `.claude/settings.json`**
 
-Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash.
+This is JSON, so each Windows path separator is written as `\\` and parses back
+to a single backslash. `pythonw.exe` avoids a console flash.
 
 ```json
 {
@@ -2317,7 +2360,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\precommit_gate.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\precommit_gate.py\"",
             "timeout": 60
           }
         ]
@@ -2327,7 +2370,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\text_first_guard.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\text_first_guard.py\"",
             "timeout": 10
           }
         ]
@@ -2339,8 +2382,8 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\pytest_guard.py\"",
-            "timeout": 60
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\pytest_guard.py\"",
+            "timeout": 900
           }
         ]
       }
@@ -2350,7 +2393,7 @@ Note the doubled backslashes: this is JSON. `pythonw.exe` avoids a console flash
         "hooks": [
           {
             "type": "command",
-            "command": "\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\pythonw.exe\" \"C:\\\\RedMoon\\\\tools\\\\rm_facts.py\"",
+            "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\rm_facts.py\"",
             "timeout": 10
           }
         ]

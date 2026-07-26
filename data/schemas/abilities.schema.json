@@ -1,0 +1,17 @@
+{
+  "table": "abilities",
+  "schema_version": 1,
+  "description": "Spells and weapon abilities. Filled by the cycle 2 bridge prefab dump.",
+  "required": ["prefab_guid", "name", "school"],
+  "fields": {
+    "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
+    "name": {"type": "string", "description": "Resolved English display name."},
+    "localization_guid": {"type": "string", "description": "Key into strings.json."},
+    "school": {"type": "string", "description": "blood, chaos, frost, illusion, storm, unholy, or weapon."},
+    "slot": {"type": "string", "description": "primary, travel, or spell."},
+    "cooldown": {"type": "number", "description": "Base cooldown in seconds."},
+    "power_scaling": {"type": "number", "description": "Coefficient applied to spell or physical power."},
+    "damage_type": {"type": "string", "description": "physical, spell, or none."},
+    "effects": {"type": "array", "description": "Applied effect identifiers, such as crowd control or damage over time."}
+  }
+}

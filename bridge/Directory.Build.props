@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Build intermediates land OUTSIDE the scanned tree.
+
+    tools/ascii_guard.py is frozen, it scans .cs files, and it must exit 0. A
+    .NET build writes generated .cs under obj/ - NuGet and MSBuild author those,
+    Red Moon does not control their content, and a non-ASCII byte in one would
+    break the hard ASCII gate through no fault of any authored file.
+
+    _scratch is already in ascii_guard.EXCLUDED_DIRS and already gitignored, so
+    redirecting there needs no change to a frozen file and keeps build output
+    out of the repository. Spec decision D8.
+  -->
+
+  <PropertyGroup>
+    <RedMoonScratch>$(MSBuildThisFileDirectory)..\_scratch\bridge-build\</RedMoonScratch>
+    <BaseIntermediateOutputPath>$(RedMoonScratch)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(RedMoonScratch)bin\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- The plugin loads into BepInEx 6 on CoreCLR .NET 6. -->
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Il2CppInterop assemblies are not strong-named the way the analyzer
+         expects; a reference warning must not fail the build. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+    <!-- The plugin ships as a loose DLL into BepInEx\plugins. -->
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+</Project>

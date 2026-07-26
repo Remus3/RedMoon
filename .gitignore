@@ -5,6 +5,12 @@ __pycache__/
 .ruff_cache/
 .superpowers/
 _scratch/
+# Redundant with _scratch/ above, kept because it is where the .NET build is
+# deliberately redirected (spec D8) and that is worth stating out loud.
+_scratch/bridge-build/
+# Belt and braces, for a developer who builds without Directory.Build.props.
+bridge/**/bin/
+bridge/**/obj/
 logs/
 ops/runtime/
 data/rmdata/

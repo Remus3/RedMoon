@@ -44,13 +44,13 @@ def main() -> int:
                     cwd=str(REPO),
                     capture_output=True,
                     text=True,
-                    # Deliberately generous and NOT tied to this hook's 60s
-                    # PostToolUse timeout in .claude/settings.json: that 60s
-                    # governs the default per-edit compile-only path.
-                    # RM_FULL_SUITE=1 is an explicit, human-opted-in Tier-2
-                    # batch mode (CLAUDE.md R5), and a real full-suite run can
-                    # legitimately run past 60s. 600s just guarantees this
-                    # subprocess cannot hang forever if the test run wedges.
+                    # Deliberately set BELOW this hook's 900s PostToolUse
+                    # timeout in .claude/settings.json, so this script's own
+                    # except below fires first and kills the child pytest
+                    # process cleanly. If this bound were >= the harness
+                    # timeout, the harness would kill the parent hook process
+                    # first, bypassing this except entirely, and the child
+                    # pytest run could be orphaned and keep running.
                     timeout=600,
                 )
                 sys.stdout.write(result.stdout[-2000:])

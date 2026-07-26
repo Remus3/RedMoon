@@ -137,3 +137,59 @@ def test_precommit_gate_passes_a_clean_staged_python_file(tmp_path):
     )
     subprocess.run(["git", "add", "good.py", "ruff.toml"], cwd=tmp_path, check=True)
     assert precommit_gate.check_staged(tmp_path) == []
+
+
+def test_harness_timeouts_exceed_internal_subprocess_timeouts():
+    """The .claude/settings.json harness timeout for each hook must exceed the
+    largest internal subprocess timeout that hook's script can hit.
+
+    If the harness timeout is <= a script's own internal bound, the harness
+    kills the parent hook process before the script's own
+    except subprocess.TimeoutExpired handler can fire and terminate its
+    child cleanly - orphaning a hung child that keeps running after the hook
+    itself is gone. Keeping this machine-checked means a future change to
+    either number without the other fails this test instead of silently
+    reopening that gap.
+    """
+    settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
+
+    # Largest single internal subprocess timeout (seconds) each script uses,
+    # per tools/<script>.py.
+    script_internal_timeout = {
+        "rm_facts.py": 5,
+        "precommit_gate.py": 30,
+        "pytest_guard.py": 600,
+    }
+    # text_first_guard.py makes no subprocess calls, so it has no entry and
+    # is not checked here.
+
+    # precommit_gate.py can make BOTH of its bounded calls (git diff, then
+    # ruff check) in a single invocation - check against their sum, not just
+    # the larger of the two, since both can occur one after the other.
+    precommit_gate_call_sum = 10 + 30
+
+    checked: set[str] = set()
+    for hook_entries in settings["hooks"].values():
+        for entry in hook_entries:
+            for hook in entry.get("hooks", []):
+                command = hook.get("command", "")
+                declared_timeout = hook.get("timeout")
+                if declared_timeout is None:
+                    continue
+                for script, internal_timeout in script_internal_timeout.items():
+                    if script not in command:
+                        continue
+                    checked.add(script)
+                    assert declared_timeout > internal_timeout, (
+                        f"{script}: harness timeout {declared_timeout}s does not "
+                        f"exceed its internal subprocess timeout {internal_timeout}s"
+                    )
+                    if script == "precommit_gate.py":
+                        assert declared_timeout > precommit_gate_call_sum, (
+                            f"precommit_gate.py: harness timeout {declared_timeout}s "
+                            f"does not exceed its two-call sum {precommit_gate_call_sum}s"
+                        )
+
+    assert checked == set(script_internal_timeout), (
+        f"expected to check {set(script_internal_timeout)}, only checked {checked}"
+    )

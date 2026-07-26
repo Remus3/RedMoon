@@ -1378,6 +1378,19 @@ def test_extract_is_idempotent(tmp_path):
     assert first == second
 ```
 
+Amended after review (2026-07-26): the three tests above that exercise `extract()`
+are all `skipif`-gated on the real install, so on a machine without V Rising the
+orchestration is never exercised. Add a `fake_install` fixture that builds a
+minimal complete install tree under `tmp_path` - `VERSION` carrying a
+deliberately different build id (`v9.9.9.9-r12345-b01`) so a pass can never be an
+artifact of the real install, a BOM-encoded `English.json`, all three difficulty
+presets, and both settings files - and add ungated tests over it covering the
+output layout, code substitution in the extracted strings, JSON round-trip of the
+copies, `meta.json` contents, the `current.txt` pointer, and idempotence by
+digest. Add one partial-failure test: delete a difficulty preset, assert
+`extract()` raises, and assert `current.txt` was never created, proving the
+pointer is published only after a fully successful extraction.
+
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `python -m pytest tests/test_rmdata_extract.py -v`

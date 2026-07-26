@@ -34,5 +34,7 @@ clean; `python tools/ascii_guard.py` exits 0; `python tools/rmdata_extract.py`
 is idempotent and writes `data/rmdata/1.1.13.0-r99712/`; the commit gate blocks
 a staged em-dash.
 
+Merge: `2a493ea` (branch `cycle-1-harness`, 34 commits, merged into `master`)
 Spec: `docs/superpowers/specs/2026-07-26-redmoon-harness-design.md`
 Plan: `docs/superpowers/plans/2026-07-26-redmoon-cycle1-harness.md`
+Execution record: `docs/history_notes.md`

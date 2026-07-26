@@ -68,11 +68,26 @@ def test_is_authored_accepts_source_and_docs():
     assert is_authored(Path(".claude/settings.json"))
 
 
+def test_is_authored_accepts_suffixless_authored_files():
+    assert is_authored(Path(".gitignore"))
+    assert is_authored(Path(".gitattributes"))
+
+
 def test_is_authored_rejects_binary_and_excluded_trees():
     assert not is_authored(Path("data/rmdata/1.1.13.0-r99712/strings.json"))
     assert not is_authored(Path("logs/2026-07-26.log"))
     assert not is_authored(Path(".git/COMMIT_EDITMSG"))
     assert not is_authored(Path("assets/icon.png"))
+
+
+def test_exclusions_beat_an_otherwise_authored_suffix():
+    # Each of these would pass the suffix check, so they prove the exclusion
+    # branches rather than re-proving the suffix filter.
+    assert not is_authored(Path("logs/app.py"))
+    assert not is_authored(
+        Path("data/rmdata/1.1.13.0-r99712/settings/ServerGameSettings.json")
+    )
+    assert not is_authored(Path(".superpowers/sdd/plan/task-1-report.md"))
 
 
 def test_repo_is_ascii_clean():
@@ -155,8 +170,20 @@ AUTHORED_SUFFIXES = frozenset(
     {".py", ".md", ".json", ".txt", ".ps1", ".bat", ".cmd", ".toml", ".ini", ".cs", ".yml"}
 )
 
+# Authored files that carry no suffix, so the suffix check alone would miss them.
+AUTHORED_NAMES = frozenset({".gitignore", ".gitattributes"})
+
 EXCLUDED_DIRS = frozenset(
-    {".git", "__pycache__", ".pytest_cache", ".ruff_cache", "logs", "_scratch", "assets"}
+    {
+        ".git",
+        ".superpowers",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        "logs",
+        "_scratch",
+        "assets",
+    }
 )
 
 # Generated or third-party trees: correctness is owned by their producer, and
@@ -181,7 +208,7 @@ def is_authored(path: Path) -> bool:
         return False
     if any(part in EXCLUDED_DIRS for part in path.parts):
         return False
-    return path.suffix.lower() in AUTHORED_SUFFIXES
+    return path.name in AUTHORED_NAMES or path.suffix.lower() in AUTHORED_SUFFIXES
 
 
 def scan_repo(root: Path) -> dict[str, list[tuple[int, int, str]]]:
@@ -219,7 +246,7 @@ if __name__ == "__main__":
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_ascii_guard.py -v`
-Expected: 6 passed.
+Expected: 8 passed.
 
 - [ ] **Step 6: Verify the CLI entry point works**
 

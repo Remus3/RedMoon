@@ -12,6 +12,14 @@ SCHEMA_DIR = Path(__file__).resolve().parents[1] / "data" / "schemas"
 
 TABLE_NAMES = ("items", "abilities", "vbloods", "blood_types", "recipes")
 
+TABLES_DIRNAME = "tables"
+"""Subdirectory of data/rmdata/<build>/ holding one JSON file per table.
+
+tools/rmdata_extract.extract creates it and seeds an empty envelope per table
+name, so the path the cycle 2 bridge dumps into already exists and already has
+the envelope shape. See docs/BLOODFORGE.md for the consumer side.
+"""
+
 _TYPE_MAP = {
     "string": str,
     "number": (int, float),

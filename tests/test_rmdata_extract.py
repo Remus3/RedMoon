@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from core.tables import TABLE_NAMES, TABLES_DIRNAME, load_schema, validate_table
 from tools.rmdata_extract import (
     DEFAULT_INSTALL,
     extract,
@@ -249,6 +250,81 @@ def test_extract_against_fake_install_is_idempotent(fake_install, tmp_path):
     first = digest(extract(fake_install, tmp_path))
     second = digest(extract(fake_install, tmp_path))
     assert first == second
+
+
+def test_extract_seeds_one_table_file_per_table_name(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    tables_dir = build_dir / TABLES_DIRNAME
+    assert tables_dir.is_dir(), "extract did not create the tables/ seam"
+    written = {p.stem for p in tables_dir.iterdir() if p.is_file()}
+    assert written == set(TABLE_NAMES)
+
+
+def test_every_seeded_table_file_validates_against_its_own_schema(fake_install, tmp_path):
+    """docs/BLOODFORGE.md names these paths as cycle 3 inputs. Whatever extract
+    puts there must already satisfy the schema the consumer will validate with,
+    or cycle 2 inherits a seam that is wrong on its first read.
+    """
+    build_dir = extract(fake_install, tmp_path)
+    tables_dir = build_dir / TABLES_DIRNAME
+    for name in TABLE_NAMES:
+        table = json.loads((tables_dir / f"{name}.json").read_text(encoding="utf-8"))
+        problems = validate_table(table, load_schema(name))
+        assert problems == [], f"{name}.json does not validate: {problems}"
+        assert table["table"] == name
+        assert table["build"] == FAKE_BUILD
+        assert table["rows"] == []
+
+
+def test_re_extract_never_clobbers_a_populated_table(fake_install, tmp_path):
+    """A later bridge dump lands in these files. A routine re-extract - a Steam
+    update, or the daily RM-DataRefresh - must leave a populated table alone.
+    """
+    build_dir = extract(fake_install, tmp_path)
+    populated = build_dir / TABLES_DIRNAME / "items.json"
+
+    dumped = json.loads(populated.read_text(encoding="utf-8"))
+    dumped["rows"] = [
+        {"prefab_guid": 12345, "name": "Copper Sword", "category": "weapon", "tier": 1}
+    ]
+    assert validate_table(dumped, load_schema("items")) == []
+    write_json_atomic(populated, dumped)
+    before = populated.read_bytes()
+
+    extract(fake_install, tmp_path)
+
+    assert populated.read_bytes() == before, "re-extract clobbered a populated table"
+    assert json.loads(populated.read_text(encoding="utf-8"))["rows"] == dumped["rows"]
+
+
+def test_re_extract_removes_a_table_file_with_an_unknown_name(fake_install, tmp_path):
+    build_dir = extract(fake_install, tmp_path)
+    stale = build_dir / TABLES_DIRNAME / "weapon_mods.json"
+    stale.write_text('{"table": "weapon_mods"}', encoding="utf-8")
+
+    extract(fake_install, tmp_path)
+
+    assert not stale.exists(), "a table file from a retired schema survived a re-extract"
+    assert {p.stem for p in (build_dir / TABLES_DIRNAME).iterdir()} == set(TABLE_NAMES)
+
+
+def test_extract_is_idempotent_with_the_tables_present(fake_install, tmp_path):
+    def digest(root: Path) -> dict[str, str]:
+        out = {}
+        for path in sorted(root.rglob("*")):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                out[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        return out
+
+    first_dir = extract(fake_install, tmp_path)
+    assert (first_dir / TABLES_DIRNAME).is_dir()
+    first = digest(first_dir)
+    second = digest(extract(fake_install, tmp_path))
+    assert first == second
+    assert any(f"{TABLES_DIRNAME}/" in rel for rel in first), (
+        "the digest saw no table files - this idempotency check would be vacuous"
+    )
 
 
 def test_extract_raises_and_does_not_publish_pointer_on_missing_source(fake_install, tmp_path):

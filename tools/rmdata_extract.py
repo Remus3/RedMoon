@@ -5,10 +5,11 @@ Produces a versioned, regenerable directory under data/rmdata/<build>/. Only
 data that genuinely exists offline is written: the localization string table,
 the difficulty presets, and the shipped settings files.
 
-Item and ability stat data is deliberately NOT produced here. Identity and stats
-live in binary DOTS ECS blobs, and the join from a PrefabGUID to its stats
-exists only in the running game's entity world. See ADR-002. The bridge fills
-data/schemas/ backed tables at runtime in cycle 2.
+Item and ability stat ROWS are deliberately NOT produced here. Identity and
+stats live in binary DOTS ECS blobs, and the join from a PrefabGUID to its stats
+exists only in the running game's entity world. See ADR-002. What is produced is
+the seam itself: <build>/tables/ with one empty, schema-valid envelope per name
+in core.tables.TABLE_NAMES, which the cycle 2 bridge dump fills in place.
 
 Idempotent: re-running against an unchanged install rewrites byte-identical
 output. Every consumer-visible file is written atomically.
@@ -21,6 +22,18 @@ import os
 import re
 import sys
 from pathlib import Path
+
+# Run as a script, sys.path[0] is tools/, not the repo root. Bootstrap the root
+# before importing anything from core.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.tables import (  # noqa: E402
+    TABLE_NAMES,
+    TABLES_DIRNAME,
+    empty_table,
+    load_schema,
+    validate_table,
+)
 
 DEFAULT_INSTALL = Path(r"C:\Program Files (x86)\Steam\steamapps\common\VRising")
 
@@ -80,6 +93,38 @@ def _copy_json(src: Path, dest: Path) -> None:
     write_json_atomic(dest, json.loads(src.read_text(encoding="utf-8-sig")))
 
 
+def seed_tables(build_dir: Path, build: str) -> Path:
+    """Create <build_dir>/tables/ and seed one empty envelope per table name.
+
+    An existing table file is left EXACTLY as it is. The cycle 2 bridge dumps
+    real rows into these same files, and a routine re-extract (a Steam update,
+    or RM-DataRefresh) must never clobber a populated dump with an empty one.
+
+    A file whose stem is not a known table name is a leftover from an older
+    schema set and is deleted, so the directory never accumulates orphans that
+    a consumer might read as live. Nothing is logged: this is a regenerable
+    data directory, not a service.
+    """
+    tables_dir = build_dir / TABLES_DIRNAME
+    tables_dir.mkdir(parents=True, exist_ok=True)
+
+    for name in TABLE_NAMES:
+        path = tables_dir / f"{name}.json"
+        if path.exists():
+            continue
+        table = empty_table(name, build)
+        problems = validate_table(table, load_schema(name))
+        if problems:
+            raise ValueError(f"seeded {name} table is invalid: {problems}")
+        write_json_atomic(path, table)
+
+    for path in tables_dir.iterdir():
+        if path.is_file() and path.stem not in TABLE_NAMES:
+            path.unlink()
+
+    return tables_dir
+
+
 def extract(install_root: Path, repo_root: Path) -> Path:
     """Extract the data floor. Returns the build directory written."""
     version_text = (install_root / "VERSION").read_text(encoding="utf-8").strip()
@@ -104,6 +149,8 @@ def extract(install_root: Path, repo_root: Path) -> Path:
             streaming / "Settings" / f"{name}.json",
             build_dir / "settings" / f"{name}.json",
         )
+
+    seed_tables(build_dir, build)
 
     write_json_atomic(
         build_dir / "meta.json",

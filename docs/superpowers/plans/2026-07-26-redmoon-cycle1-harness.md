@@ -2383,7 +2383,7 @@ to a single backslash. `pythonw.exe` avoids a console flash.
           {
             "type": "command",
             "command": "\"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python314\\pythonw.exe\" \"C:\\RedMoon\\tools\\pytest_guard.py\"",
-            "timeout": 60
+            "timeout": 900
           }
         ]
       }

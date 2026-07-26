@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    RedMoon.Bridge - the cycle 2 BepInEx IL2CPP plugin.
+
+    TargetFramework, LangVersion, Nullable, NoWarn and the output paths are NOT
+    declared here. They come from bridge/Directory.Build.props, which MSBuild
+    imports before this file, so there is exactly one place to change them and
+    the build intermediates stay out of the ASCII-scanned tree (spec D8).
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>RedMoon.Bridge</AssemblyName>
+    <RootNamespace>RedMoon.Bridge</RootNamespace>
+    <!--
+      Explicit compile items, not the SDK default glob. The generated port file
+      has to be named below regardless (it is the one file allowed to spell a
+      port), and a glob would then add it a second time. Listing every file also
+      means a stray .cs left in this directory never silently ships.
+    -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <VRoot>C:\Program Files (x86)\Steam\steamapps\common\VRising</VRoot>
+    <BepCore>$(VRoot)\BepInEx\core</BepCore>
+    <!--
+      R17, MEASURED 2026-07-26 (docs/BRIDGE_SPIKES.md): the client and server
+      interop trees carry identical assembly NAME sets and zero real type
+      divergence across the assemblies referenced below. Referencing the CLIENT
+      tree is therefore safe for both hosts, and the spike plugin loading
+      correctly in both is the proof. Re-run R17 per game patch.
+    -->
+    <Interop>$(VRoot)\BepInEx\interop</Interop>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="HostDetect.cs" />
+    <Compile Include="Plugin.cs" />
+    <Compile Include="BridgeServer.cs" />
+    <Compile Include="PrefabDumper.cs" />
+    <!--
+      CLAUDE.md hard rule: never write a port literal. This generated file is
+      the single machine-written exception (spec D2), rendered from
+      core/ports.py by tools/gen_bridge_ports.py. Nothing else in this project
+      may spell a port, and tests/test_bridge_project.py greps this file for
+      one.
+    -->
+    <Compile Include="Generated\RmPorts.g.cs" />
+  </ItemGroup>
+
+  <!--
+    The reference set below is the one BRIDGE_SPIKES.md S4 measured as building
+    clean, exit 0, zero warnings. SemanticVersioning is not optional: both
+    Paths.BepInExVersion and the BepInPlugin attribute hand back a
+    SemanticVersioning.Version, and omitting it cost a build during the spike.
+  -->
+  <ItemGroup>
+    <Reference Include="BepInEx.Core"><HintPath>$(BepCore)\BepInEx.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx.Unity.Common"><HintPath>$(BepCore)\BepInEx.Unity.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP"><HintPath>$(BepCore)\BepInEx.Unity.IL2CPP.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppInterop.Runtime"><HintPath>$(BepCore)\Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="SemanticVersioning"><HintPath>$(BepCore)\SemanticVersioning.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepCore)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Il2Cppmscorlib"><HintPath>$(Interop)\Il2Cppmscorlib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppSystem"><HintPath>$(Interop)\Il2CppSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppSystem.Core"><HintPath>$(Interop)\Il2CppSystem.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(Interop)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Entities"><HintPath>$(Interop)\Unity.Entities.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Collections"><HintPath>$(Interop)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Mathematics"><HintPath>$(Interop)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Stunlock.Core"><HintPath>$(Interop)\Stunlock.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ProjectM"><HintPath>$(Interop)\ProjectM.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ProjectM.Shared"><HintPath>$(Interop)\ProjectM.Shared.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ProjectM.Gameplay.Systems"><HintPath>$(Interop)\ProjectM.Gameplay.Systems.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+</Project>

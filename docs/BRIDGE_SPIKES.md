@@ -1017,6 +1017,35 @@ being observed. If the marker appears, Unload ran; if only the marker appears an
 not the log line, the pipeline was already gone; if neither appears, Unload does
 not run on a normal exit. Three hypotheses, three distinguishable outcomes.
 
+### `Unload()`: CLOSED. It does NOT run on a normal exit.
+
+The instrumented build was loaded and the operator quit through the in-game
+menu. Result:
+
+```
+BepInEx\redmoon-unload.log   ABSENT
+LogOutput.log                unchanged after "Chainloader startup complete"
+port 8777                    no LISTEN
+```
+
+The control that makes this silence readable: the observed client run is
+PROVABLY the instrumented one, because the dump it served carried
+`station_guids`, a field that exists only in that build. This is not a stale
+binary reporting nothing.
+
+Both channels are silent and they fail INDEPENDENTLY - one goes through
+BepInEx's logger, the other through `File.AppendAllText` - which eliminates "the
+logging pipeline was torn down first". **BepInEx 6 IL2CPP does not invoke
+`BasePlugin.Unload()` on process shutdown on this build.** The listener socket is
+released by process termination instead.
+
+CONSEQUENCE, and it is benign: the graceful path does not exist here and nothing
+depends on it. R11 already measured the hard-kill case - after `taskkill /F`,
+port 8780 held no LISTEN and `bridge_probe --expect-unreachable` PASSED - and a
+normal exit is now measured to take that identical path. `Unload()` stays
+implemented and instrumented, so a future BepInEx that does call it will be
+observed rather than assumed.
+
 ### `abilities` coverage, stated rather than left implied
 
 54 rows, 9 in each of the six spell schools, and the shape of what is missing is

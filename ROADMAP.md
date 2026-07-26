@@ -129,11 +129,12 @@ same binary at once and every open item above is now measured. See
 
 REMAINING before cycle 2 can close:
 
-- `Unload()`'s graceful path is UNOBSERVED but is now observABLE: a normal client
-  quit writes nothing to `LogOutput.log`, which was consistent with three
-  different hypotheses, so `Unload()` now also appends to
-  `BepInExedmoon-unload.log` outside the logging pipeline. One clean exit on
-  the instrumented build settles it.
+- `Unload()` is CLOSED, and the answer is that it does NOT run. On the
+  instrumented build a normal in-game quit left BOTH the BepInEx log and the
+  independent `redmoon-unload.log` marker empty, and those two channels fail
+  independently, so BepInEx 6 IL2CPP does not invoke `BasePlugin.Unload()` at
+  shutdown. The port is released by process termination - the same path R11
+  already retired for the hard kill - so nothing depends on the graceful one.
 - `abilities` covers the 54 spell-school abilities only. Weapon abilities have no
   school asset and produce no row, and 38 of the 54 carry no `damage_type`
   because the projectile deals the damage. Both are the measured edge of the

@@ -79,8 +79,16 @@ twice on a normal in-game quit: `LogOutput.log` gains nothing after
 was equally consistent with "ran fine", "never ran" and "the logging pipeline
 was torn down first" - a zero three hypotheses predict is not evidence. It now
 appends to `BepInEx\redmoon-unload.log` via `File.AppendAllText`, OUTSIDE the
-logging pipeline, so the three outcomes are distinguishable. The instrumented
-build is deployed; one clean exit closes it.
+logging pipeline, so the three outcomes are distinguishable.
+
+**CLOSED on the instrumented build: `Unload()` does NOT run.** A normal in-game
+quit left the marker ABSENT, the log unchanged, and 8777 with no LISTEN. The two
+channels fail independently, which eliminates "the pipeline was gone first", so
+BepInEx 6 IL2CPP does not invoke `BasePlugin.Unload()` at shutdown. The control
+that makes the silence readable: the observed run PROVABLY carried the
+instrumented build, because the dump it served included `station_guids`, which
+exists only there. Benign - R11 already measured that a hard kill releases the
+port, and a normal exit takes the identical path.
 
 The promoted dump is the CLIENT one: `items` 425 (schema 3, all 425 carrying
 `localization_guid`), `recipes` 663 (schema 2, with `station_guids`),

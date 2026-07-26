@@ -72,12 +72,19 @@ THE FOUR MEASUREMENTS.
    is exactly why a first-station-wins value was barred rather than merely
    discouraged.
 
-STILL OPEN, and deliberately not claimed. `Unload()`'s graceful path is
-UNOBSERVED. Two normal in-game quits produced no shutdown line of any kind, but
-`Unload()` logged nothing at all, so that silence was equally consistent with
-"ran fine", "never ran" and "the logging pipeline was gone first". It now appends
-to `BepInEx\redmoon-unload.log` outside BepInEx's logging, making the three
-outcomes distinguishable; one clean exit on the instrumented build settles it.
+5. **`Unload()` does NOT run on a normal exit, and that is CLOSED.** Two quits
+   on the uninstrumented build produced no shutdown line, but since `Unload()`
+   logged nothing at all that silence fit three hypotheses equally. It now also
+   appends to `BepInEx\redmoon-unload.log` outside BepInEx's logging. On the
+   instrumented build a normal in-game quit left the marker ABSENT, the log
+   unchanged, and 8777 without a LISTEN. Two independent channels both silent
+   eliminates "the pipeline was gone first", so BepInEx 6 IL2CPP does not invoke
+   `BasePlugin.Unload()` at shutdown. The control that makes the silence
+   readable: the observed run provably carried the instrumented build, because
+   the dump it served included `station_guids`. Benign - R11 already measured the
+   hard-kill path and a normal exit is identical to it.
+
+STILL OPEN, and deliberately not claimed.
 `abilities` covers spell-school abilities only - weapon abilities have no school
 asset - and 38 of the 54 rows carry no `damage_type` because the projectile deals
 the damage. 4 recipes remain unmapped on an empty item output buffer.

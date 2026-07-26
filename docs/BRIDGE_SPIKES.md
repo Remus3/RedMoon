@@ -220,13 +220,35 @@ not a dumper detail. Do NOT flatten silently.
 `ToInventoryBuffer` accessor. This maps cleanly onto
 `recipes.ingredients[].{guid,amount}`.
 
-Note `RecipeData` has no output-guid field. `recipes.output_guid` is required by
-the schema, so where the output comes from is an open question for the first
-dump - candidates are the recipe prefab's own guid and a separate output buffer.
+`RecipeData` has no output-guid field, and the answer is a second buffer:
+`ProjectM.RecipeOutputBuffer` (`ProjectM.Shared`), fields `Guid` and `Amount`,
+which maps onto `recipes.output_guid` and `recipes.output_amount`. There is also
+a `ProjectM.RecipeOutputUnitBuffer` for recipes that produce a unit rather than
+an item, which the dumper must not confuse with the item output.
 
-STILL OPEN in S3: the ability school field, the V Blood level field, the blood
-type bonus tiers, and the confirmed-or-corrected `/state` field set. The mapping
-above is enough to start `PrefabDumper.cs` for items and recipes and no more.
+So `recipes` is fully mapped except `station_guid`:
+
+| Schema field | Source |
+|---|---|
+| `prefab_guid` | the recipe prefab's own PrefabGUID |
+| `output_guid` | `RecipeOutputBuffer.Guid` |
+| `output_amount` | `RecipeOutputBuffer.Amount` |
+| `ingredients[].prefab_guid` | `RecipeRequirementBuffer.Guid` |
+| `ingredients[].amount` | `RecipeRequirementBuffer.Amount` |
+| `craft_duration` | `RecipeData.CraftDuration` |
+| `station_guid` | OPEN - the station references the recipe, not the reverse |
+
+STILL OPEN in S3, and deliberately left open rather than guessed: the ability
+school field, the V Blood level field, the blood type bonus tiers, and the
+confirmed-or-corrected `/state` field set. There is no `SpellSchool` component
+type - the school-shaped types are `SpellSchoolAuthoring`,
+`SchoolDebuffData` and `SpellSchoolTierProgressionPoints`, none of which is
+obviously the per-ability field. That hunt wants a live entity sample and its
+real component list, which needs the in-game world, so it is blocked behind the
+same gate as S1(b) rather than behind more metadata reading.
+
+The mapping above is enough to start `PrefabDumper.cs` for `items` and `recipes`
+and no more. `abilities`, `vbloods` and `blood_types` are not yet writable.
 
 ## S1 - ECS world access and host detection
 

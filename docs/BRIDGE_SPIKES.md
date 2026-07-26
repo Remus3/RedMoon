@@ -188,10 +188,34 @@ Real fields, read from each type's own metadata rather than recalled:
 `BuffGuid`, `EquipmentType`, `WeaponType`, `EquipmentSet`, `SCTBrokenText`,
 `DurabilitySettings`.
 
-**This is the S3 headline and it changes the dumper's shape.** `EquippableData`
-carries NO stat values. There is no stat line on the equipment component at all.
-It carries a `BuffGuid`, and the stats live on the BUFF prefab that guid points
-at. So `items.stats` is a two-hop read, not a field copy:
+**CORRECTED 2026-07-26 by a live entity dump. The two-hop conclusion below was
+WRONG.** `EquippableData` genuinely carries no stat values - that half stands -
+but the inference that the stats therefore live on the buff prefab does not. They
+are on the ITEM prefab itself, as a populated `DynamicBuffer`:
+
+```
+Item_Boots_T00_StartingRags  item stats.Length=1
+  [0] StatType=MaxHealth ModificationType=Add Value=13 Priority=0 IncreaseByStacks=False
+  EquippableData.BuffGuid=-1465458722 name=EquipBuff_Boots_Base
+  buff: no ModifyUnitStatBuff_DOTS buffer
+```
+
+Three of three sampled items agree (`Boots` 13, `Legs` 16, `Chest` 17 MaxHealth
+Add), and in every case the buff prefab named by `BuffGuid` has NO stat buffer at
+all. So `items.stats` is a ONE-HOP read off the item prefab, and
+`EquippableData.BuffGuid` names a behaviour buff, not a stat carrier.
+
+How the error happened is worth keeping: the field list was read from type
+metadata, saw no stat field on `EquippableData`, and reasoned to where the stats
+"must" be. That is inference presented as measurement. The component list of a
+real entity settled it in one run.
+
+The schema consequence is UNCHANGED and now has real values behind it:
+`ModificationType=Add` is a live enum on the element, so a flat name-to-number map
+cannot carry it, and an additive and a multiplicative modifier of the same `Value`
+are not the same stat.
+
+The superseded two-hop path, kept so the correction is legible:
 
 ```
 item prefab entity
@@ -247,8 +271,49 @@ obviously the per-ability field. That hunt wants a live entity sample and its
 real component list, which needs the in-game world, so it is blocked behind the
 same gate as S1(b) rather than behind more metadata reading.
 
-The mapping above is enough to start `PrefabDumper.cs` for `items` and `recipes`
-and no more. `abilities`, `vbloods` and `blood_types` are not yet writable.
+### S3 live entity dump, 2026-07-26: what the component lists settled
+
+Taken in the standalone dedicated server at a settled map (23583). The name table
+makes every schema addressable: `AB_` 8308, `TM_` 4121, `Item_` 1107, `Recipe_`
+667, `Buff_` 560, `CHAR_` 532, plus `BloodType_*` and `CHAR_*_VBlood` by name.
+
+`recipes` is CONFIRMED writable, with values, not just field names:
+
+```
+Recipe_Headgear_T01_RazerHood  CraftDuration=10 AlwaysUnlocked=True HideInStation=False
+  req[0] -237441421  x1 Item_Ingredient_Gem_Emerald_T01
+  req[1] -700774739  x8 Item_Ingredient_Cloth
+  out[0] -1797796642 x1 Item_Headgear_RazerHood
+```
+
+`blood_types` is now mappable and was not before. `BloodType_VBlood` has 12
+components, two of which are the bonus tiers:
+`ProjectM.Shared.PrimaryUnitBloodTypeBuffs` and
+`ProjectM.Shared.SecondaryUnitBloodTypeBuffs`, both `DynamicBuffer`s.
+
+`vbloods` has its marker CORRECTED. The census probed
+`ShadowVBloodUnitTagComponent` and returned zero, which is a true absence and a
+misleading one - that type is a runtime tag, not a prefab marker. The real
+prefab-side types, read off `CHAR_Militia_HoundMaster_VBlood` and
+`CHAR_Undead_BishopOfDeath_VBlood`, are `ProjectM.VBloodUnit`,
+`ProjectM.VBloodConsumeSource`, `ProjectM.VBloodAbilityBuffEntry` (buffer) and
+`ProjectM.VBloodUnlockTechBuffer` (buffer). The V Blood LEVEL field is not yet
+pinned to one of them.
+
+`abilities` STILL OPEN, and the school hunt has now failed against real data
+rather than against metadata. `AB_Knight_2H_SideStep_Left_Cast` carries 40
+components - `AbilityState`, `AbilityCastTimeData`, `AbilityCooldownData`,
+`AbilityPriority`, `AbilitySpawnPrefabOnCast`, `AbilityCastCondition` and so on -
+and NOT ONE of them is school-shaped. So the school is not on the `_Cast` entity.
+`AB_` splits into several suffix shapes and only `_Cast` has been sampled; the
+next place to look is the ability GROUP entity, not another metadata scan.
+
+`PrefabDumper.cs` may therefore write `items` and `recipes` now. `blood_types` is
+close but its buffer element fields are unread. `abilities` and `vbloods` are not
+writable.
+
+The superseded summary line, kept for legibility: "enough to start
+`PrefabDumper.cs` for `items` and `recipes` and no more."
 
 ## S1 - ECS world access and host detection
 
@@ -296,7 +361,51 @@ for the prefab map throws `ArgumentException: The entity does not exist`.
 world`. Those two exceptions are the natural `world_not_ready` error path and
 they are a genuine negative control - a stub cannot produce them.
 
-### S1(b) client worlds: PARTIAL, needs an in-game sample
+### S1(b) client worlds: CLOSED for the world set, and the answer relocates the dump
+
+Client host IN GAME, measured 2026-07-26 in a Private Game (Relaxed, Solo Only
+ticked, world named `Solo Only`, no password). Six worlds, stable for the whole
+session:
+
+| # | Name | Flags | Systems | Prefab map |
+|---|---|---|---|---|
+| 0 | `Default World` | Simulation | 56 | throws (entity does not exist) |
+| 1 | `LoadingWorld0` | Streaming | 0 | throws (different world) |
+| 2 | **`Client_0`** | Simulation | 688 | IsCreated=True, **Count=0** |
+| 3 | `LoadingWorld0` | Streaming | 0 | throws |
+| 4 | `LoadingWorld1` | Streaming | 0 | throws |
+| 5 | `LoadingWorld2` | Streaming | 0 | throws |
+
+**No world named `Server` exists inside the client process.** The old S1 question -
+whether a server simulation world lives in the client when playing solo - is
+answered NO.
+
+Where it actually lives, and this is the finding that matters: a Private Game
+SPAWNS A CHILD PROCESS. Measured, `VRisingServer.exe` pid 17256 with
+ParentProcessId 22512 (the client), started in the same second the client world
+set changed, running from `VRising_Server\VRisingServer.exe` - the tree that HAS
+BepInEx installed.
+
+**BepInEx does not load into that child.** Three independent observations:
+
+- port 8780 held no LISTEN while it ran;
+- `VRising_Server\BepInEx\LogOutput.log` was untouched by it;
+- its own `Player-server.log`, live and 139 KB, contains zero occurrences of
+  `doorstop`, `bepinex` or `preloader`.
+
+CONSEQUENCE. In the Private Game configuration neither host can currently serve a
+prefab dump: the client's own map is empty and the process holding the real world
+has no plugin. The dump route that IS proven is the STANDALONE dedicated server.
+Why the child does not load BepInEx is NOT established - doorstop environment
+inheritance from the parent is a hypothesis, not a measurement, and must not be
+written down as the cause until someone tests it.
+
+Still genuinely open: whether `Client_0`'s count stays 0 after a full load. It was
+sampled 0 at the load instant, and the probe that took the sample only logged on
+world-set change, so it could not re-measure. The count-change tracking that
+closes this is now in the probe but has not yet been run in the client.
+
+### S1(b) history: the main-menu sample
 
 Client host at the MAIN MENU, two worlds only:
 
@@ -354,17 +463,31 @@ constructor or injection fails.
 Still unobserved: the graceful path, `Unload()` running `_listener.Stop()` on a
 normal game exit. `taskkill /F` skips `Unload()` by definition.
 
-## S6 - dump cost: PARTIAL, and much cheaper than feared
+## S6 - dump cost: CLOSED, and the 1189 figure was a mid-load artifact
 
-Server host, `Server` world: `PrefabCollectionSystem.GetPrefabLookupMap(world)`
-returned `IsCreated=True` with `Count()` of **1189**, in under 1 ms end to end
-(`get_ms=0`, `total_ms=0`).
+**The count is 23583, not 1189.** The earlier note called 1189 "a floor rather
+than a final number" and that caution was right. Measured with per-sample count
+tracking, the server's map fills in over about 1.7 s after the world appears:
 
-Reading the map is therefore free at frame scale and needs no chunking. What is
-NOT yet measured is the cost of the actual dump: resolving 1189 entities, reading
-their components, and serializing them. 1189 is also the count of prefabs
-REGISTERED at that moment, not a proven total, so it is a floor rather than a
-final number. `Stunlock.Core.PrefabLookupMap` exposes `Count`, `TryGetValue`,
+```
+Count 1189 -> 3212 -> 11760 -> 17400 -> 23583   GameDataInitialized False..False,True
+```
+
+`GameDataInitialized` flips False to True exactly as the count settles at 23583,
+so it is a REAL readiness gate and not merely a plausible one. That is the flag
+the bridge should use for `world_not_ready`, and it is now measured rather than
+assumed.
+
+CONSEQUENCE, and it is a trap worth naming: anything that samples the prefab map
+on first non-zero count gets a castle-tile-and-blueprint subset. The first census
+run did exactly that and reported zero items, zero recipes and zero abilities -
+a confident, complete-looking, wrong answer. Gate on a settled count, or on
+`GameDataInitialized`, or on both.
+
+Dump cost, now measured end to end rather than deferred: **47573 entities in the
+world, 23955 carrying `PrefabGUID`, full component enumeration and name
+resolution for every one of them, in 57 ms** on the main thread. Reading the map
+itself remains free (`get_ms=0`). No chunking is needed. `Stunlock.Core.PrefabLookupMap` exposes `Count`, `TryGetValue`,
 `TryGetName`, `GetName` and `TryGetPrefabGuidWithName`, which is enough for the
 dumper and for the localization join.
 

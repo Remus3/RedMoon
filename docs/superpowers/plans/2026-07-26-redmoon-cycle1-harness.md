@@ -106,6 +106,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.superpowers/
 _scratch/
 logs/
 ops/runtime/

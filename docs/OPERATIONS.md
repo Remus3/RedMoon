@@ -9,6 +9,29 @@ python tools/ascii_guard.py
 
 Exit code 0 from the guard means every authored file is 7-bit ASCII.
 
+## Wire the commit gate, once per clone
+
+```
+python ops/install_git_hooks.py
+```
+
+Sets `core.hooksPath` to the tracked `hooks/` directory. Idempotent;
+`--check` verifies without writing and is what the suite asserts.
+
+This is mandatory, not optional hygiene. `.git/hooks` is NOT version
+controlled, so a fresh clone inherits sample files only and the gate becomes a
+script nothing calls - which is exactly what it was until 2026-07-26, when a
+UTF-8 BOM reached `master` in commit `2f14c4c` despite
+`python tools/ascii_guard.py` having exited 1 in the same shell chain. Windows
+PowerShell 5.1 has no `&&`, so a verification joined with `;` is a log line, not
+a gate. Only a non-zero exit from `hooks/pre-commit` blocks a commit.
+
+`tools/precommit_gate.py` holds the checks and stays frozen. It speaks Claude
+Code's PreToolUse protocol and always exits 0, so git can learn nothing from it
+directly; `hooks/precommit_hook.py` calls the same `check_staged()` and exits
+non-zero. A missing Python interpreter also fails the commit - a gate that could
+not run has not passed.
+
 ## Refresh extracted game data
 
 ```

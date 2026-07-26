@@ -536,7 +536,187 @@ world, 23955 carrying `PrefabGUID`, full component enumeration and name
 resolution for every one of them, in 57 ms** on the main thread. Reading the map
 itself remains free (`get_ms=0`). No chunking is needed. `Stunlock.Core.PrefabLookupMap` exposes `Count`, `TryGetValue`,
 `TryGetName`, `GetName` and `TryGetPrefabGuidWithName`, which is enough for the
-dumper and for the localization join.
+dumper.
+
+**CORRECTED 2026-07-26. The clause "and for the localization join" was WRONG**
+and is struck. `PrefabLookupMap`'s full member list was read from its own
+metadata - `GuidToEntityMap`, `AssetDataLookup`, `_ConversionStateLookup`,
+`GameDataInitialized`, plus `Count`, `ContainsKey`, `TryGetValue`,
+`GetValueOrDefault`, `GetName`, `TryGetName`, `GetFixedName`, `TryGetFixedName`,
+`TryGetPrefabGuidWithName`, `NameMatches`, `IsConvertedOrConvertable`,
+`CheckConvertableOnDemand`, `GetConversionState`, `SetConversionState` - and
+NONE of them is localization-shaped. The name it returns is the PREFAB name, not
+a display name. See the S7 section for where the join actually lives.
+
+## S1(b) client dump: CLOSED 2026-07-26, the client CAN serve a dump
+
+The last open half of S1(b) is measured. The operator loaded the Solo Only world
+with the count-tracking probe deployed, and `BepInEx\rmprobe-client.log` records
+`Client_0` filling and settling:
+
+```
+Count 0 -> 7005 -> 16352 -> 30484   GameDataInitialized False..False,True
+census gate open: Count=30484 held for 5 samples, GameDataInitialized=True
+census: total=85591 withPrefabGUID=31953 listed=31953 complete elapsed_ms=95
+```
+
+`GameDataInitialized` flips exactly as the count settles, the same readiness
+signature the server showed. Side by side:
+
+| | client | server |
+|---|---|---|
+| total entities | 85591 | 47631 |
+| carrying `PrefabGUID` | 31953 | 23978 |
+| dump cost | 95 ms | 54 ms |
+
+The client map is LARGER than the server's by 7975 entities and 95 ms is still
+free. "The client can serve a dump" is now PROVEN and may be written down.
+
+A trap worth recording, because it nearly produced a wrong entry here. The
+client census line reads `equip=2 recipe=2 spell=0 blood=0 vblood=0`, which
+looks exactly like "the client carries no item data". It is not. The SERVER line
+reads `equip=2 recipe=2` too, and the server produced 425 items and 663 recipes.
+Those counters are capped deep-dump target selectors (`_scratch\rmprobe\Probe.cs`
+lines 441 to 445), not census totals. They are evidence of nothing in either
+direction. The comparison against the server log is what caught it.
+
+STILL OPEN, and deliberately not claimed: whether the client's item and recipe
+COMPONENT data matches the server's. Only the prefab map was compared. Settling
+it needs the real bridge run in the client host and a diff of the two dumps.
+
+## S7 - the prefab to localization join: MEASURED ABSENT offline
+
+`items.name` is the raw prefab name and `localization_guid` was omitted. The
+question was whether a join exists in the data already on disk. It does not.
+
+`strings.json` is a flat map of localization GUID to English text, keyed from
+`entry["Guid"]` of `StreamingAssets/Localization/English.json` Nodes
+(`tools/rmdata_extract.py` lines 77 to 81, written at line 143). MEASURED: all
+8379 keys are dashed UUIDs, zero are integers, and every Node carries exactly
+`(Guid, Text)` - there is no prefab name or prefab hash anywhere in the file.
+
+Join attempts against all 425 item rows, every one measured rather than reasoned:
+
+| Key tried | Hit rate |
+|---|---|
+| prefab name as a `strings.json` key | 0 / 425 |
+| `prefab_guid` decimal | 0 / 425 |
+| `prefab_guid` in six hex, 0x, 8-digit and unsigned-32 forms | 0 / 425 |
+| prefab name as a `strings.json` VALUE | 0 / 425 |
+| casefold-alnum tail of prefab name vs value | 0 / 425 |
+| token-set equality, camelCase split | 53 / 425 |
+
+12.5 percent on a name heuristic is not a join. `BuiltVariants.json` is a shader
+variant list and contains 0 of 425 prefab names and 0 of 500 loc guids.
+Excluding the opaque DOTS blobs under `ContentArchives/` and `EntityScenes/`,
+StreamingAssets ships no prefab-to-localization table.
+
+The runtime route, every member verified against the interop metadata:
+
+```
+ProjectM.GameDataSystem            (ProjectM.Shared, base SystemBase)
+  -> get_ManagedDataRegistry()     -> Stunlock.Core.ManagedDataRegistry
+  -> TryGet<ProjectM.ManagedItemData>(PrefabGUID, out T)
+  -> .Name                         (Stunlock.Localization.LocalizationKey)
+  -> .Key.ToGuid().ToString()      -> the dashed lowercase strings.json key
+```
+
+NOT `PrefabLookupMap`, which carries no localization member - see the correction
+in S6. `localization_guid` stays declared and optional in the schema and is
+omitted until the dumper performs this read. INFERRED and not measured: that
+`ManagedItemData` is registered for all 425 equippables, and that `Localization`
+is initialized on a server host.
+
+## items.tier - NO SOURCE EXISTS on this build, schema_version 3
+
+`items.tier` was FABRICATED as 0 on all 425 rows of the first dump. The schema
+required it, so the dumper emitted a placeholder. It is now dropped from
+`required` at `schema_version` 3, kept DECLARED so `validate_table` still
+type-checks it and existing fixtures still pass, and OMITTED by the dumper.
+
+The negative is credible because of what was checked and not found. MEASURED
+across all 169 client interop assemblies: an exhaustive field-name scan for
+`Tier` returns 67 fields and ZERO on a per-item-prefab component - every one is
+spell-school progression, blood, jewel or spellmod roll data, legendary instance
+state, castle heart, a hash-map key, a HUD view-model, an authoring type or
+Unity graphics. `Rarity` returns zero hits anywhere in ProjectM. `Rank` hits
+only the EOS SDK. `ProjectM.ItemData`, the real item-definition component
+(`SilverValue`, `ItemTypeGUID`, `MaxAmount`, `ItemType`, `ItemCategory`,
+`RemoveOnConsume`, `SortOrder`), has no tier field; `ItemType` and `ItemCategory`
+are flag enums, not ordinal tiers. `ProjectM.TechData` has no tier either.
+
+TWO derivations were REJECTED on evidence rather than left untried:
+
+1. The `_T0x` prefab-name token. Name-convention guessing already produced one
+   wrong answer this cycle and is barred.
+2. `ArmorLevelSource.Level`. MEASURED exactly `10 x tier` on 117 of 425 rows -
+   genuinely tempting - but that divisor is calibrated against the same
+   forbidden token, the value is ALREADY published as `gear_score`, and
+   headgear (34), cloaks (34) and bags (6) carry no level component at all,
+   leaving 74 rows unsourced.
+
+`ProjectM.ItemConstants` exposes a static `MAX_TIER` and no backing per-item
+field, which is the tell: the concept exists in Stunlock's code and nothing
+stores it per item. Absent now means unsourced, NOT zero.
+
+## R17 extension: `Unity.Transforms` is inside the measured set
+
+`StateReader.cs` needed `Unity.Transforms.LocalToWorld` as a position fallback,
+which is outside R17's original four-assembly ruling. Rather than assume, the
+divergence was measured from the existing `_scratch\types_client.txt` and
+`types_server.txt`:
+
+| Assembly | client types | server types | client-only | server-only |
+|---|---|---|---|---|
+| `Unity.Transforms` | 61 | 61 | 4 | 4 |
+| `Unity.Entities` | 3441 | 3441 | 6 | 6 |
+
+All 4 `Unity.Transforms` differences are `__JobReflectionRegistrationOutput__`
+and `__UnmanagedPostProcessorOutput__` per-build hash types, which R17 already
+established are codegen noise and not referenceable by name from authored code.
+That is the identical signature to `Unity.Entities`, which was already inside
+the set. ZERO real divergence, so the reference is safe. Re-run per patch.
+
+## StateReader and the prefab-template trap: a passing test suite proved nothing
+
+`/state` used to return `state: null`. `StateReader.cs` now returns real data and
+`bridge_probe --motion-diff` PASSES against the live client. The route is worth
+recording because the first version was WRONG in a way that looked right.
+
+The first implementation compiled clean at 0 warnings, passed 284 tests, and on
+a `batchMode` server with NOBODY CONNECTED returned:
+
+```
+state_reason: ok
+position: {x: 0, y: 0, z: 0}
+vitals:   health 125/125, blood 75/100
+```
+
+Confident, complete-looking, and false. The prefab map holds a `PlayerCharacter`
+TEMPLATE entity, and an unfiltered `GetAllEntities` scan finds it. Only
+`--motion-diff` caught it: two samples five seconds apart were byte-identical,
+because a template never moves. The probe's own failure text names the class
+exactly - a stub, a cached snapshot and a default-constructed component all look
+like this.
+
+The fix is one filter: skip entities carrying `Unity.Entities.Prefab`, which is
+component `[109]` on the real component list in the census log, not a guess.
+After it, the same no-player server honestly returns `state_reason=no_character`
+with `state: null` - a real negative control, since a stub cannot tell the two
+cases apart.
+
+Verified live in the client, operator moving:
+
+```
+sample 1  position {x: -868.508972, y: 4e-06, z: -1788.14209}
+sample 2  position {x: -862.950745, y: 4e-06, z: -1784.278076}
+PASS motion-diff: the game is live
+```
+
+Vitals read `health 231.899994` against `max_health 231.905533` - a fractional
+mismatch no default constructor produces. The lesson to carry: for a live-data
+reader, a green suite and a clean build are necessary and nowhere near
+sufficient. Only the liveness probe distinguished real from plausible.
 
 ## Tooling note
 

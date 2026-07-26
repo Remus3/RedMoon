@@ -87,12 +87,14 @@ namespace RedMoon.Bridge
     /// <summary>What the last main-thread tick saw. Immutable once published.</summary>
     internal sealed class BridgeSnapshot
     {
-        internal BridgeSnapshot(WorldStatus status)
+        internal BridgeSnapshot(WorldStatus status, StateCapture capture)
         {
             WorldName = status.TargetName;
             WorldNames = status.WorldNames;
             Ready = status.Ready;
             PrefabCount = status.PrefabCount;
+            StateJson = capture == null ? null : capture.Json;
+            StateReason = capture == null ? StateReader.ReasonReadFailed : capture.Reason;
             CapturedAt = DateTime.UtcNow;
         }
 
@@ -100,6 +102,17 @@ namespace RedMoon.Bridge
         internal readonly string[] WorldNames;
         internal readonly bool Ready;
         internal readonly int PrefabCount;
+
+        /// <summary>
+        /// The /state envelope's `state` MEMBER, already serialized by the main
+        /// thread, or null when there was nothing to report. The listener thread
+        /// appends this string and never parses or rebuilds it.
+        /// </summary>
+        internal readonly string StateJson;
+
+        /// <summary>Why StateJson is null, as a fixed code, never a raw error.</summary>
+        internal readonly string StateReason;
+
         internal readonly DateTime CapturedAt;
     }
 
@@ -217,7 +230,12 @@ namespace RedMoon.Bridge
         {
             try
             {
-                _snapshot = new BridgeSnapshot(PrefabDumper.Status());
+                // One world lookup feeds both: StateReader takes the readiness
+                // the dumper already computed rather than evaluating the gate a
+                // second time, so /health and /state can never disagree about
+                // whether the world is ready.
+                WorldStatus status = PrefabDumper.Status();
+                _snapshot = new BridgeSnapshot(status, StateReader.Capture(status));
             }
             catch (Exception ex)
             {
@@ -390,21 +408,29 @@ namespace RedMoon.Bridge
         /// <summary>
         /// The D6 envelope. The null belongs to the `state` MEMBER, never to the
         /// body: a bare null carries no build stamp and cannot be told apart from
-        /// a broken bridge. No live state reader ships in this slice, so the
-        /// member is null and honestly so - a fabricated state object would pass
-        /// the envelope check and fail the wiredness probe's motion diff, which
-        /// is the worse failure because it looks like success.
+        /// a broken bridge.
+        ///
+        /// The member is whatever the LAST MAIN-THREAD TICK published (D7). This
+        /// method does not touch ECS - it appends a string StateReader already
+        /// built - and it still emits a null member honestly whenever the tick
+        /// had nothing to report. `state_reason` is an additive field carrying
+        /// WHY, as a fixed code, so a null member can be debugged without
+        /// reading the plugin log.
         /// </summary>
         private string State()
         {
             BridgeSnapshot snapshot = _snapshot;
-            var sb = new StringBuilder(256);
+            string member = snapshot == null ? null : snapshot.StateJson;
+            var sb = new StringBuilder(384);
             sb.Append("{\"ok\":true");
             sb.Append(",\"build\":").Append(Json.Str(_build));
             sb.Append(",\"plugin\":").Append(Json.Str(_plugin));
             sb.Append(",\"captured_at\":").Append(Json.Str(Json.UtcNow()));
             sb.Append(",\"snapshot_age_s\":").Append(Json.Num(SnapshotAge(snapshot)));
-            sb.Append(",\"state\":null");
+            sb.Append(",\"state_reason\":")
+              .Append(Json.Str(snapshot == null ? StateReader.ReasonNoWorld
+                                                : snapshot.StateReason));
+            sb.Append(",\"state\":").Append(member == null ? "null" : member);
             return sb.Append('}').ToString();
         }
 

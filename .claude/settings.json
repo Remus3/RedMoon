@@ -7,9 +7,25 @@
   "permissions": {
     "allow": [
       "Bash(taskkill:*)",
-      "Bash(schtasks:*)"
+      "Bash(schtasks:*)",
+      "mcp__computer-use",
+      "mcp__Windows-MCP__Screenshot",
+      "mcp__Windows-MCP__Snapshot",
+      "mcp__Windows-MCP__Click",
+      "mcp__Windows-MCP__Type",
+      "mcp__Windows-MCP__Move",
+      "mcp__Windows-MCP__Scroll",
+      "mcp__Windows-MCP__Shortcut",
+      "mcp__Windows-MCP__MultiSelect",
+      "mcp__Windows-MCP__Wait",
+      "mcp__Windows-MCP__App"
     ],
-    "deny": []
+    "deny": [
+      "mcp__Windows-MCP__PowerShell",
+      "mcp__Windows-MCP__FileSystem",
+      "mcp__Windows-MCP__Registry",
+      "mcp__Windows-MCP__MultiEdit"
+    ]
   },
   "hooks": {
     "PreToolUse": [

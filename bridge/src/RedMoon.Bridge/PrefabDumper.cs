@@ -325,19 +325,26 @@ namespace RedMoon.Bridge
             sb.Append(",\"name\":").Append(Json.Str(name));
             sb.Append(",\"category\":").Append(Json.Str(category));
 
-            // tier: REQUIRED by data/schemas/items.schema.json and UNSOURCED on
-            // this build. No per-item tier component exists - a type scan for
-            // Tier-shaped types returns spell schools, jewels and castle hearts
-            // and nothing per item. The only other candidate is the _T0x token in
-            // the prefab NAME, which is a guess about Stunlock's conventions and
-            // exactly the kind of inference BRIDGE_SPIKES.md records as having
-            // produced a wrong answer once already. 0 is emitted, every row will
-            // read 0, and the first-dump review owes this field a real source.
-            sb.Append(",\"tier\":0");
+            // tier is OMITTED, not faked. It was emitted as a hardcoded 0 on all
+            // 425 rows of the first dump; schema_version 3 dropped it from
+            // required once an exhaustive scan of all 169 interop assemblies
+            // returned 67 Tier-shaped fields and ZERO on a per-item-prefab
+            // component. Rarity returns zero hits anywhere in ProjectM, and
+            // ProjectM.ItemData, the real item-definition component, has no tier.
+            // Two derivations were rejected on evidence rather than left untried:
+            // the _T0x prefab-name token (name-convention guessing, which has
+            // already produced one wrong answer this cycle) and
+            // ArmorLevelSource.Level / 10 (exact on 117 of 425 rows, but that
+            // divisor is calibrated against the same forbidden token, the value
+            // is already published as gear_score, and headgear, cloaks and bags
+            // carry no level component at all).
 
-            // localization_guid is OMITTED, not faked: nothing measured joins a
-            // prefab to a localization key yet. gear_score is emitted only when
-            // ArmorLevelSource is actually present.
+            // localization_guid is OMITTED, not faked: MEASURED, the join does
+            // not exist offline - all 8379 strings.json keys are dashed UUIDs and
+            // zero of 425 rows join by name, by decimal guid or by six hex forms.
+            // The runtime route is GameDataSystem.ManagedDataRegistry, NOT
+            // PrefabLookupMap, which carries no localization member.
+            // gear_score is emitted only when ArmorLevelSource is actually present.
             try
             {
                 if (em.HasComponent<ProjectM.ArmorLevelSource>(e))

@@ -39,6 +39,7 @@
     <Compile Include="Plugin.cs" />
     <Compile Include="BridgeServer.cs" />
     <Compile Include="PrefabDumper.cs" />
+    <Compile Include="StateReader.cs" />
     <!--
       CLAUDE.md hard rule: never write a port literal. This generated file is
       the single machine-written exception (spec D2), rendered from
@@ -72,6 +73,14 @@
     <Reference Include="Unity.Entities"><HintPath>$(Interop)\Unity.Entities.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Collections"><HintPath>$(Interop)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Mathematics"><HintPath>$(Interop)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
+    <!--
+      Added for StateReader.cs, and NOT part of the R17-measured set. It carries
+      Unity.Transforms.LocalToWorld, the fallback position source used only when
+      a player character turns out not to carry Unity.Transforms.Translation
+      (which lives in Unity.Entities and IS in the measured set). Re-run R17
+      across this assembly before trusting it in both hosts.
+    -->
+    <Reference Include="Unity.Transforms"><HintPath>$(Interop)\Unity.Transforms.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Stunlock.Core"><HintPath>$(Interop)\Stunlock.Core.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ProjectM"><HintPath>$(Interop)\ProjectM.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ProjectM.Shared"><HintPath>$(Interop)\ProjectM.Shared.dll</HintPath><Private>false</Private></Reference>

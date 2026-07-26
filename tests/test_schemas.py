@@ -17,7 +17,7 @@ def test_every_declared_table_has_a_schema_file():
 
 
 EXPECTED_SCHEMA_VERSIONS = {
-    "items": 2,
+    "items": 3,
     "abilities": 1,
     "vbloods": 1,
     "blood_types": 1,
@@ -27,6 +27,50 @@ EXPECTED_SCHEMA_VERSIONS = {
 
 def test_every_table_has_a_pinned_schema_version():
     assert sorted(EXPECTED_SCHEMA_VERSIONS) == sorted(TABLE_NAMES)
+
+
+def test_items_tier_is_declared_but_not_required():
+    """
+    items.tier was FABRICATED as 0 on every one of the 425 rows in the first
+    real dump. An exhaustive field scan across all 169 interop assemblies for
+    build 1.1.13.0-r99712 returned 67 Tier-shaped fields and ZERO on a
+    per-item-prefab component; Rarity returns zero hits anywhere in ProjectM,
+    and ProjectM.ItemData, the real item-definition component, has no tier.
+    So no real source exists on this build.
+
+    The field stays DECLARED because validate_table rejects UNDECLARED fields
+    and several fixtures still pass a tier. It stops being REQUIRED so the
+    dumper can omit it, the way localization_guid and station_guid are already
+    omitted, rather than emit a placeholder a cycle 3 consumer would read as
+    real. The rejected near-miss is recorded in the schema description:
+    ArmorLevelSource.Level is exactly 10x tier on 117 of 425 rows, but that
+    divisor is calibrated against the _T0x name token, the value is already
+    emitted as gear_score, and headgear, cloaks and bags carry no level
+    component at all.
+    """
+    schema = load_schema("items")
+    assert "tier" not in schema["required"], "tier has no measured source and must not be required"
+    assert "tier" in schema["fields"], "tier must stay declared or validate_table rejects fixtures"
+
+
+def test_items_row_without_tier_validates():
+    schema = load_schema("items")
+    table = empty_table("items", "1.1.13.0-r99712")
+    table["rows"] = [{"prefab_guid": 1, "name": "Copper Sword", "category": "weapon"}]
+    assert validate_table(table, schema) == []
+
+
+def test_items_localization_guid_is_declared_optional():
+    """
+    MEASURED: the prefab-to-localization join does not exist offline. All 8379
+    strings.json keys are dashed UUIDs; zero of 425 item rows join by prefab
+    name, by prefab_guid in decimal, or in any of six hex forms. The join is a
+    runtime read through GameDataSystem.ManagedDataRegistry, so the field stays
+    optional and is omitted until the dumper can perform that read.
+    """
+    schema = load_schema("items")
+    assert "localization_guid" in schema["fields"]
+    assert "localization_guid" not in schema["required"]
 
 
 def test_no_stray_schema_files():

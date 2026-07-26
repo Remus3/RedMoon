@@ -291,7 +291,20 @@ components, two of which are the bonus tiers:
 `ProjectM.Shared.PrimaryUnitBloodTypeBuffs` and
 `ProjectM.Shared.SecondaryUnitBloodTypeBuffs`, both `DynamicBuffer`s.
 
-`vbloods` has its marker CORRECTED. The census probed
+`vbloods` has its LEVEL candidate, read from type metadata and NOT yet value-
+measured, so it is a lead and not a closed question.
+`ProjectM.VBloodConsumeSource` carries `Source`, `JournalCategory`,
+`QuestFlavorTextOverride`, `TooltipGUID`, `SpellSchool`, `Tier`,
+`SpellSchoolPoints` and `PassivePoints`. `Tier` is the V Blood level candidate.
+
+Do NOT conflate the two school facts. `VBloodConsumeSource.SpellSchool` is a
+FIELD naming the school a V Blood GRANTS on feeding, and it is why the earlier
+"there is no SpellSchool component type" note was true but misleading - the name
+exists as a field, not a type. The per-ability damage school is a different
+thing entirely: `DealDamageParameters.MainType` on the `_Hit` entity, measured
+above. One is progression, the other is combat math.
+
+`vbloods` also has its marker CORRECTED. The census probed
 `ShadowVBloodUnitTagComponent` and returned zero, which is a true absence and a
 misleading one - that type is a runtime tag, not a prefab marker. The real
 prefab-side types, read off `CHAR_Militia_HoundMaster_VBlood` and

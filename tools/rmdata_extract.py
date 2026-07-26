@@ -56,6 +56,11 @@ def parse_build_id(version_text: str) -> str:
 
 def resolve_codes(text: str, codes: dict[str, str]) -> str:
     """Substitute localization markup codes. Unknown codes are left untouched."""
+    # Order dependent: if one key is a substring of another, whichever is
+    # substituted first wins, and that order is the order of the "Codes" array
+    # in the shipped English.json. No such overlap exists in build
+    # 1.1.13.0-r99712, so this is a latent hazard, not a live bug - if a future
+    # build introduces overlapping keys, substitute longest key first.
     for key, value in codes.items():
         if key in text:
             text = text.replace(key, value)

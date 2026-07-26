@@ -1,7 +1,7 @@
 {
   "table": "blood_types",
   "schema_version": 1,
-  "description": "Blood types and their quality-scaled bonuses. Filled by the cycle 2 bridge prefab dump.",
+  "description": "Blood types and their quality-scaled bonuses. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that bonuses is a list; the described ordered tiers, each with a quality threshold and scaled stat values, are documented but never checked. A passing validate_table is not a guarantee about what is inside bonuses.",
   "required": ["prefab_guid", "name"],
   "fields": {
     "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},

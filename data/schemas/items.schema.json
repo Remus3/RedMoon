@@ -1,7 +1,7 @@
 {
   "table": "items",
   "schema_version": 1,
-  "description": "Equipment and consumables. Filled by the cycle 2 bridge prefab dump.",
+  "description": "Equipment and consumables. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that stats is an object; the described mapping of stat modifier name to numeric value is documented but never checked. A passing validate_table is not a guarantee about what is inside stats.",
   "required": ["prefab_guid", "name", "category", "tier"],
   "fields": {
     "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},

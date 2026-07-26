@@ -79,7 +79,7 @@ because a TTK against an assumed boss health is the `items.tier` fabrication
 with a larger blast radius.
 
 VERIFICATION: `python -m pytest` 317 passed, `python tools/ascii_guard.py` exit
-0, `python -m ruff check .` clean. Commits `b78fe2a` (the close) and `TBD` (the
+0, `python -m ruff check .` clean. Commits `b78fe2a` (the close) and `3f77e22` (the
 two blockers and the doc corrections).
 
 THE LESSON CYCLE 2 LEAVES BEHIND, promoted out of the session notes because it

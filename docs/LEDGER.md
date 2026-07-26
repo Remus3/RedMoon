@@ -68,6 +68,32 @@ the field mapping is not done. S1, S2, S5 and S6 remain OPEN.
 the interop set, and no leg of the D5 wiredness proof has run. Leg 4 structurally
 requires the operator to load a character and move it.
 
+**Process incident, recorded rather than buried.** `251803b` was committed while
+a build subagent was still live, and it captured that agent's file mid-mutation
+test: the v3 guard in `tools/bridge_probe.py` is committed as `if False:` in
+that one commit. Verified directly with `git show 251803b:tools/bridge_probe.py`
+rather than taken on the agent's report. The guard is CORRECT at `d614a09` and
+at HEAD, the working tree is clean, and a fresh full run after the fact is 245
+passed / ruff clean / ascii_guard 0. No history rewrite: the defect existed in
+one intermediate commit and is fixed in the next, which is what a branch is for.
+
+The lesson is the standing one and it was paid for again here: do not commit
+while agents are live, and check `git show --stat` after every commit. A green
+suite taken moments before a `git add -A` does not describe what `git add -A`
+actually staged.
+
+Worth carrying separately: that agent's own mutation testing found a real hole
+in its tests. A mutation making the loader-log banner matcher accept any line
+containing `RedMoon.Bridge` SURVIVED 25 tests, because the negative fixture
+carried no banner token at all - cycle 1's exact failure mode, a gate that
+cannot fail. Four parametrized tests were added and the mutation then failed.
+This is the second time in two cycles that the bug was "the check never checked".
+
+Consequence for the not-yet-written plugin: `Plugin.cs` MUST emit a banner
+carrying all three tokens, version, host and port, in the shape
+`RedMoon.Bridge v<semver> host=<client|server> port=<n>`. The matcher is
+token-based and order-independent by design, but it requires all three.
+
 Commits: `9fbce0c` (ADR-005), `251803b` (the Python half), branch
 `cycle-2-bridge`.
 Spec: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md`

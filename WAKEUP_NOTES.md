@@ -40,6 +40,21 @@ needed. S3a CLOSED. S3 PARTIAL - the component types are located and named
 (`EquippableData`, `RecipeData`, `RecipeRequirementBuffer`, `SpellLevel`,
 `BloodQualityBuff`), the field mapping is not done. S1, S2, S5, S6 OPEN.
 
+One process incident, and the plugin contract that fell out of it. `251803b` was
+committed while a build agent was still live and captured its file mid-mutation
+test, so that ONE commit carries a disabled v3 guard in `bridge_probe.py`.
+Correct at `d614a09` and at HEAD; verified with `git show`, not taken on the
+agent's word; no history rewrite. Standing rule, re-paid: do not commit while
+agents live, and read `git show --stat` afterwards.
+
+That agent's mutation testing also found a hole worth knowing about: a mutation
+letting the loader-log banner matcher accept ANY line containing
+`RedMoon.Bridge` SURVIVED 25 tests, because the negative fixture had no banner
+token at all. That is cycle 1's failure mode a second time - a gate that cannot
+fail. It is now pinned. CONSEQUENCE: `Plugin.cs` must emit a banner carrying
+version, host AND port, shaped `RedMoon.Bridge v<semver> host=<client|server>
+port=<n>`. The probe requires all three tokens.
+
 Three things the next session must not get wrong:
 
 1. The CLIENT has BepInEx but has NOT been launched, so it has no `interop\`

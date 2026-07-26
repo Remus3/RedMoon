@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 002f - Cycle 2 part 6: the client host, and a wrong number four gates could not see (2026-07-26)
 
-Code and docs on `master`, commit `PENDING`.
+Code and docs on `master`, commit `d194589`.
 
 WHAT SHIPPED. The bridge now reads the localization join, inverts the station
 link, and refuses to emit a row twice. Both hosts ran the SAME binary

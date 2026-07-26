@@ -13,6 +13,7 @@ EXPECTED_MEMORY_ENTRIES = {
     "project_stats_require_bridge",
     "user_operator_profile",
     "reference_vrising_install_shape",
+    "reference_flashing_consoles_are_mcp_launchers",
 }
 
 

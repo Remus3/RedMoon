@@ -14,6 +14,55 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002g - Cycle 2 CLOSED (2026-07-26)
+
+Docs only. No code changed.
+
+WHAT CLOSED. Cycle 2's charter was live item and ability stat data on a local
+port, and the data that cannot be read offline is now on disk: `items` 425,
+`recipes` 663, `abilities` 54, `vbloods` 65, `blood_types` 13 - every table in
+`core/tables.py`, promoted from a client dump in 103 ms. All six original spikes
+S1 to S6 are closed, plus S3a and S7. `/state` returns live data and
+`bridge_probe --motion-diff --expect-host client` PASSES. One assembly loads in
+both hosts (ADR-004) and the port is a pure function of the detected host
+(ADR-005).
+
+WHAT THIS ENTRY ACTUALLY DID. `ROADMAP.md`'s cycle 2 section was a running log
+appended to six times across six sessions, carrying superseded numbers inline
+(most visibly `vbloods` 66 with its own correction note beside it). It is now a
+settled record of what was measured, and cycle 3 is marked CURRENT.
+`docs/ARCHITECTURE.md` had drifted a full cycle behind - it still read "Nothing
+runs as a service in cycle 1" and listed `bridge/` as planned, with a module map
+naming three files out of the sixteen that exist. It now describes the shipped
+shape, the real live data path, and the host-specific localization join.
+
+THE RESIDUE, and why it does not block cycle 3. Three items were weighed against
+closing:
+
+1. **4 unmapped recipes.** Confirmed to be recipe prefabs with an empty ITEM
+   output buffer, consistent with the `RecipeOutputUnitBuffer` hypothesis but not
+   proven to be it. They produce units, not items, and no cycle 3 consumer reads
+   them. Closing this would buy a label, not data.
+2. **`items.tier`.** There is nothing left to spend a session on. No per-item
+   source exists on this build (67 `Tier`-shaped fields across 169 assemblies,
+   zero per item; `Rarity` zero hits anywhere) and both derivations were rejected
+   on evidence. DECLARED and OMITTED is already the correct final state. Absent
+   means unsourced, never zero.
+3. **Weapon abilities produce no `abilities` row.** This one has teeth, and it is
+   the reason the close is not silent about it. Bloodforge computes weapon DPS
+   and there is no `<Weapon>SpellSchoolAsset` to source the school from. It is
+   carried into cycle 3 as a NAMED INPUT GAP in `ROADMAP.md` rather than a
+   footnote, so no cycle 3 code scaffolds weapon damage on an assumed source.
+
+VERIFICATION: `python -m pytest` 317 passed, `python tools/ascii_guard.py` exit
+0, `python -m ruff check .` clean. Commit `TBD`.
+
+THE LESSON CYCLE 2 LEAVES BEHIND, promoted out of the session notes because it
+outlives them: a real measurement can answer the RIGHT question about the WRONG
+SUBJECT. "0 of 425" was correct, reproducible and had a proper negative control,
+and it described a headless host rather than the game. Before generalizing a
+measurement, check what it was taken OF.
+
 ## 002f - Cycle 2 part 6: the client host, and a wrong number four gates could not see (2026-07-26)
 
 Code and docs on `master`, commit `d194589`.

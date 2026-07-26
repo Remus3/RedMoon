@@ -10,143 +10,97 @@ offline extractor producing `data/rmdata/<build>/`.
 Spec: `docs/superpowers/specs/2026-07-26-redmoon-harness-design.md`
 Ledger: `docs/LEDGER.md` entry 001.
 
-## Cycle 2 - RedMoon.Bridge (CURRENT)
+## Cycle 2 - RedMoon.Bridge (DONE)
 
-BepInEx plugin serving live game JSON on 8777, plus the runtime
-`PrefabCollectionSystem` dump that populates the cycle 1 table schemas with real
-item and ability stat data.
+A BepInEx plugin serving live game JSON, plus the runtime `PrefabCollectionSystem`
+dump that fills the cycle 1 table schemas with real item and ability stat data.
+That data cannot be read offline, so this cycle is the only route by which it
+enters the repository, and it has now been taken.
 
-Spec: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md` (APPROVED
-2026-07-26). The plugin targets both the client and the dedicated server, per
-ADR-004, and each host binds its own port, per ADR-005.
+Spec: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md`
+Ledger: `docs/LEDGER.md` entries 002a to 002g.
+Measurements: `docs/BRIDGE_SPIKES.md` - every number and how it was observed.
 
-`PrefabCollectionSystem` is no longer an unverified label. It was CONFIRMED
-against this build on 2026-07-26: `ProjectM.PrefabCollectionSystem` in
-`ProjectM.Shared.dll`. See `docs/BRIDGE_SPIKES.md`.
+**What shipped.** One plugin assembly loading in BOTH hosts (ADR-004), each
+binding a port that is a pure function of the detected host (ADR-005): 8777 in
+the client, 8780 in the dedicated server. `/health`, `/state` and
+`/dump/prefabs`. On the Python side: the bridge client, the shallow and nested
+ingest gates, the VERSION-asserting installer, the quarantine path and
+`bridge_probe`.
 
-Progress. The Python half is shipped and green (ledger 002a): port generation,
-the bridge client, the nested-shape gate, the VERSION-asserting installer, the
-ingest and quarantine path, and the wiredness probe. BepInEx is installed in
-both hosts and the dedicated server has generated its interop assemblies.
+**The data, promoted from a client dump in 103 ms.** All five tables in
+`core/tables.py` are populated:
 
-Steps 1 through 3 are DONE (ledger 002b). The client was launched, the interop
-sets were diffed at type level, and a minimal enumerate-and-log probe plugin was
-built and run in BOTH hosts. R17, R2, R11, S4, S1(a), S1(c), S1(d), S2 and S5 are
-CLOSED by measurement. S6 is partial and cheap. S3 has the item and recipe
-mapping. `docs/BRIDGE_SPIKES.md` carries every number and how it was observed.
+| table | rows | schema_version |
+|---|---|---|
+| `items` | 425 | 3 (all 425 carry `localization_guid`) |
+| `recipes` | 663 | 2 (`station_guids`, ADR-006) |
+| `abilities` | 54 | 1 |
+| `vbloods` | 65 | 1 |
+| `blood_types` | 13 | 2 |
 
-Steps 1 through 4 of the previous plan are DONE (ledger 002c). The plugin is
-built, it ran live in the dedicated server, and the first real dump is INGESTED:
-`items.json` carries 425 rows at `schema_version` 2 and `recipes.json` carries
-663. That is the first item stat data ever to enter this repository, and it is
-the thing cycle 2 exists to deliver.
+All six original spikes S1 to S6 are closed, plus S3a and S7. `/state` returns
+live data and `bridge_probe --motion-diff --expect-host client` PASSES.
 
-The ability school is FOUND: `DealDamageParameters.MainType` on the ability's
-`_Hit` entity, six varying samples. The prefab total is 23583, not the 1189 that
-was a mid-load artifact. `items.stats` is a ONE-HOP read and the recorded
-two-hop finding was wrong. All of it is in `docs/BRIDGE_SPIKES.md`.
+**The findings cycle 3 inherits.** Each is measured, not inferred:
 
-Remaining, in order:
+- **Either host may serve the dump.** Client and server component data were
+  diffed row by row on `prefab_guid`, every field, all five tables: ZERO
+  differing rows. Matching counts would have proved nothing.
+- **`localization_guid` is writable on the CLIENT only** - 425 of 425 there, 0 of
+  425 on the dedicated server. The recorded absence was a true statement about a
+  headless HOST that had been written down as a statement about the build. Every
+  dump now carries its own `localization` counters so a saved payload says which
+  host produced it.
+- **`items.tier` has NO SOURCE on this build.** 67 `Tier`-shaped fields across
+  169 assemblies, zero per item; `Rarity` zero hits anywhere. It is DECLARED and
+  OMITTED, never zero. Both derivations (the `_T0x` name token,
+  `ArmorLevelSource.Level`) were rejected on evidence. A consumer must treat
+  absent as unsourced.
+- **`items.gear_score` is a Red Moon-COMPUTED quantity, not a direct read.**
+  Armor, weapon and spell levels come from three separate systems and component
+  families.
+- **`abilities` covers spell-school abilities only.** Weapon abilities have no
+  `<School>SpellSchoolAsset` and produce no row, and 38 of the 54 carry no
+  `damage_type` because the projectile deals the damage. Both are the measured
+  edge of the join, not defects. **This is a real cycle 3 input gap and is
+  carried into the cycle 3 spec rather than left as a footnote.**
+- **`blood_types` carries stat NAMES and never a magnitude.** Every `Value` on
+  the tier buff reads 0; the numbers are scaled from blood quality at runtime.
+- **`Unload()` does not run.** BepInEx 6 IL2CPP never invokes it at shutdown, on
+  two independently-failing channels. The port is released by process death, the
+  same path R11 already retired for the hard kill. Nothing depends on it.
 
-1. The IN-GAME CLIENT sample - the last open half of S1(b), and the only item
-   that needs the operator. `Client_0` read `Count=0` at the load instant and the
-   probe that took the sample could not re-measure. The count-tracking probe is
-   deployed to the client but has not run there. Until it does, "the client can
-   serve a dump" stays UNPROVEN. Note a Private Game spawns a child
-   `VRisingServer.exe` that does NOT load BepInEx, so in that configuration
-   neither host serves a dump.
-2. `items.tier` is FABRICATED as 0 on all 425 rows. The schema requires it and no
-   per-item tier component exists on this build. It owes a real source before any
-   cycle 3 consumer trusts it. Do not close this by parsing the `_T0x` name
-   token - name-convention guessing already produced one wrong answer this cycle.
-3. `items.name` is the prefab name, not a localized display name, and
-   `localization_guid` is omitted rather than faked. The prefab-to-localization
-   join is unmeasured.
-4. `StateReader.cs`. `/state` honestly returns `state: null` today, so
-   `bridge_probe --motion-diff` cannot pass.
-5. Smaller open ends: `recipes.station_guid` (the station references the recipe,
-   not the reverse); the ability-group-to-`_Hit` join needed to assemble an
-   `abilities` row; `VBloodConsumeSource.Tier` is metadata-read, not
-   value-measured; `Unload()`'s graceful path is still unobserved; and the 4
-   `unmapped` recipes are almost certainly `RecipeOutputUnitBuffer` recipes that
-   produce a unit rather than an item.
+**Residue, deliberately left open and judged not to block cycle 3.** 4 recipes
+remain unmapped, all confirmed to be recipe prefabs with an empty ITEM output
+buffer, consistent with the `RecipeOutputUnitBuffer` hypothesis but not proven to
+be it. They produce units rather than items and no cycle 3 consumer reads them.
 
-The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
-schema-valid envelope per table name in `core/tables.py`. The dump fills those
-files in place, and `tools/rmdata_extract.py` never overwrites a populated one.
+**The lesson, recorded once and worth carrying.** A real measurement can answer
+the RIGHT question about the WRONG SUBJECT. "0 of 425" was correct, reproducible
+and had a proper negative control, and it described a headless host rather than
+the game. Before generalizing a measurement, check what it was taken OF.
 
-Status 2026-07-26, ledger 002a to 002d. `PrefabCollectionSystem` is CONFIRMED,
-not merely a label. All six original spikes S1 to S6 are CLOSED, plus S3a and
-S7. The plugin ships and runs live in BOTH hosts: the dedicated server serves
-`/dump/prefabs` and the client is proven to serve one too (`Client_0`, 30484
-prefabs, 95 ms). `items.json` holds 425 rows at `schema_version` 3 and
-`recipes.json` 663. `/state` returns live data and
-`bridge_probe --motion-diff --expect-host client` PASSES.
-
-Two fabricated fields were retired on evidence rather than convention:
-`items.tier` has no per-item-prefab source on this build (67 `Tier`-shaped
-fields across 169 assemblies, zero per item), and the prefab-to-localization
-join does not exist offline (0 of 425 on seven key forms).
-
-Status 2026-07-26, ledger 002e. **All five tables are populated.**
-`items` 425, `recipes` 663, `abilities` 54, `vbloods` 66, `blood_types` 13, from
-(the 66 was CORRECTED to 65 by the next pass - see ledger 002f)
-one live server dump in 714 ms. The six open measurements are all closed, and
-`docs/BRIDGE_SPIKES.md` "The cycle 2 measurement pass" carries every number.
-
-The corrections that came out of it:
-
-- The ability school is NOT `DealDamageParameters.MainType`. That is the DAMAGE
-  type. The schema's `school` comes from `SpellSchoolAbility.AbilityGroup` on the
-  `<School>SpellSchoolAsset` prefab, which yields 9 abilities in each of the six
-  schools.
-- The V Blood level is NOT `VBloodConsumeSource.Tier`, which is a five-valued
-  spell-school progression tier. It is `UnitLevel.Level`, measured 16 to 91.
-- `blood_types` is `schema_version` 2. There is no quality threshold on the
-  prefab and every bonus magnitude reads 0, scaled from blood quality at runtime,
-  so the table carries stat NAMES and never a fabricated number.
-
-Status 2026-07-26, ledger 002f. **The client-host pass.** Both hosts ran the
-same binary at once and every open item above is now measured. See
-`docs/BRIDGE_SPIKES.md`, "The client-host pass".
-
-- **The client and server item COMPONENT data are IDENTICAL.** Row-by-row diff
-  keyed on `prefab_guid`, every field: ZERO differing rows across all five
-  tables. Either host may serve the dump; the client costs 103 ms, the server
-  794.
-- **`localization_guid` is WRITABLE on the CLIENT.** The join resolves 425 of
-  425 there and 0 of 425 on the dedicated server, and all 425 client guids are
-  real `strings.json` keys. The recorded absence was true of the SERVER HOST, not
-  of the build. Every dump now carries its own `localization` counters.
-- **`recipes.station_guids` is RULED and WRITABLE** at `schema_version` 2,
-  ADR-006. 911 unique pairs over 663 recipes; 575 recipes reach a station, 88
-  reach none, and 19 sit at twelve stations each.
-- **`vbloods` is 65, not 66.** The dumper emitted one row per ENTITY and more
-  than one entity can carry the same `PrefabGUID`, so a duplicated Dracula was
-  counted twice - and two ability groups likewise, making 56 rows over 54 guids
-  on both hosts. Every duplicate pair was byte-identical, so no per-row gate
-  could see it. Fixed in the dumper AND gated at ingest.
-
-REMAINING before cycle 2 can close:
-
-- `Unload()` is CLOSED, and the answer is that it does NOT run. On the
-  instrumented build a normal in-game quit left BOTH the BepInEx log and the
-  independent `redmoon-unload.log` marker empty, and those two channels fail
-  independently, so BepInEx 6 IL2CPP does not invoke `BasePlugin.Unload()` at
-  shutdown. The port is released by process termination - the same path R11
-  already retired for the hard kill - so nothing depends on the graceful one.
-- `abilities` covers the 54 spell-school abilities only. Weapon abilities have no
-  school asset and produce no row, and 38 of the 54 carry no `damage_type`
-  because the projectile deals the damage. Both are the measured edge of the
-  join, not defects.
-- 4 recipes remain unmapped, all `recipe prefab with an empty item output
-  buffer`.
-
-## Cycle 3 - Bloodforge core
+## Cycle 3 - Bloodforge core (CURRENT)
 
 Combat math against V Blood bosses: weapon, spell school, gear tier, blood type
 and quality, jewels, passives and resistances, producing DPS, EHP and
-time-to-kill. Server on 8783, `ENGINE_VERSION` pinned to the game build.
+time-to-kill. Server on 8783, `ENGINE_VERSION` pinned to the game build
+`1.1.13.0-r99712`.
+
+Spec: TBD, its own session under `docs/superpowers/specs/`.
+
+Verified inputs on disk, from cycle 2: `items` 425, `recipes` 663, `abilities`
+54, `vbloods` 65, `blood_types` 13, under `data/rmdata/1.1.13.0-r99712/tables/`.
+
+Known input gaps the spec must scope rather than assume away:
+
+1. **Weapon abilities have no rows.** Weapon DPS cannot be scaffolded on
+   `abilities`. What weapon damage actually needs is a cycle 3 question.
+2. **`items.tier` is absent, not zero,** and no consumer may treat it as an
+   ordinal.
+3. **`blood_types` magnitudes are runtime-scaled** and are not on the prefab.
+4. **`items.gear_score` must be computed** from three separate level systems.
 
 ## Cycle 4 - Dashboard
 

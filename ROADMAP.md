@@ -75,6 +75,33 @@ The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
 schema-valid envelope per table name in `core/tables.py`. The dump fills those
 files in place, and `tools/rmdata_extract.py` never overwrites a populated one.
 
+Status 2026-07-26, ledger 002a to 002d. `PrefabCollectionSystem` is CONFIRMED,
+not merely a label. All six original spikes S1 to S6 are CLOSED, plus S3a and
+S7. The plugin ships and runs live in BOTH hosts: the dedicated server serves
+`/dump/prefabs` and the client is proven to serve one too (`Client_0`, 30484
+prefabs, 95 ms). `items.json` holds 425 rows at `schema_version` 3 and
+`recipes.json` 663. `/state` returns live data and
+`bridge_probe --motion-diff --expect-host client` PASSES.
+
+Two fabricated fields were retired on evidence rather than convention:
+`items.tier` has no per-item-prefab source on this build (67 `Tier`-shaped
+fields across 169 assemblies, zero per item), and the prefab-to-localization
+join does not exist offline (0 of 425 on seven key forms).
+
+REMAINING before cycle 2 can close:
+
+- `abilities` and `vbloods` are still not writable. The ability school is found
+  (`DealDamageParameters.MainType` on the `_Hit` entity) but the
+  ability-group-to-`_Hit` join is not traced, so a row cannot be assembled.
+- `blood_types` buffer element fields are unread.
+- `recipes.station_guid` is OPEN - the station references the recipe, not the
+  reverse.
+- `localization_guid` needs the runtime `GameDataSystem.ManagedDataRegistry`
+  read.
+- Whether client item COMPONENT data matches the server's is UNTESTED; only the
+  prefab maps were compared.
+- `Unload()`'s graceful path is unobserved, and 4 recipes remain unmapped.
+
 ## Cycle 3 - Bloodforge core
 
 Combat math against V Blood bosses: weapon, spell school, gear tier, blood type

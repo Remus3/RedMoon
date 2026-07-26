@@ -14,6 +14,73 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002d - Cycle 2 part 4: /state goes live, and two fabricated fields are retired (2026-07-26)
+
+Code commit `2bc26d5` on `master`. No merge hash: `cycle-2-bridge` was
+fast-forwarded into `master` this session at `6acbc66` and work continued
+directly on `master`, so the code commit IS the carrying hash. The
+fast-forward was deliberate - a `merge:` commit would have recorded a cycle 2
+completion that has not happened.
+
+Shipped `bridge/src/RedMoon.Bridge/StateReader.cs` plus `tests/test_bridge_state.py`,
+the `BridgeServer.cs` `/state` wiring, `data/schemas/items.schema.json` at
+`schema_version` 3, the `PrefabDumper.cs` tier removal, and the
+`.claude/settings.json` visual-tool permission grant.
+
+Verified in the main session rather than taken from the build agent:
+`python -m pytest` **284 passed**, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, `dotnet build -c Release` exit 0 with
+0 warnings. The agent's claims were re-run independently before any were
+believed.
+
+Proven LIVE, which is the entire point of this entry. `bridge_probe
+--motion-diff --expect-host client` **PASSES** with the operator moving:
+position `-868.508972, -1788.14209` to `-862.950745, -1784.278076`. Vitals read
+`health 231.899994` against `max_health 231.905533`, a fractional mismatch no
+default constructor produces.
+
+The finding worth carrying: **a green suite and a clean build proved nothing
+here.** The first StateReader compiled at 0 warnings, passed all 284 tests, and
+returned `state_reason: ok` with full vitals while reading the `PlayerCharacter`
+PREFAB TEMPLATE on a server with nobody connected - position `0,0,0`, health
+`125/125`. Only `--motion-diff` caught it, because two samples five seconds
+apart were byte-identical. The fix skips `Unity.Entities.Prefab`, and the same
+empty server then honestly returns `no_character` with `state: null`, which is a
+real negative control rather than a passing assertion.
+
+S1(b) CLOSED. `Client_0` fills `0 -> 7005 -> 16352 -> 30484` with
+`GameDataInitialized` flipping as it settles; census `total=85591
+withPrefabGUID=31953` in 95 ms. The client map is LARGER than the server's by
+7975 entities. "The client can serve a dump" is now proven and writable. A
+near-miss is recorded in `BRIDGE_SPIKES.md`: the client census line reads
+`equip=2 recipe=2`, which looks like "no item data", but the SERVER line reads
+the same and produced 425 items - those counters are capped deep-dump selectors,
+evidence of nothing.
+
+`items.tier` retired at `schema_version` 3 after an exhaustive scan of all 169
+interop assemblies returned 67 `Tier`-shaped fields and ZERO per-item-prefab.
+Both derivations rejected on evidence, including the tempting
+`ArmorLevelSource.Level` which is exactly `10 x tier` on 117 of 425 rows.
+
+**Data backfill DONE, not merely prevented.** The 425 rows already on disk
+carried the fabricated `tier: 0`. The plugin was rebuilt, redeployed, the
+standalone server relaunched, `/dump/prefabs` re-taken and promoted: live
+`items.json` is now `schema_version` 3, 425 rows, **0 carrying `tier`**, with
+counts identical to before (items 425, recipes 663, 899 stat entries) so it is a
+true like-for-like recovery. Note `data/rmdata/` is gitignored
+(`.gitignore:16`), so the backfill lives on disk and is reproducible from the
+dump rather than committed.
+
+Also closed: the localization join is MEASURED ABSENT offline (0 of 425 on
+seven key forms), R17's reference set extends to `Unity.Transforms` by
+measurement, and the false `PrefabLookupMap` localization claim in
+`BRIDGE_SPIKES.md` is corrected.
+
+STILL OPEN and deliberately not claimed: whether client item COMPONENT data
+matches the server's (only the prefab maps were compared), `recipes.station_guid`,
+the ability-group-to-`_Hit` join, `VBloodConsumeSource.Tier` value measurement,
+and `Unload()`'s graceful path.
+
 ## 002c - Cycle 2 part 3: RedMoon.Bridge ships and the first real dump lands (2026-07-26)
 
 Shipped `bridge/src/RedMoon.Bridge/` - `RedMoon.Bridge.csproj`, `HostDetect.cs`,

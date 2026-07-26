@@ -1,7 +1,97 @@
-# Wakeup Notes
+﻿# Wakeup Notes
 
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
+
+## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
+
+Branch `master`. Ledger 003a. Commits `774d7d3` (spec plus ROADMAP) and the docs
+commit backfilled into the ledger entry. **No production code changed and none
+was meant to** - this session was the spec, by explicit instruction.
+
+State at close, observed in one run after the last edit: `python -m pytest`
+**317 passed** (see the counting note below), `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0. No C# changed, so no `dotnet build` was
+run.
+
+**A counting note worth keeping, because the ritual asks for exact numbers.**
+This repo's pytest config suppresses the textual summary line - `pytest -q`
+prints only the progress block, and neither a pipeline capture nor a `>`
+redirect produced a "N passed" line. Rather than report 317 from memory or from
+eyeballing four rows of dots, the progress characters were counted directly:
+**317 dots, 0 of `F/E/s/x`, exit 0.** If a future session needs the summary line
+back, the cause is in the pytest config, not in the invocation.
+
+**What shipped: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md`,
+342 lines.** Cycle 3's first spec, and it deliberately contains no combat math.
+`ROADMAP.md` cycle 3 now names TWO specs where it said one TBD: this spike, then
+the math opened only against what the spike returns.
+
+**Five decisions the operator made, each of which changes what gets built.**
+
+1. **Scope is the spike alone**, with a declared consumer contract. Not a full
+   engine spec with the spike as phase 0.
+2. **The boss stat line reads from the PREFAB, with a live instance as a negative
+   control.** Not prefab-only, not instance-only. The prefab keeps the dump
+   repeatable; the instance is what makes a template-reading stub fail.
+3. **Coefficients key on the ability GROUP, all 1474**, in a new `ability_stats`
+   table - not by extending the 54 `abilities` rows. This is the load-bearing
+   one: it DISSOLVES ROADMAP gap 3, because a weapon ability needs no
+   `<Weapon>SpellSchoolAsset` to have coefficients, only a weapon-to-group link.
+   ADR-007 will record it.
+4. **A throwaway `/dump/components` endpoint runs FIRST**, printing full
+   component lists, with an operator gate before any schema is written.
+5. **The required-field contract includes the level/power-difference term**, not
+   just health and coefficients.
+
+**The thing this spec does that a normal spec does not: it encodes four cycle 2
+lessons as structure rather than as advice.** Advice in a doc does not survive a
+subagent; a numbered acceptance criterion does.
+
+- Full component lists, never a guessed `HasComponent` - a false return is
+  evidence only if the type name was right.
+- MINIMUM SAMPLE COUNTS, written into the protocol: three bosses spanning level
+  16 to 91, three ability groups across schools, two weapon families. The
+  `blood_types` near miss came from sampling the first two rows, which happened
+  to be the two unrepresentative ones.
+- An expected-count assertion on every table, because `vbloods` 66 survived four
+  per-row gates when every duplicate pair was byte-identical and the count was
+  the only symptom.
+- A stub-proof liveness assertion: the source entity must NOT carry
+  `Unity.Entities.Prefab` and its entity index must differ from the prefab's.
+  `StateReader.cs` compiled at 0 warnings and passed 284 tests while reading the
+  PlayerCharacter template.
+
+**The closure rule is the spec's spine.** All 14 required fields end as SOURCED
+with component and field named, or PROVEN ABSENT in the `items.tier` pattern with
+the negative control that makes the absence readable. NOT ATTEMPTED must be
+empty. No field may be defaulted to `1.0`, `0` or a plausible guess.
+
+**Self-review caught two real ambiguities, both fixed before commit.** The gates
+section demanded an expected-count assertion on every table, but `ability_stats`
+has no known count until the spike runs - so the rule now says the measured count
+is PINNED as a constant in the same commit that lands the table, which makes the
+assertion a drift detector rather than a rubber stamp. And `/dump/components` was
+called "ungated" in the deliverables while section 3 gates it on
+`GameDataInitialized`; readiness precondition and validation gate are now
+distinguished.
+
+**Housekeeping, on operator instruction.**
+
+- **There was no stray worktree.** `git worktree list` showed only
+  `C:/RedMoon [master]`. What existed was a stale BRANCH, `cycle-2-bridge`.
+  Verified fully merged first - `git merge-base --is-ancestor` exit 0 and
+  `git log master..cycle-2-bridge` empty - then deleted locally and on `origin`.
+  Nothing was lost, and the verification is why that can be said.
+- **`Remus3/RedMoon` is now PUBLIC.** Before flipping it, history was scanned:
+  `API-Key-Claude.txt` has never been committed on any ref, and no path matching
+  key/secret/token/pem/credential/password was ever ADDED in full history. The
+  repo description was also a cycle behind - it said "Cycle 1: harness plus
+  offline data floor" - and now names cycle 2 done and cycle 3 in progress.
+
+**Cycle 3 remains OPEN.** The spec is approved; nothing is implemented. Next
+session is phase 1: the exploratory endpoint and the component inventory, then
+the operator gate.
 
 ## 2026-07-26 - CYCLE 2 CLOSED, cycle 3 opened
 
@@ -184,82 +274,3 @@ hooks all run under `pythonw.exe`, which is windowless and never appeared as a
 console. Last session's `statusLine` fix held: it did not appear in the trace at
 all. The remedy is disabling unused MCP plugins in the user `settings.json`,
 which currently lists 15 enabled.
-
-## 2026-07-26 - Cycle 2 part 5: all five tables populated, two recorded answers corrected
-
-Branch `master`. Ledger 002e.
-
-State at close, every number observed in one run after the last edit:
-`python -m pytest` **289 passed**, `python -m ruff check .` clean,
-`python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on
-`bridge/src/RedMoon.Bridge` exit 0 with 0 warnings. All four re-run by this
-session, not taken from a report.
-
-**The headline: `abilities` 54, `vbloods` 66, `blood_types` 13 are on disk.**
-Together with `items` 425 and `recipes` 663 that is every table in
-`core/tables.py`, from one `/dump/prefabs` in 714 ms, validated and promoted by
-`rmdata_ingest --accept`.
-
-**Two things that were WRITTEN DOWN as findings and were wrong. Both were
-recorded by this project as measured, and both are the same failure: a real
-measurement answering a question nobody had checked was the right question.**
-
-1. **The ability school is not `DealDamageParameters.MainType`.** That reading is
-   correct and it is the DAMAGE type - `Physical`, `Spell`, `Fire`, `Holy`,
-   `Silver`, `Garlic`, `Corruption`. `abilities.school` is declared as blood,
-   chaos, frost, illusion, storm, unholy or weapon. The real join is
-   `DynamicBuffer<ProjectM.SpellSchoolAbility>` on the `<School>SpellSchoolAsset`
-   prefab, whose element carries `.AbilityGroup`. It yields exactly 9 abilities in
-   each of the six schools, which is itself a liveness signal - six buffers read
-   independently do not land on the same count by accident.
-2. **The V Blood level is not `VBloodConsumeSource.Tier`.** That field is a
-   `SpellSchoolProgressionTier` with five members, measured
-   `Tier1:23 Tier2:19 Tier3:13 Tier4:6 Undefined:4`. Five buckets cannot be a
-   boss level. It is `ProjectM.UnitLevel.Level`, measured 16 to 91 over 92
-   prefabs.
-
-**The ability-group join, which was the session's first task, is a REFERENCE
-join and the numbers are why.** Name join over 1474 `_AbilityGroup` names reaches
-`_Cast` 1291 but `_Hit` only **258**. The reference chain
-`AbilityGroupStartAbilitiesBuffer -> _Cast -> AbilitySpawnPrefabOnCast` resolves
-a cast for **1474 of 1474**. A second spawn hop adds exactly 0, so one hop is the
-answer and the 912 groups that never reach damage genuinely do not.
-
-**`blood_types` went to `schema_version` 2 on evidence.** The version 1 nested
-contract - a numeric `quality` threshold plus a name-to-number `stats` map - is
-wrong on BOTH halves: no threshold field exists on the prefab, and every stat
-magnitude on the tier buff reads 0 with `SoftCapValue` 1, scaled from blood
-quality at runtime. The table now carries slot, 1-based tier, `buff_guid`,
-`buff_name` and stat NAMES. Tiers ascend WITHIN a slot, not across the list; the
-real row is primary 1..5 then secondary 1..4 and a global ascent check would
-reject it. There is a regression test on that specific trap.
-
-**Two negatives that are results, not failures:**
-
-- `recipes.station_guid` is reverse-only AND one-to-many. `RecipeLinkBuffer`
-  looked like the forward link and is not - 5 of 667 recipes carry it and every
-  link resolves to another RECIPE. The station side is 35 `WorkstationRecipesBuffer`
-  plus 23 `RefinementstationRecipesBuffer` holding 942 references over 663
-  recipes. The field stays omitted until the singular-vs-plural schema question
-  is decided.
-- The runtime localization join is ABSENT on the server host. Over all 425
-  equippables, `TryGet<ManagedItemData>` returns false 425 times, and the
-  `TryGetWithoutLogging` control agrees, so it is not a logging refusal.
-  `ManagedAbilityGroupData` over 200 groups: 0 hits. S7 had this INFERRED as
-  working; it does not on this host.
-
-Near miss worth keeping: the first blood-type deep dump sampled the first two
-types, which are `BloodType_VBlood` and `BloodType_GateBoss`, both pointing at
-the single buff that has no stat buffer. It looked exactly like "blood bonuses
-carry no stats at all". Naming two REAL types settled it. Same shape as last
-session's `equip=2 recipe=2` near miss: an unrepresentative sample that reads as
-a family-wide absence.
-
-Process note: the flashing PowerShell consoles the operator saw were the
-`statusLine` command in `C:\Users\Administrator\.claude\settings.json`, which
-spawns `powershell.exe` on every status refresh. It now runs with
-`-NonInteractive -WindowStyle Hidden`; a backup of the original sits beside it as
-`settings.json.bak-statusline`. Three other scheduled tasks outside the `RM-*`
-namespace also run `powershell.exe`, two with an Interactive logon, but they fire
-daily and weekly at 03:00 and 04:15 and belong to another project on this
-machine, so they were left alone.

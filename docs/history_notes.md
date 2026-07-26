@@ -451,3 +451,82 @@ showed a second tree. Nothing was lost, but the "never commit while agents live"
 rule did real work here. It also read one instruction in its brief against
 `docs/API.md` D3, followed the repo rule, and flagged the conflict instead of
 silently choosing - which is the behaviour that should be reinforced.
+
+## 2026-07-26 - Cycle 2 part 5: all five tables populated, two recorded answers corrected
+
+Branch `master`. Ledger 002e.
+
+State at close, every number observed in one run after the last edit:
+`python -m pytest` **289 passed**, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on
+`bridge/src/RedMoon.Bridge` exit 0 with 0 warnings. All four re-run by this
+session, not taken from a report.
+
+**The headline: `abilities` 54, `vbloods` 66, `blood_types` 13 are on disk.**
+Together with `items` 425 and `recipes` 663 that is every table in
+`core/tables.py`, from one `/dump/prefabs` in 714 ms, validated and promoted by
+`rmdata_ingest --accept`.
+
+**Two things that were WRITTEN DOWN as findings and were wrong. Both were
+recorded by this project as measured, and both are the same failure: a real
+measurement answering a question nobody had checked was the right question.**
+
+1. **The ability school is not `DealDamageParameters.MainType`.** That reading is
+   correct and it is the DAMAGE type - `Physical`, `Spell`, `Fire`, `Holy`,
+   `Silver`, `Garlic`, `Corruption`. `abilities.school` is declared as blood,
+   chaos, frost, illusion, storm, unholy or weapon. The real join is
+   `DynamicBuffer<ProjectM.SpellSchoolAbility>` on the `<School>SpellSchoolAsset`
+   prefab, whose element carries `.AbilityGroup`. It yields exactly 9 abilities in
+   each of the six schools, which is itself a liveness signal - six buffers read
+   independently do not land on the same count by accident.
+2. **The V Blood level is not `VBloodConsumeSource.Tier`.** That field is a
+   `SpellSchoolProgressionTier` with five members, measured
+   `Tier1:23 Tier2:19 Tier3:13 Tier4:6 Undefined:4`. Five buckets cannot be a
+   boss level. It is `ProjectM.UnitLevel.Level`, measured 16 to 91 over 92
+   prefabs.
+
+**The ability-group join, which was the session's first task, is a REFERENCE
+join and the numbers are why.** Name join over 1474 `_AbilityGroup` names reaches
+`_Cast` 1291 but `_Hit` only **258**. The reference chain
+`AbilityGroupStartAbilitiesBuffer -> _Cast -> AbilitySpawnPrefabOnCast` resolves
+a cast for **1474 of 1474**. A second spawn hop adds exactly 0, so one hop is the
+answer and the 912 groups that never reach damage genuinely do not.
+
+**`blood_types` went to `schema_version` 2 on evidence.** The version 1 nested
+contract - a numeric `quality` threshold plus a name-to-number `stats` map - is
+wrong on BOTH halves: no threshold field exists on the prefab, and every stat
+magnitude on the tier buff reads 0 with `SoftCapValue` 1, scaled from blood
+quality at runtime. The table now carries slot, 1-based tier, `buff_guid`,
+`buff_name` and stat NAMES. Tiers ascend WITHIN a slot, not across the list; the
+real row is primary 1..5 then secondary 1..4 and a global ascent check would
+reject it. There is a regression test on that specific trap.
+
+**Two negatives that are results, not failures:**
+
+- `recipes.station_guid` is reverse-only AND one-to-many. `RecipeLinkBuffer`
+  looked like the forward link and is not - 5 of 667 recipes carry it and every
+  link resolves to another RECIPE. The station side is 35 `WorkstationRecipesBuffer`
+  plus 23 `RefinementstationRecipesBuffer` holding 942 references over 663
+  recipes. The field stays omitted until the singular-vs-plural schema question
+  is decided.
+- The runtime localization join is ABSENT on the server host. Over all 425
+  equippables, `TryGet<ManagedItemData>` returns false 425 times, and the
+  `TryGetWithoutLogging` control agrees, so it is not a logging refusal.
+  `ManagedAbilityGroupData` over 200 groups: 0 hits. S7 had this INFERRED as
+  working; it does not on this host.
+
+Near miss worth keeping: the first blood-type deep dump sampled the first two
+types, which are `BloodType_VBlood` and `BloodType_GateBoss`, both pointing at
+the single buff that has no stat buffer. It looked exactly like "blood bonuses
+carry no stats at all". Naming two REAL types settled it. Same shape as last
+session's `equip=2 recipe=2` near miss: an unrepresentative sample that reads as
+a family-wide absence.
+
+Process note: the flashing PowerShell consoles the operator saw were the
+`statusLine` command in `C:\Users\Administrator\.claude\settings.json`, which
+spawns `powershell.exe` on every status refresh. It now runs with
+`-NonInteractive -WindowStyle Hidden`; a backup of the original sits beside it as
+`settings.json.bak-statusline`. Three other scheduled tasks outside the `RM-*`
+namespace also run `powershell.exe`, two with an Interactive logon, but they fire
+daily and weekly at 03:00 and 04:15 and belong to another project on this
+machine, so they were left alone.

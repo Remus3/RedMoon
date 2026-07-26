@@ -14,6 +14,73 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003a - Cycle 3 spike SPEC approved, no implementation (2026-07-26)
+
+Docs only. No production code changed, by instruction: cycle 3 cannot open by
+writing combat math while two of its declared inputs have no source.
+
+WHAT SHIPPED. `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md`,
+342 lines, operator-approved section by section. `ROADMAP.md` cycle 3 now names
+two specs where it carried one TBD: this spike, then the combat math opened only
+against what the spike returns.
+
+THE PROBLEM IT ANSWERS. `vbloods` rows carry `level`, `name` and `prefab_guid`
+and no stat line; `abilities` rows carry identity, school and a partial damage
+type and no coefficients. Time-to-kill is the engine's headline output and its
+denominator is not on disk. A TTK against an assumed boss health would be the
+`items.tier` fabrication with a larger blast radius.
+
+THE FIVE DECISIONS. Scope is the spike alone with a declared consumer contract.
+The boss stat line reads from the PREFAB with a live instance as a negative
+control. Coefficients key on the ability GROUP across all 1474 groups in a new
+`ability_stats` table, which DISSOLVES ROADMAP gap 3 because a weapon ability
+needs no `<Weapon>SpellSchoolAsset` to have coefficients, only a
+weapon-to-group link - ADR-007 will record that. A throwaway
+`/dump/components` endpoint runs first, printing full component lists, with an
+operator gate before any schema. The required-field contract includes the
+level/power-difference term, because a TTK omitting it is wrong by a factor and
+no test can see that.
+
+THE CLOSURE RULE. All 14 required fields end as SOURCED with component and field
+named, or PROVEN ABSENT in the `items.tier` pattern with the negative control
+that makes the absence readable. NOT ATTEMPTED must be empty. No field may be
+defaulted to `1.0`, `0` or a plausible guess.
+
+FOUR CYCLE 2 LESSONS ENCODED AS STRUCTURE, not advice, because advice does not
+survive a subagent and a numbered acceptance criterion does: full component
+lists rather than a guessed `HasComponent`; minimum sample counts written into
+the protocol, after the `blood_types` near miss came from sampling the two
+unrepresentative first rows; an expected-count assertion on every table, after
+`vbloods` 66 survived four per-row gates on byte-identical duplicates; and a
+stub-proof liveness assertion, after `StateReader.cs` read the PlayerCharacter
+template at 0 warnings and 284 green tests.
+
+SELF-REVIEW FIXED TWO AMBIGUITIES before commit. `ability_stats` has no expected
+count before the spike runs, so the measured count is PINNED as a constant in the
+same commit that lands the table, making the assertion a drift detector rather
+than a rubber stamp. And `/dump/components` is no longer described as "ungated"
+while also being gated on `GameDataInitialized` - readiness precondition and
+validation gate are now distinguished.
+
+HOUSEKEEPING, on operator instruction. There was NO stray worktree;
+`git worktree list` showed only `C:/RedMoon [master]`. The stale item was a
+BRANCH, `cycle-2-bridge`, verified fully merged (`--is-ancestor` exit 0,
+`master..cycle-2-bridge` empty) before deletion locally and on `origin`.
+`Remus3/RedMoon` was made PUBLIC after scanning history: `API-Key-Claude.txt`
+has never been committed on any ref and no key/secret/token/pem/credential/
+password path was ever added. The stale repo description was refreshed.
+
+VERIFICATION. `python -m pytest` 317 passed, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, all re-run after the last edit. No C#
+changed so no `dotnet build` was run. Note: this repo's pytest config suppresses
+the summary line, so the count was obtained by counting progress characters -
+317 dots, 0 of `F/E/s/x`, exit 0 - rather than reported from memory.
+
+STATUS. Cycle 3 is OPEN. The spec is approved and nothing is implemented.
+
+Commits: `774d7d3` (spec plus `ROADMAP.md`), and the docs commit carrying this
+entry, backfilled below once it exists.
+
 ## 002g - Cycle 2 CLOSED (2026-07-26)
 
 Docs only. No code changed.

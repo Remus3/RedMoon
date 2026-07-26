@@ -1,7 +1,7 @@
 {
   "table": "items",
-  "schema_version": 1,
-  "description": "Equipment and consumables. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that stats is an object; the described mapping of stat modifier name to numeric value is documented but never checked. A passing validate_table is not a guarantee about what is inside stats.",
+  "schema_version": 2,
+  "description": "Equipment and consumables. Filled by the cycle 2 bridge prefab dump. SCHEMA_VERSION 2 amended 2026-07-26 after the first real dump: stats was an object mapping a stat name to a number, and it is now a list, because a name-keyed map cannot carry ModificationType. MEASURED over 425 items and 899 stat entries: three modification kinds occur - Add 665, AddToBase 232, MultiplyBaseAdd 2 - so PhysicalPower Add 10 and PhysicalPower AddToBase 10 are different stats that a map would render identically. NOT the reason: duplicate StatType collapse. Zero of the 425 items carry a repeated StatType on this build, so that argument was checked and found false rather than assumed true. UNVALIDATED NESTED SHAPE still applies: validate_table checks only that stats is a list; core/table_deep.py is what inspects the entries.",
   "required": ["prefab_guid", "name", "category", "tier"],
   "fields": {
     "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
@@ -10,7 +10,7 @@
     "category": {"type": "string", "description": "weapon, chest, legs, gloves, boots, cloak, jewel, consumable, other."},
     "tier": {"type": "integer", "description": "Gear tier, 0 when the item has none."},
     "gear_score": {"type": "number", "description": "Contribution to character gear score."},
-    "stats": {"type": "object", "description": "Stat modifier name to numeric value."},
+    "stats": {"type": "array", "description": "One entry per ModifyUnitStatBuff_DOTS element on the item prefab, read one hop with no BuffGuid follow. Each entry is an object with stat (StatType name), modification (ModificationType name) and value (number). Observed 2026-07-26: 0 to 6 entries per item, 29 distinct StatTypes, values 0 to 500."},
     "weapon_type": {"type": "string", "description": "Weapon family when category is weapon, otherwise empty."}
   }
 }

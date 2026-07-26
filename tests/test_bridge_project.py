@@ -296,7 +296,14 @@ SAMPLE_RECIPE_ROW = {
 
 
 def _envelope(name: str, rows: list) -> dict:
-    return {"table": name, "build": "1.1.13.0-r99712", "schema_version": 1, "rows": rows}
+    # Read the version off the schema rather than pinning a literal, so a future
+    # bump does not silently make every envelope here fail for the wrong reason.
+    return {
+        "table": name,
+        "build": "1.1.13.0-r99712",
+        "schema_version": load_schema(name)["schema_version"],
+        "rows": rows,
+    }
 
 
 def test_sample_recipe_row_passes_both_gates_unchanged():
@@ -305,19 +312,27 @@ def test_sample_recipe_row_passes_both_gates_unchanged():
     assert deep_problems("recipes", envelope) == []
 
 
-def test_sample_item_row_is_schema_clean_except_for_stats():
-    """The honest stats shape is DELIBERATELY not the schema's flat map. Its one
-    documented mismatch is pinned here so an accidental silent flattening - which
-    would erase ModificationType and make an additive and a multiplicative
-    modifier of the same value indistinguishable - fails the suite."""
+def test_sample_item_row_is_schema_clean():
+    """This test used to pin the OPPOSITE assertion - exactly one problem, stats
+    expected object - because the dumper deliberately emitted a shape the cycle 1
+    schema could not accept. The first real dump settled it: 899 stat entries
+    across 425 items carry three modification kinds (Add, AddToBase,
+    MultiplyBaseAdd), so a name-to-number map cannot represent them and
+    items.schema.json went to schema_version 2 with stats as an array. The row is
+    now clean, and that is the resolution of the mismatch, not a regression."""
     envelope = _envelope("items", [SAMPLE_ITEM_ROW])
-    problems = validate_table(envelope, load_schema("items"))
-    assert len(problems) == 1, f"unexpected item problems: {problems}"
-    assert "stats" in problems[0]
-    assert "expected object" in problems[0]
+    assert validate_table(envelope, load_schema("items")) == []
 
-    without_stats = {key: value for key, value in SAMPLE_ITEM_ROW.items() if key != "stats"}
-    assert validate_table(_envelope("items", [without_stats]), load_schema("items")) == []
+
+def test_item_stats_entries_keep_their_modification_kind():
+    """The reason the schema was amended. A silent flattening to {stat: value}
+    would erase ModificationType and make PhysicalPower Add 10 and PhysicalPower
+    AddToBase 10 indistinguishable, and both kinds occur in the real dump."""
+    for entry in SAMPLE_ITEM_ROW["stats"]:
+        assert set(entry) == {"stat", "modification", "value"}
+        assert isinstance(entry["stat"], str) and entry["stat"]
+        assert isinstance(entry["modification"], str) and entry["modification"]
+        assert isinstance(entry["value"], (int, float))
 
 
 def test_emitted_stats_entry_keeps_the_modification_type():

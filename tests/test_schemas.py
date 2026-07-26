@@ -16,6 +16,19 @@ def test_every_declared_table_has_a_schema_file():
         assert (SCHEMA_DIR / f"{name}.schema.json").is_file(), f"missing schema for {name}"
 
 
+EXPECTED_SCHEMA_VERSIONS = {
+    "items": 2,
+    "abilities": 1,
+    "vbloods": 1,
+    "blood_types": 1,
+    "recipes": 1,
+}
+
+
+def test_every_table_has_a_pinned_schema_version():
+    assert sorted(EXPECTED_SCHEMA_VERSIONS) == sorted(TABLE_NAMES)
+
+
 def test_no_stray_schema_files():
     on_disk = sorted(p.name.removesuffix(".schema.json") for p in SCHEMA_DIR.glob("*.schema.json"))
     assert on_disk == sorted(TABLE_NAMES)
@@ -25,7 +38,10 @@ def test_no_stray_schema_files():
 def test_schema_shape(name):
     schema = load_schema(name)
     assert schema["table"] == name
-    assert schema["schema_version"] == 1
+    # Pinned per table rather than a blanket 1, so a bump is a deliberate edit
+    # here and an accidental one still fails. items went to 2 on 2026-07-26 when
+    # the first real dump showed stats cannot be a name-to-number map.
+    assert schema["schema_version"] == EXPECTED_SCHEMA_VERSIONS[name]
     assert isinstance(schema["fields"], dict) and schema["fields"]
     assert isinstance(schema["required"], list) and schema["required"]
     for field in schema["required"]:

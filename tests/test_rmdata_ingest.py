@@ -27,7 +27,8 @@ def good_tables():
                 "category": "weapon",
                 "tier": 4,
                 "gear_score": 42.5,
-                "stats": {"physical_power": 12.5, "attack_speed": 0.2},
+                "stats": [{"stat": "PhysicalPower", "modification": "Add", "value": 12.5},
+                          {"stat": "AttackSpeed", "modification": "AddToBase", "value": 0.2}],
                 "weapon_type": "sword",
             },
             {
@@ -37,7 +38,8 @@ def good_tables():
                 "category": "chest",
                 "tier": 3,
                 "gear_score": 30.0,
-                "stats": {"physical_power": 4.0, "max_health": 90.0},
+                "stats": [{"stat": "PhysicalPower", "modification": "Add", "value": 4.0},
+                          {"stat": "MaxHealth", "modification": "Add", "value": 90.0}],
                 "weapon_type": "",
             },
         ],
@@ -243,12 +245,16 @@ def test_a_deep_gate_failure_is_not_promoted(repo, tmp_path, capsys):
 def test_census_reports_observed_nested_key_sets_and_numeric_ranges():
     census = rmdata_ingest.shape_census(good_tables())
 
+    # items.stats became a list of {stat, modification, value} at schema_version
+    # 2, so the census now reports the ENTRY keys rather than stat names as keys.
+    # The census still earns its keep: it is what showed the real dump carries
+    # three modification kinds, which is why the schema changed at all.
     stats = census["items"]["stats"]
-    assert set(stats["keys"]) == {"physical_power", "attack_speed", "max_health"}
-    assert stats["keys"]["physical_power"]["min"] == 4.0
-    assert stats["keys"]["physical_power"]["max"] == 12.5
-    assert stats["keys"]["physical_power"]["count"] == 2
-    assert stats["keys"]["physical_power"]["types"] == ["float"]
+    assert set(stats["keys"]) == {"stat", "modification", "value"}
+    assert stats["keys"]["value"]["min"] == 0.2
+    assert stats["keys"]["value"]["max"] == 90.0
+    assert stats["keys"]["value"]["count"] == 4
+    assert stats["keys"]["stat"]["types"] == ["str"]
     assert stats["cardinality"] == {"min": 2, "max": 2, "total": 4}
 
     ingredients = census["recipes"]["ingredients"]

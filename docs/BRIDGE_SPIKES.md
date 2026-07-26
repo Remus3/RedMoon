@@ -300,13 +300,47 @@ prefab-side types, read off `CHAR_Militia_HoundMaster_VBlood` and
 `ProjectM.VBloodUnlockTechBuffer` (buffer). The V Blood LEVEL field is not yet
 pinned to one of them.
 
-`abilities` STILL OPEN, and the school hunt has now failed against real data
-rather than against metadata. `AB_Knight_2H_SideStep_Left_Cast` carries 40
-components - `AbilityState`, `AbilityCastTimeData`, `AbilityCooldownData`,
-`AbilityPriority`, `AbilitySpawnPrefabOnCast`, `AbilityCastCondition` and so on -
-and NOT ONE of them is school-shaped. So the school is not on the `_Cast` entity.
-`AB_` splits into several suffix shapes and only `_Cast` has been sampled; the
-next place to look is the ability GROUP entity, not another metadata scan.
+**The ability school is FOUND and MEASURED.** There is no `SpellSchool`
+component, which is why three metadata scans missed it. The school is a field on
+a buffer element on the ability's `_Hit` entity:
+
+```
+ability _Hit prefab
+  -> DynamicBuffer<ProjectM.DealDamageOnGameplayEvent>
+  -> element .Parameters            (ProjectM.DealDamageParameters)
+  -> .MainType                      (ProjectM.MainDamageType)
+```
+
+`ProjectM.MainDamageType` (`ProjectM.Shared`) has ten members: `Physical`,
+`Spell`, `Fire`, `Holy`, `Silver`, `Garlic`, `RadialHoly`, `RadialGarlic`,
+`WeatherLightning`, `Corruption`. `DealDamageParameters` also carries
+`MainFactor`, `RawDamageValue`, `RawDamagePercent`, `StaggerFactor`,
+`ResourceModifier`, `MaterialModifiers` and `DealDamageFlags`.
+
+Six live samples, and the point of taking six is that one would not have been
+evidence - a single `Physical` reading cannot be told apart from a default:
+
+| Prefab | MainType | MainFactor |
+|---|---|---|
+| `AB_EmeryGolem_GroundSlam_Hit` | Physical | 2.5 |
+| `AB_IronGolem_GroundSlam_Hit` | Physical | 2.5 |
+| `AB_Monster_GroundSlam_Hit` | Physical | 1.4 |
+| `AB_Undead_Leader_AreaAttack_Hit` | **Spell** | 2.5 |
+| `AB_Legion_NightMaiden_WhipTwirl_Hit` | Physical | 1.8 |
+| `AB_Purifier_MeleeAttack_Right_Hit` | Physical | 1.3 |
+
+Both fields vary across samples, so this is a real per-ability field.
+
+Where it is NOT, all four checked against real component lists rather than
+guessed: `_Cast` (40 components, e.g. `AB_Knight_2H_SideStep_Left_Cast`),
+`_AbilityGroup` (16), `_Buff`, `_Projectile`. None carries anything
+school-shaped. The `AB_` family splits by suffix - census counts `Cast` 1551,
+`AbilityGroup` 1476, `Buff` 456, `Hit` 359, `Projectile` 289 - and only `_Hit`
+carries the damage parameters.
+
+What is still open for `abilities`: the join from an ability GROUP to its `_Hit`
+entity is not yet traced, so a per-ability row cannot be assembled end to end
+yet. That is a name or reference join question, not another school hunt.
 
 `PrefabDumper.cs` may therefore write `items` and `recipes` now. `blood_types` is
 close but its buffer element fields are unread. `abilities` and `vbloods` are not

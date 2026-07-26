@@ -32,6 +32,25 @@ def test_is_authored_rejects_binary_and_excluded_trees():
     assert not is_authored(Path("assets/icon.png"))
 
 
+def test_is_authored_checks_excluded_dirs():
+    assert not is_authored(Path("logs/app.py"))  # proves EXCLUDED_DIRS
+
+
+def test_is_authored_checks_excluded_prefixes():
+    assert not is_authored(
+        Path("data/rmdata/1.1.13.0-r99712/settings/ServerGameSettings.json")
+    )  # proves EXCLUDED_PREFIXES
+
+
+def test_is_authored_excludes_superpowers_scratch():
+    assert not is_authored(Path(".superpowers/sdd/plan/task-1-report.md"))
+
+
+def test_is_authored_accepts_extensionless_files():
+    assert is_authored(Path(".gitignore"))
+    assert is_authored(Path(".gitattributes"))
+
+
 def test_repo_is_ascii_clean():
     findings = scan_repo(REPO)
     assert findings == {}, f"non-ascii in authored files: {findings}"

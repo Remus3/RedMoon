@@ -14,8 +14,20 @@ AUTHORED_SUFFIXES = frozenset(
     {".py", ".md", ".json", ".txt", ".ps1", ".bat", ".cmd", ".toml", ".ini", ".cs", ".yml"}
 )
 
+# Authored files with no suffix (configuration and metadata files).
+AUTHORED_NAMES = frozenset({".gitignore", ".gitattributes"})
+
 EXCLUDED_DIRS = frozenset(
-    {".git", "__pycache__", ".pytest_cache", ".ruff_cache", "logs", "_scratch", "assets"}
+    {
+        ".git",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        "logs",
+        "_scratch",
+        "assets",
+        ".superpowers",
+    }
 )
 
 # Generated or third-party trees: correctness is owned by their producer, and
@@ -40,7 +52,7 @@ def is_authored(path: Path) -> bool:
         return False
     if any(part in EXCLUDED_DIRS for part in path.parts):
         return False
-    return path.suffix.lower() in AUTHORED_SUFFIXES
+    return path.name in AUTHORED_NAMES or path.suffix.lower() in AUTHORED_SUFFIXES
 
 
 def scan_repo(root: Path) -> dict[str, list[tuple[int, int, str]]]:

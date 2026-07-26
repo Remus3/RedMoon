@@ -106,8 +106,15 @@ with `MEMORY.md` and starter entries (operator profile, V Rising build pin, port
 map, ASCII rule). Separate namespace; RC memories never load in a Red Moon
 session.
 
-Testing: `pytest.ini`, `tests/`, ruff config, and guard tests asserting the
-ASCII rule and port-disjointness from RC hold.
+Testing: `pytest.ini`, `tests/`, ruff config, and two guard tests. The ASCII
+guard walks all authored text in the repository and fails on any codepoint above
+127. The port guard asserts every port constant in the codebase is drawn from
+the ADR-003 set {8777, 8778, 8779, 8783}; it does not read anything from RC.
+
+Secrets: `.gitignore` covers `API-Key-Claude.txt`, `logs/`, `ops/runtime/`,
+`data/rmdata/`, `__pycache__/`, and `_scratch/`. The Anthropic key lives at
+`C:\RedMoon\API-Key-Claude.txt`, gitignored, and is a distinct key from either
+RC key.
 
 Repository: `git init`, first commit. No remote until the operator asks.
 

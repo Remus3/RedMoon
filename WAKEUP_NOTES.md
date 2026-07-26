@@ -3,6 +3,93 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - A PowerShell 7 migration doc, audited against this repo
+
+Branch `master`. **NO ROADMAP ITEM CLOSED, no production code changed, and no
+ledger entry was written** - see the note at the end of this section for why
+that is deliberate rather than an omission. Cycle 3 phase 2 has not started.
+
+State at close, observed in one run: `python -m pytest` exit 0 with **324 dots
+and zero of `F/E/s/x`**, `python tools/ascii_guard.py` exit 0. The working tree
+was clean at session start and stayed clean apart from these notes. The pytest
+summary line still does not print in this repo (the cause is the pytest config,
+not the invocation) so the count is from the progress block, as last session
+also recorded.
+
+**The input.** The operator pasted
+`C:\Users\Administrator\Desktop\POWERSHELL_7_MIGRATION.md`, written by ANOTHER
+PROJECT on this same machine. PowerShell 7.6.4 was installed there via the MSI
+(deliberately not the MSIX, whose real path carries the version and whose
+launcher is a per-user app-execution alias - both disqualifying for scheduled
+tasks). 5.1 is untouched and still lives at `powershell.exe`; PS7 is
+`C:\Program Files\PowerShell\7\pwsh.exe`. It is a side-by-side install and
+nothing switched automatically.
+
+**THE FINDING, and it is the whole session.** That doc's section 4c asserts that
+Claude Code's PowerShell tool invokes `powershell.exe`, so an agent on this box
+must keep writing 5.1-compatible PowerShell. **Measured in this session, it does
+not.** `$PSVersionTable` through the tool returns **7.6.4, edition Core**, and
+`(Get-Process -Id $PID).Path` returns
+**`C:\Program Files\PowerShell\7\pwsh.exe`**. So `&&`, `||`, ternary, `??`,
+`?.` and `ConvertFrom-Json -AsHashtable` all work directly in agent PowerShell
+here, with no `& pwsh -File` escape hatch needed. The doc's stated workaround is
+real but unnecessary. It was checked 2026-07-26 by that project and is wrong as
+of the same date here, so it was either inferred rather than probed, or the tool
+changed under it. Either way: **probe `$PSVersionTable` before planning around
+which PowerShell an agent gets.**
+
+**Red Moon has nothing to migrate. Section 4 of that doc is a no-op here, and
+this was verified rather than assumed:**
+
+- **Scheduled tasks (4a).** The only `RM-*` task is `RM-DataRefresh` and its
+  `Execute` is `pythonw.exe`, not `powershell.exe`. Zero candidates.
+- **Call sites (4b).** A case-insensitive grep for `powershell(\.exe)?` across
+  `*.py` and `*.json` in the repo returns four hits and NONE is an invocation:
+  `tests/test_hooks.py:131` asserts hook coverage of the tool NAME,
+  `.claude/settings.json:24` and `:33` are a permission entry and a hook matcher
+  string, and `tools/ascii_guard.py:4` is the docstring explaining the 5.1
+  parser bug. Red Moon shells out to Python, never to PowerShell.
+- **CI (4d).** Nothing to check.
+
+**The ASCII rule stands, unchanged, and the doc agrees.** Its section 5 measured
+that a no-BOM UTF-8 `.ps1` carrying an em-dash parses with 0 errors under 7.6.4,
+and then correctly declined to relax the rule. The same holds here for three
+reasons: `powershell.exe` 5.1 is still installed and still reachable, it is an
+operator style rule independent of any parser, and it is mechanically enforced
+by `tools/ascii_guard.py` plus the now-wired precommit gate. **PS7 removes one
+FAILURE MODE, not the rule.** One nuance worth carrying: `CLAUDE.md`'s stated
+*why* for the rule is now HISTORICAL rather than live, because the shell an
+agent actually gets in this session cannot exhibit that parse failure. The
+wording was left alone deliberately - it is accurate about 5.1, and 5.1 has not
+gone anywhere.
+
+**Nothing was changed in that other project's doc.** It is another project's
+territory and correcting its section 4c is the operator's call, not something to
+do unasked. If it is corrected, the measured output above is the evidence.
+
+**Why there is no ledger entry.** `docs/LEDGER.md` states its own contract in
+its header: one entry per COMPLETED ROADMAP ITEM, with an item number and a
+commit hash. This session closed no roadmap item, so minting an item number for
+it would make the ledger's numbering describe something the roadmap does not
+contain. The `/done` ritual's steps 4 and 5 were therefore skipped on purpose
+and the finding lives here instead. If a future session disagrees, the fix is to
+change the ledger's stated format first, not to backfill a number.
+
+**Two guards fired on this session's own notes, and both were right.**
+`tests/test_root_docs.py::test_no_riot_commander_references_in_root_docs` failed
+because the first draft of THIS section named the other project three times in a
+root doc. ADR-001 rules that non-root docs may name it plainly while root docs
+stay anonymous, so the notes were reworded and `docs/memory_seed/` was left
+naming it. And `test_live_memory_matches_the_committed_seed` failed because the
+memory system REWRITES the `modified:` timestamp in the live file after a write,
+so a hand-authored timestamp in the seed can never match - copy the live value
+into the seed after writing, not before.
+
+The PS7 fact was also written to the live memory namespace as
+`reference_powershell_editions_on_legion`, and seeded into `docs/memory_seed/`
+in the same commit - the suite asserts that seeding, and last session's failure
+was exactly a memory entry written live and never seeded.
+
 ## 2026-07-26 - The hook that was never wired, and the cycle 3 component inventory
 
 Branch `master`. Ledger 003b and 003c. Commits `ca2d539` (hooks) and `68f6d57`
@@ -218,80 +305,8 @@ the operator gate.
 
 ## 2026-07-26 - CYCLE 2 CLOSED, cycle 3 opened
 
-Branch `master`. Ledger 002g. Docs plus one test constant and one seed file. No
-production code changed.
+ARCHIVED to `docs/history_notes.md`. Summary only: cycle 2 closed on the
+operator's call with three weighed residue items, and the session found the two
+cycle 3 blockers - there is no boss stat line and there are no ability
+coefficients in the promoted tables.
 
-State at close, observed in one run after the last edit: `python -m pytest`
-**317 passed**, `python -m ruff check .` clean, `python tools/ascii_guard.py`
-exit 0.
-
-**The decision.** The operator was given the residue against closing and chose to
-close. Cycle 2's charter was live item and ability stat data on a local port, and
-all five tables are populated, host-diffed and gated. The three residue items
-were weighed rather than waved past:
-
-- **4 unmapped recipes** - empty ITEM output buffer, they produce units, no
-  cycle 3 consumer reads them. Closing buys a label, not data.
-- **`items.tier`** - nothing left to spend a session on. No source exists on this
-  build and both derivations are rejected on evidence. DECLARED and OMITTED is
-  already the correct final state.
-- **Weapon abilities produce no `abilities` row** - the only one with teeth,
-  because Bloodforge computes weapon DPS and there is no `<Weapon>SpellSchoolAsset`
-  to source a school from. Carried into `ROADMAP.md` cycle 3 as a NAMED INPUT GAP
-  so no cycle 3 code scaffolds weapon damage on an assumed source.
-
-**Two docs had drifted and are now synced.** `ROADMAP.md`'s cycle 2 section was a
-running log appended to across six sessions, still carrying superseded numbers
-inline with their corrections beside them - `vbloods` 66 was readable as current
-if you stopped at the wrong paragraph. It is now a settled record.
-`docs/ARCHITECTURE.md` was a full cycle behind: it read "Nothing runs as a
-service in cycle 1", listed `bridge/` as planned, and named three modules out of
-sixteen.
-
-**A real gap the suite caught, and it was not mine.** Three tests in
-`tests/test_claude_config.py` failed at session start, before any edit. Last
-session wrote the memory entry `reference_flashing_consoles_are_mcp_launchers`
-into the LIVE namespace and never seeded it into `docs/memory_seed/`. The live
-namespace is outside the repository and uncommitted, so until this was fixed that
-entry had no path back if it were lost - which is exactly the failure the seed
-exists to prevent. Fixed by seeding the file, refreshing the seeded `MEMORY.md`,
-and adding the name to `EXPECTED_MEMORY_ENTRIES`.
-
-Worth keeping: three independent guards fired on one missing file, and the
-session that created it saw none of them because it never re-ran the suite after
-writing memory. Writing a memory entry is a repo-affecting act here.
-
-**TWO CYCLE 3 BLOCKERS FOUND AT THE VERY END, and they are the most valuable
-thing in this session.** While writing the next-session prompt I read the
-promoted ROWS rather than the schema, and two of Bloodforge's declared inputs do
-not exist:
-
-1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
-   and `prefab_guid`. No health, no resistances, no damage. `docs/BLOODFORGE.md`
-   has named `tables/vbloods.json` as the source for "Boss stat line and
-   resistances" since cycle 1 - written as a design intention, never checked
-   against a real row, and false. **Time-to-kill is the engine's headline output
-   and its denominator is not on disk.**
-2. **There are no ABILITY COEFFICIENTS.** `abilities` carries identity, school
-   and (16 of 54) a damage type. No cast time, no cooldown, no damage scalar.
-
-The player side is NOT a gap and was checked in the same pass: 203 of 205 weapon
-items carry real `PhysicalPower` or `SpellPower` over 29 stat types, each with an
-explicit `modification`. The missing half is the TARGET side and the ABILITY
-side.
-
-This is the cycle 2 lesson landing one more time, from the other direction. Every
-number cycle 2 published is correct. What nobody had done was ask whether the
-correct numbers were the ones cycle 3 needs - "all five tables are populated" is
-true and was quietly read as "cycle 3 has its inputs". A schema being satisfied
-says nothing about a consumer being served.
-
-`docs/BLOODFORGE.md`'s input table now carries a per-input STATUS column instead
-of a bare source, and `ROADMAP.md` cycle 3 lists six named gaps instead of four,
-with the consequence stated in both: **cycle 3 cannot open by writing combat
-math.** It opens by settling those two inputs, because a TTK against an assumed
-boss health is the `items.tier` fabrication with a larger blast radius.
-
-**Cycle 3 opens** with verified inputs on disk (`items` 425, `recipes` 663,
-`abilities` 54, `vbloods` 65, `blood_types` 13), six named gaps, and a spec
-session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.

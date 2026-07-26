@@ -125,6 +125,11 @@ OPERATIONS.
   "ready":true, about 15 s. If it dies immediately after a taskkill /F, wait a
   few seconds and launch again - that works every time and is not investigated.
 - Never Stop-Process; taskkill /F through PowerShell.
+- Your PowerShell tool is pwsh 7.6.4 Core (C:\Program Files\PowerShell\7\pwsh.exe),
+  NOT 5.1, measured 2026-07-26. So &&, ||, ternary and ?? work directly. Legion
+  also still has powershell.exe 5.1 and Red Moon has zero PowerShell call sites.
+  This does NOT relax the 7-bit-ASCII rule: 5.1 is still installed, it is also an
+  operator style rule, and ascii_guard plus the precommit gate enforce it.
 - Output to _scratch\rmprobe as saved JSON, not committed. Never read a number
   off a screenshot.
 

@@ -1,0 +1,41 @@
+---
+name: reference-powershell-editions-on-legion
+description: "Claude Code's PowerShell tool on Legion runs pwsh 7.6.4 Core, not powershell.exe 5.1 - probe before assuming"
+metadata: 
+  node_type: memory
+  type: reference
+  originSessionId: 9364de1e-c901-42df-aa5e-bcb1b8e0fd25
+  modified: 2026-07-26T23:32:13.674Z
+---
+
+Legion has BOTH PowerShell editions, side by side. PowerShell 7.6.4 was installed
+2026-07-26 by the Riot Commander project via the MSI at machine scope. 5.1 was
+untouched and stays.
+
+    powershell.exe  ->  Windows PowerShell 5.1   (Desktop, ANSI default)
+    pwsh.exe        ->  PowerShell 7.6.4         (Core, UTF-8 default)
+                        C:\Program Files\PowerShell\7\pwsh.exe
+
+**Claude Code's PowerShell tool runs pwsh 7.6.4 Core here.** Measured in-session
+2026-07-26: `$PSVersionTable` returns 7.6.4 / Core and `(Get-Process -Id
+$PID).Path` returns `C:\Program Files\PowerShell\7\pwsh.exe`. So `&&`, `||`,
+ternary, `??`, `?.` and `ConvertFrom-Json -AsHashtable` all work directly in
+agent PowerShell, with no `& pwsh -File` escape hatch needed.
+
+Riot Commander's `POWERSHELL_7_MIGRATION.md` section 4c claims the opposite - it
+says the tool invokes `powershell.exe` so agents must write 5.1-compatible
+PowerShell. That claim is wrong as measured. **Probe `$PSVersionTable` rather
+than trusting either that doc or this entry**, since the tool's binary can change
+under a Claude Code upgrade.
+
+Red Moon has ZERO PowerShell call sites to migrate: `RM-DataRefresh` executes
+`pythonw.exe`, and no `.py` or `.json` in the repo invokes powershell. Nothing to
+do.
+
+**This does NOT relax the no-em-dash / 7-bit-ASCII rule.** PS7 does remove the
+5.1 parse failure that `CLAUDE.md` cites as the rule's rationale, so that
+rationale is now historical rather than live - but 5.1 is still installed, the
+rule is also operator style, and `tools/ascii_guard.py` plus the precommit gate
+enforce it mechanically.
+
+Related: [[reference-flashing-consoles-are-mcp-launchers]], [[user-operator-profile]]

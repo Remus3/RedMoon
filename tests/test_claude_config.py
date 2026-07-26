@@ -14,6 +14,7 @@ EXPECTED_MEMORY_ENTRIES = {
     "user_operator_profile",
     "reference_vrising_install_shape",
     "reference_flashing_consoles_are_mcp_launchers",
+    "reference_powershell_editions_on_legion",
 }
 
 

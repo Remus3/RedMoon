@@ -632,3 +632,83 @@ hooks all run under `pythonw.exe`, which is windowless and never appeared as a
 console. Last session's `statusLine` fix held: it did not appear in the trace at
 all. The remedy is disabling unused MCP plugins in the user `settings.json`,
 which currently lists 15 enabled.
+
+## 2026-07-26 - CYCLE 2 CLOSED, cycle 3 opened
+
+Branch `master`. Ledger 002g. Docs plus one test constant and one seed file. No
+production code changed.
+
+State at close, observed in one run after the last edit: `python -m pytest`
+**317 passed**, `python -m ruff check .` clean, `python tools/ascii_guard.py`
+exit 0.
+
+**The decision.** The operator was given the residue against closing and chose to
+close. Cycle 2's charter was live item and ability stat data on a local port, and
+all five tables are populated, host-diffed and gated. The three residue items
+were weighed rather than waved past:
+
+- **4 unmapped recipes** - empty ITEM output buffer, they produce units, no
+  cycle 3 consumer reads them. Closing buys a label, not data.
+- **`items.tier`** - nothing left to spend a session on. No source exists on this
+  build and both derivations are rejected on evidence. DECLARED and OMITTED is
+  already the correct final state.
+- **Weapon abilities produce no `abilities` row** - the only one with teeth,
+  because Bloodforge computes weapon DPS and there is no `<Weapon>SpellSchoolAsset`
+  to source a school from. Carried into `ROADMAP.md` cycle 3 as a NAMED INPUT GAP
+  so no cycle 3 code scaffolds weapon damage on an assumed source.
+
+**Two docs had drifted and are now synced.** `ROADMAP.md`'s cycle 2 section was a
+running log appended to across six sessions, still carrying superseded numbers
+inline with their corrections beside them - `vbloods` 66 was readable as current
+if you stopped at the wrong paragraph. It is now a settled record.
+`docs/ARCHITECTURE.md` was a full cycle behind: it read "Nothing runs as a
+service in cycle 1", listed `bridge/` as planned, and named three modules out of
+sixteen.
+
+**A real gap the suite caught, and it was not mine.** Three tests in
+`tests/test_claude_config.py` failed at session start, before any edit. Last
+session wrote the memory entry `reference_flashing_consoles_are_mcp_launchers`
+into the LIVE namespace and never seeded it into `docs/memory_seed/`. The live
+namespace is outside the repository and uncommitted, so until this was fixed that
+entry had no path back if it were lost - which is exactly the failure the seed
+exists to prevent. Fixed by seeding the file, refreshing the seeded `MEMORY.md`,
+and adding the name to `EXPECTED_MEMORY_ENTRIES`.
+
+Worth keeping: three independent guards fired on one missing file, and the
+session that created it saw none of them because it never re-ran the suite after
+writing memory. Writing a memory entry is a repo-affecting act here.
+
+**TWO CYCLE 3 BLOCKERS FOUND AT THE VERY END, and they are the most valuable
+thing in this session.** While writing the next-session prompt I read the
+promoted ROWS rather than the schema, and two of Bloodforge's declared inputs do
+not exist:
+
+1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
+   and `prefab_guid`. No health, no resistances, no damage. `docs/BLOODFORGE.md`
+   has named `tables/vbloods.json` as the source for "Boss stat line and
+   resistances" since cycle 1 - written as a design intention, never checked
+   against a real row, and false. **Time-to-kill is the engine's headline output
+   and its denominator is not on disk.**
+2. **There are no ABILITY COEFFICIENTS.** `abilities` carries identity, school
+   and (16 of 54) a damage type. No cast time, no cooldown, no damage scalar.
+
+The player side is NOT a gap and was checked in the same pass: 203 of 205 weapon
+items carry real `PhysicalPower` or `SpellPower` over 29 stat types, each with an
+explicit `modification`. The missing half is the TARGET side and the ABILITY
+side.
+
+This is the cycle 2 lesson landing one more time, from the other direction. Every
+number cycle 2 published is correct. What nobody had done was ask whether the
+correct numbers were the ones cycle 3 needs - "all five tables are populated" is
+true and was quietly read as "cycle 3 has its inputs". A schema being satisfied
+says nothing about a consumer being served.
+
+`docs/BLOODFORGE.md`'s input table now carries a per-input STATUS column instead
+of a bare source, and `ROADMAP.md` cycle 3 lists six named gaps instead of four,
+with the consequence stated in both: **cycle 3 cannot open by writing combat
+math.** It opens by settling those two inputs, because a TTK against an assumed
+boss health is the `items.tier` fabrication with a larger blast radius.
+
+**Cycle 3 opens** with verified inputs on disk (`items` 425, `recipes` 663,
+`abilities` 54, `vbloods` 65, `blood_types` 13), six named gaps, and a spec
+session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.

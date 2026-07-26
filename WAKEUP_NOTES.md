@@ -1,4 +1,4 @@
-﻿# Wakeup Notes
+# Wakeup Notes
 
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.

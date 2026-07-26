@@ -5,18 +5,51 @@ Paste the fenced block below into a cleared session.
 ---
 
 ```
-Cycle 3 phase 1: the Bloodforge input spike, exploratory pass only. Read
-CLAUDE.md, MEMORY.md, ROADMAP.md, WAKEUP_NOTES.md,
+Two items, in this order: wire the precommit gate as a real git hook, THEN cycle
+3 phase 1, the Bloodforge input spike exploratory pass. Read CLAUDE.md,
+MEMORY.md, ROADMAP.md, WAKEUP_NOTES.md,
 docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md and
 docs/BRIDGE_SPIKES.md, then git log --oneline -10.
 
 THE SPEC IS APPROVED. Do not re-litigate it and do not re-run the brainstorming
-skill. Implement phase 1 only, then STOP at the operator gate. Writing any
+skill. Do item 0, then phase 1, then STOP at the operator gate. Writing any
 schema, any table or any combat math this session violates the spec.
 
+ITEM 0, DO THIS FIRST, BEFORE ANY BRIDGE WORK.
+
+tools/precommit_gate.py exists and imports is_authored and scan_text from
+tools/ascii_guard.py, but it is NOT wired as a git hook: C:\RedMoon\.git\hooks
+holds only .sample files and `git config core.hooksPath` is unset. Verified
+2026-07-26. The gate is a script nothing calls.
+
+This is not hypothetical. Last session commit 2f14c4c landed a UTF-8 BOM in
+WAKEUP_NOTES.md even though `python tools/ascii_guard.py` had exited 1, because
+the shell chain used `;` and nothing structural blocked the commit. Fixed after
+the fact in f648367. A verification chained with `;` is a log line, not a gate.
+Windows PowerShell 5.1 has no `&&` (parse error) and pwsh 7 is NOT installed on
+this machine, so the shell cannot be relied on to solve this - the hook must.
+
+Install tools/precommit_gate.py so it BLOCKS a bad commit rather than reporting
+one. .git/hooks is not version-controlled, so a fresh clone must inherit the
+gate: prefer a committed hooks/ directory plus `git config core.hooksPath hooks`,
+or an installer under ops/. Both tools/precommit_gate.py and tools/ascii_guard.py
+are on the CLAUDE.md FROZEN list - do not modify either without explicit operator
+approval. The wiring lives OUTSIDE them.
+
+TDD per CLAUDE.md: write the failing test first, asserting the gate is reachable
+from the configured hook path. Then prove it end to end by staging a deliberate
+BOM or non-ASCII change and confirming the commit is actually REFUSED - a passing
+unit test is not evidence that git rejects anything. Tier 1 verification per R5.
+
+DO NOT act on this without asking first: pwsh 7 is absent, and migrating off
+Windows PowerShell 5.1 would change the stated rationale for the ASCII hard rule
+in CLAUDE.md, which is justified specifically by 5.1 ANSI-decoding a no-BOM .ps1.
+That is an ADR-level decision and is NOT part of this session.
+
 CONTEXT (do not re-derive, do not re-verify):
-- Repo C:\RedMoon, branch master, clean and pushed, ONE worktree (C:/RedMoon),
-  no stray branches. github.com/Remus3/RedMoon is PUBLIC as of 2026-07-26.
+- Repo C:\RedMoon, branch master at b8cfebe, clean and pushed, ONE worktree
+  (C:/RedMoon), no stray branches. github.com/Remus3/RedMoon is PUBLIC as of
+  2026-07-26.
 - Last verified: pytest 317 passed, ruff clean, ascii_guard exit 0. NOTE this
   repo's pytest config suppresses the "N passed" summary line - count progress
   characters instead of reporting a number you did not see.
@@ -26,7 +59,8 @@ CONTEXT (do not re-derive, do not re-verify):
   gitignored and regenerable. Do not rebuild it.
 - Never write a port literal - import from core/ports.py.
 
-WHAT PHASE 1 IS. One throwaway endpoint and one document. Nothing else.
+WHAT PHASE 1 IS, once item 0 is green. One throwaway endpoint and one document.
+Nothing else.
 
 1. GET /dump/components in bridge/src/RedMoon.Bridge/, taking either guid, or
    name as a prefix plus limit, plus instanced=1 to scan spawned entities rather

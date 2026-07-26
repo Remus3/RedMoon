@@ -1121,8 +1121,9 @@ Create `docs/adr/ADR-001-separation-from-riot-commander.md`:
 
 ## Context
 
-Red Moon reproduces a working method proven on an existing League of Legends
-project on the same machine: doctrine in `CLAUDE.md`, enforcement hooks, living
+Red Moon reproduces a working method proven on Riot Commander, an existing
+League of Legends project on the same machine: doctrine in `CLAUDE.md`,
+enforcement hooks, living
 docs, an ADR index, an append-only ledger, a memory namespace, and a
 subagent-first build protocol. The obvious shortcut is to share code, tooling or
 data between the two.
@@ -1134,8 +1135,8 @@ a mod. Their data models, patch cadences and failure modes are unrelated.
 ## Decision
 
 Red Moon shares **no** code, data, keys, ports or scheduled-task namespace with
-any other project on this machine. What is reproduced is the method, by writing
-fresh files, not by importing or symlinking.
+Riot Commander or any other project on this machine. What is reproduced is the
+method, by writing fresh files, not by importing or symlinking.
 
 Concretely: its own git repository at `C:\RedMoon\`, its own Anthropic key at
 `C:\RedMoon\API-Key-Claude.txt`, its own memory namespace, the `RM-` prefix for
@@ -1148,7 +1149,7 @@ scheduled tasks, and the port set in ADR-003.
 - Improvements do not propagate automatically. Porting one is a deliberate act.
 - Neither project can break the other by refactoring shared code, because there
   is none.
-- A test asserts no root document mentions the other project by name or path.
+- A test asserts no root document mentions Riot Commander by name or path.
 ```
 
 Create `docs/adr/ADR-002-bepinex-bridge-live-source.md`:

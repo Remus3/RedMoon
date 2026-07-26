@@ -78,8 +78,20 @@ the summary line, so the count was obtained by counting progress characters -
 
 STATUS. Cycle 3 is OPEN. The spec is approved and nothing is implemented.
 
-Commits: `774d7d3` (spec plus `ROADMAP.md`), and the docs commit carrying this
-entry, backfilled below once it exists.
+Commits: `774d7d3` (spec plus `ROADMAP.md`), `2f14c4c` (this entry, wakeup notes,
+the history archive and the phase 1 bootstrap), `f648367` (a BOM fix - see below).
+
+PROCESS FAILURE IN THIS SESSION, recorded because it nearly shipped silently.
+Archiving the oldest wakeup session was done mechanically with PowerShell
+`Set-Content -Encoding utf8`, which on PowerShell 5.1 writes a UTF-8 BOM. That
+put a U+FEFF at byte 0 of `WAKEUP_NOTES.md` and `ascii_guard` exited 1 - the
+exact class of defect the guard exists for, given this project's PowerShell
+parse-failure history. The guard caught it. What did NOT catch it was the shell
+chain: `guard; git add; git commit` uses `;`, so the commit ran on a FAILED gate
+and `2f14c4c` landed with the BOM in it. Fixed in `f648367`, guard back to exit 0.
+The lesson is not "remember the BOM" - it is that a verification step chained
+with `;` is not a gate, it is a log line. Chain gates with `if ($?)` or run them
+as a separate call whose exit code is read before proceeding.
 
 ## 002g - Cycle 2 CLOSED (2026-07-26)
 

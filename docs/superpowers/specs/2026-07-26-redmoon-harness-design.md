@@ -116,6 +116,10 @@ Secrets: `.gitignore` covers `API-Key-Claude.txt`, `logs/`, `ops/runtime/`,
 `C:\RedMoon\API-Key-Claude.txt`, gitignored, and is a distinct key from either
 RC key.
 
+Line endings: `.gitattributes` pins `* text=auto eol=lf` with binary paths marked
+`-text`, so the repository never accumulates CRLF churn in diffs. Observed need:
+the initial spec commit emitted a `LF will be replaced by CRLF` warning.
+
 Repository: `git init`, first commit. No remote until the operator asks.
 
 ### 4b. Data floor

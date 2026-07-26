@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -75,6 +76,61 @@ def test_settings_json_is_valid_and_wires_every_hook():
     for script in ("precommit_gate.py", "text_first_guard.py", "pytest_guard.py", "rm_facts.py"):
         assert script in wired, f"{script} is not wired into settings.json"
     assert "C:\\\\RedMoon" in wired or "C:\\RedMoon" in wired
+
+
+# A bare tool name, or a pipe-separated alternation of them. The hyphen is
+# allowed because real MCP tool names carry one (mcp__computer-use__screenshot);
+# nothing else beyond word characters is.
+MATCHER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*(\|[A-Za-z_][A-Za-z0-9_-]*)*$")
+
+
+def test_every_matcher_is_a_plain_tool_name_alternation():
+    """A hook matcher is evaluated against the TOOL NAME only.
+
+    Permission-rule specifier syntax - the Bash(git commit:*) form that is
+    valid in permissions.allow - is NOT understood in a matcher field. It does
+    not error; it simply never matches any tool name, so the hook silently
+    never fires. That is exactly how the precommit gate sat wired but dead:
+    its matcher was Bash(git commit:*), which no tool name can ever equal.
+
+    Every matcher must therefore be a bare tool name or a pipe-separated
+    alternation of bare tool names, with no parentheses, colons or globs. Any
+    command-scoping a hook needs belongs inside the hook script, which is where
+    tools/precommit_gate.py already does it by returning early unless
+    "git commit" appears in the command.
+    """
+    settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    seen = 0
+    for event, entries in settings["hooks"].items():
+        for entry in entries:
+            if "matcher" not in entry:
+                continue
+            matcher = entry["matcher"]
+            seen += 1
+            for banned in ("(", ")", ":", "*"):
+                assert banned not in matcher, (
+                    f"{event} matcher {matcher!r} contains {banned!r} - that is "
+                    "permission-rule specifier syntax, which never matches a tool name"
+                )
+            assert MATCHER_RE.match(matcher), (
+                f"{event} matcher {matcher!r} is not a plain tool-name alternation"
+            )
+    assert seen > 0, "no matcher fields found - the scan would pass vacuously"
+
+
+def test_precommit_gate_matcher_covers_the_shell_tools():
+    """The commit gate must be reachable from every tool that can run git commit."""
+    settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    matchers = [
+        entry["matcher"]
+        for entry in settings["hooks"]["PreToolUse"]
+        if any("precommit_gate.py" in h.get("command", "") for h in entry.get("hooks", []))
+    ]
+    assert matchers, "precommit_gate.py is not wired into any PreToolUse entry"
+    covered = {name for matcher in matchers for name in matcher.split("|")}
+    assert {"Bash", "PowerShell"} <= covered, (
+        f"precommit gate matchers {matchers} do not cover both shell tools"
+    )
 
 
 def test_settings_json_references_no_other_project():

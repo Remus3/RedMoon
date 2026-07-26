@@ -21,8 +21,11 @@ Red Moon owns exactly four ports:
 | Bloodforge engine | 8783 |
 
 These are declared once, in `core/ports.py`. No port literal may appear anywhere
-else in the source. A test enforces both the values and the absence of the other
-project's ports.
+else in the source. `tests/test_ports.py` enforces this over `.py`, `.cs`,
+`.json` and `.ps1`: the other project's ports may appear nowhere, and Red Moon's
+own four only in `core/ports.py`, this ADR, `CLAUDE.md`, `README.md` and the
+tests. `.cs` is in the scan set because the cycle 2 bridge is C# and is the
+thing that binds 8777.
 
 All four were confirmed free on this machine on 2026-07-26.
 

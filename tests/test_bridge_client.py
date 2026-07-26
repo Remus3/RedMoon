@@ -63,17 +63,29 @@ def test_module_contains_no_url_or_port_literal():
     assert "127.0.0.1:" not in text, "a composed URL literal leaked into the client"
 
 
+# RFC 5737 TEST-NET-1, reserved for documentation and guaranteed not to be
+# routed. Pointing the client at it makes "unreachable" a property of the test
+# rather than a property of the machine.
+#
+# This replaced `monkeypatch.delenv` plus a comment reading "nothing is listening
+# on the bridge ports during the suite". That was not true and could not be made
+# true: on 2026-07-26 the cycle 2 probe plugin was bound to the client port
+# inside a running game, the connection succeeded, and this test failed with no
+# defect anywhere. A test whose result depends on ambient machine state is the
+# mirror image of cycle 1's gate that could not fail.
+UNROUTABLE_HOST = "192.0.2.1"
+
+
 def test_unreachable_bridge_raises_the_typed_error(monkeypatch):
     """A closed bridge is the normal case, not an exception the caller must
     distinguish from a bug. Leg 1 of the wiredness proof depends on this."""
-    monkeypatch.delenv(ports.GAME_HOST_ENV, raising=False)
+    monkeypatch.setenv(ports.GAME_HOST_ENV, UNROUTABLE_HOST)
     with pytest.raises(bridge_client.BridgeUnreachable):
-        # Nothing is listening on the bridge ports during the suite.
         bridge_client.get_json("client", "/health", timeout=0.25)
 
 
 def test_bridge_unreachable_message_names_the_host_and_url(monkeypatch):
-    monkeypatch.delenv(ports.GAME_HOST_ENV, raising=False)
+    monkeypatch.setenv(ports.GAME_HOST_ENV, UNROUTABLE_HOST)
     try:
         bridge_client.get_json("server", "/health", timeout=0.25)
     except bridge_client.BridgeUnreachable as exc:

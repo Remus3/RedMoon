@@ -30,18 +30,40 @@ All Red Moon tasks are named `RM-*`. The namespace is exclusive to this project.
 |---|---|---|
 | `RM-DataRefresh` | Daily | Runs `tools/rmdata_extract.py`. No-op unless the build changed. |
 
-Register or remove them:
+Run the dry run first. `--show` prints the exact `schtasks` command line each
+task would be created with and changes nothing, so the quoting of the Python
+path and the script path can be checked before a privileged call is made:
+
+```
+python ops/register_tasks.py --show
+```
+
+Then register or remove them. Both need an elevated shell:
 
 ```
 python ops/register_tasks.py --install
 python ops/register_tasks.py --remove
 ```
 
-Inspect them:
+Inspect a registered task:
 
 ```
 schtasks /query /tn RM-DataRefresh /v /fo LIST
 ```
+
+## Restore the memory namespace
+
+The Red Moon memory namespace lives outside the repository at
+`C:\Users\Administrator\.claude\projects\C--RedMoon\memory\` and is not
+committed there. `docs/memory_seed/` holds a byte-for-byte copy. If the
+namespace is lost, recreate the directory and copy the seed into it:
+
+```
+python -c "import pathlib,shutil; d=pathlib.Path.home()/'.claude/projects/C--RedMoon/memory'; d.mkdir(parents=True,exist_ok=True); [shutil.copyfile(p,d/p.name) for p in pathlib.Path('docs/memory_seed').glob('*.md')]"
+```
+
+`tests/test_claude_config.py` asserts the live files and the seed agree, so
+editing a memory entry means updating its seed in the same commit.
 
 ## Process rules
 

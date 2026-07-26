@@ -881,6 +881,198 @@ Server host, `/dump/prefabs`, 714 ms, promoted by `rmdata_ingest --accept`:
 
 `unmapped` is still the same 4 recipes with an empty item output buffer.
 
+## Cycle 3 phase 1, 2026-07-26: the component inventory
+
+Taken on the standalone dedicated server, build `1.1.13.0-r99712`, through the
+new exploratory `GET /dump/components`. Payloads under `_scratch\rmprobe\c3\`,
+not committed. Nothing below is recalled: every component and field name is read
+off an enumerated type list of a real entity.
+
+### What the endpoint reads, and the one thing it does NOT
+
+It reads NAMES: the entity's complete component-type list, and for every
+component the declared field list with types, nested value types expanded and
+enum member names printed.
+
+It does NOT read field VALUES, and that is a measured result rather than a
+shortcut. Two generic value readers were built and both failed:
+
+1. **Managed reflection** (`EntityManagerDebug.GetComponentBoxed`, then
+   `Il2CppSystem.Type.GetFields` and `FieldInfo.GetValue`). Correct field names,
+   GARBAGE VALUES: every `System.Int32` on every component of every entity read
+   **539327184** and every `System.Single` read **1.402156E-19**. Not a
+   plausible wrong number, the SAME number everywhere, which is the tell that
+   the read hit a fixed location rather than the field.
+2. **Raw il2cpp field offsets** off that same boxed pointer. It HARD CRASHED the
+   dedicated server process on the first request, twice, which is the stronger
+   form of the same finding: `GetComponentBoxed` does not hand back an object
+   backed by the component's real chunk memory on this build, so there is
+   nothing valid to point at. The raw `il2cpp_class_get_fields` iterator crashed
+   the process as well, even reading metadata only.
+
+**What caught failure 1 is a control that cost nothing.** Every entity carries
+`Stunlock.Core.PrefabGUID`, whose value the same response ALREADY states from a
+typed read. The generic reader said 539327184 where the truth was -327335305. A
+value reader with no such control would have shipped, and every number in this
+document would have been fiction. This is the `items.tier` failure mode caught
+before it reached paper rather than after.
+
+The consequence is scoped. Phase 1's gate asks for the inventory BY NAME, which
+is what this is, and cycle 2 already proved that TYPED reads off a named
+component work perfectly - that is how all five tables are populated. Values are
+read the way they are read everywhere else here: with the type spelled out, now
+that the inventory says which type to spell.
+
+`ProjectM.ModifiableInt` and `ProjectM.ModifiableFloat` expand to `{}` under
+`GetFields()`, so `_Value` is a PROPERTY rather than a field. Cycle 2 already
+reads `UnitLevel.Level._Value` in `PrefabDumper.cs`, so this is a limit of the
+reflection walk, not an absence.
+
+### Subject 1: `CHAR_*_VBlood` prefabs, three across the level range
+
+`CHAR_Forest_Wolf_VBlood` (level 16), `CHAR_Vampire_HighLord_VBlood` (57) and
+`CHAR_Vampire_Dracula_VBlood` (91). **150 components each**, and the stat-bearing
+ones are identical across all three, which is what makes one sample readable.
+
+| Need | Component | Fields |
+|---|---|---|
+| max health | `ProjectM.Health` | `MaxHealth` (`ModifiableFloat`), `Value`, `MaxRecoveryHealth`, `TimeOfDeath`, `IsDead` |
+| health rules | `ProjectM.HealthConstants` | `LowHealthFactor`, `DestroyOnDeath`, `DestroyAfterDuration`, `DisableDamageSCT` |
+| level | `ProjectM.UnitLevel` | `Level` (`ModifiableInt`), `HideLevel` |
+| the stat line | `ProjectM.UnitStats` | `PhysicalPower`, `SpellPower`, `ResourcePower`, `SiegePower`, `PhysicalResistance`, `SpellResistance`, `FireResistance`, `PassiveHealthRegen`, `CCReduction`, `HealthRecovery`, `DamageReduction`, `HealingReceived`, `ReducedBloodDrain`, `BloodDrainMultiplier`, `CorruptionDamageReduction` |
+| resistance TUNING | `ProjectM.ResistanceData` | `SunResistance_IncreasedSunPiercingDuration`, `GarlicResistance_DamageReductionPerRating`, `GarlicResistance_IncreasedExposureFactorPerRating`, `GarlicResistance_ReduceMaxStacksPerRating`, `FireResistance_DamageReductionPerRating`, `FireResistance_RedcuedIgiteChancePerRating`, `SilverResistance_DamageReductionPerRating`, `SilverResistance_CarryValueAbsorbedPerRating`, `HolyResistance_DamageReductionPerRating`, `HolyResistance_DamageAbsorbPerRating`, `PvPResilience_DamageReductionPerRating` |
+| V Blood identity | `ProjectM.VBloodUnit`, `ProjectM.VBloodConsumeSource`, `ProjectM.VBloodUnlockTechBuffer` (buffer) | as cycle 2 |
+
+`ProjectM.ResistanceData` is a COEFFICIENT block, not a per-boss resistance
+vector: every field is a "per rating" conversion rate. The per-unit resistance
+values are on `UnitStats`.
+
+**The four anti-vampire damage types have no unit-side resistance field.** Across
+all 150 enumerated components on all three bosses there is no Holy, Silver,
+Garlic or Sun resistance member outside `ResistanceData`'s per-rating rates.
+Physical, Spell, Fire and Corruption each have one on `UnitStats`. That is a full
+enumeration rather than a failed `HasComponent`, so the absence is readable.
+
+### Subject 2: ability groups, four across schools plus a weapon group
+
+`AB_Blood_BloodRite_AbilityGroup` (34 components), `AB_Frost_CrystalLance_AbilityGroup`,
+`AB_Storm_LightningWall_AbilityGroup`, and the WEAPON group
+`AB_Spear_AThousandSpears_Stab_AbilityGroup` (32 components).
+
+**The weapon and spell groups are told apart by a component, not by a name.**
+
+| Component | On | Fields |
+|---|---|---|
+| `ProjectM.WeaponAbilityData` | weapon groups only | `AbilityType` (enum `Primary,Secondary,Travel,Dash,Power,Offensive,SpellSlot1,Defensive,SpellSlot2,Ultimate,None`) |
+| `ProjectM.VBloodAbilityData` | spell groups | `AbilityType`, `AbilitySchool` (enum `Blood,Unholy,Illusion,Frost,Chaos,Storm,Shadow`), `AbilityTooltipType` |
+| `ProjectM.AbilitySpellSchool` | spell groups | `SpellSchool` (`PrefabGUID`), `Tier` (`SpellSchoolProgressionTier`) |
+| `ProjectM.AbilityGroupInfo` | both | `MinRange`, `MaxRange`, `BehaviorType`, `InputType`, `Target`, `ReleaseCastQueueTime`, `CastCondition`, `HoverCondition` |
+| `ProjectM.AbilityGroupStartAbilitiesBuffer` | both, buffer | the cycle 2 chain head |
+
+**`ProjectM.AbilitySpellSchool` CORRECTS a cycle 2 statement.** Cycle 2 recorded
+"there is no `SpellSchool` component type" and joined the school through the
+`<School>SpellSchoolAsset` prefab's `SpellSchoolAbility` buffer instead. The
+component does exist, sitting on the ability GROUP, and it carries both the
+school guid and the progression tier. The cycle 2 join is not wrong and its 54
+rows stand; it was reached by metadata scans that missed this type, and a live
+component list found it in one run. Same shape as the `EquippableData` correction.
+
+`ProjectM.VBloodAbilityData.AbilitySchool` is a second, independent school source
+and its enum carries `Shadow`, which the six-school join cannot produce.
+
+### Subject 3: the `_Cast` and `_Hit` entities, where the coefficients live
+
+`AB_Spear_AThousandSpears_Stab_Cast`, 36 components:
+
+| Need | Component | Fields |
+|---|---|---|
+| cast time | `ProjectM.AbilityCastTimeData` | `MaxCastTime` (`ModifiableFloat`), `PostCastTime`, `HideCastBar` |
+| cooldown | `ProjectM.AbilityCooldownData` | `Cooldown` (`ModifiableFloat`), `IgnoreCooldownModifier`, `ShowInteractCooldownHUD` |
+| global cooldown | `ProjectM.GlobalCooldown` | `Value` (`Single`) |
+| the next hop | `ProjectM.AbilitySpawnPrefabOnCast` (buffer) | the cycle 2 chain |
+
+`AB_Spear_AThousandSpears_Stab_Hit`, 51 components:
+
+| Need | Component | Fields |
+|---|---|---|
+| coefficient and type | `ProjectM.DealDamageOnGameplayEvent` (buffer) | `Parameters` (`DealDamageParameters`), `DamageModifierPerHit`, `MultiplyMainFactorWithStacks` |
+| inside `Parameters` | `ProjectM.DealDamageParameters` | `MainFactor`, `RawDamageValue`, `RawDamagePercent`, `MainType`, `StaggerFactor`, `ResourceModifier`, `MaterialModifiers`, `DealDamageFlags` |
+| hit multiplicity | `ProjectM.HitTrigger`, `ProjectM.CreateGameplayEventsOnHit`, `ProjectM.HitColliderCast`, `ProjectM.TriggerHitConsume` (all buffers) | lengths not counted this phase |
+
+### Subject 4: weapon items, two families, and the L1 hop CLOSED
+
+`Item_Weapon_GreatSword_T06_Iron_Reinforced` and
+`Item_Weapon_Spear_T06_Iron_Reinforced`, 30 components each. The item itself
+carries NO ability reference. The chain, every hop read off an enumerated
+component list:
+
+```
+weapon item prefab
+  -> ProjectM.EquippableData.BuffGuid          (PrefabGUID)
+  -> EquipBuff_Weapon_<Family>_Base            (26 components)
+  -> DynamicBuffer<ProjectM.ReplaceAbilityOnSlotBuff>
+  -> element .NewGroupId                       (PrefabGUID) = the ability GROUP
+     element .Slot                             (Int32)      = the ability bar slot
+```
+
+`ProjectM.ReplaceAbilityOnSlotBuff` also carries `Target`, `ReplaceGroupId`,
+`Priority`, `Condition`, `CastBlockType` and `CopyCooldown`. The equip buff
+additionally carries `ProjectM.WeaponLevel` and the item carries
+`ProjectM.WeaponLevelSource`, which are the P2 candidates.
+
+This is the L1 asymmetry the spec warned about, holding up exactly as stated:
+`EquippableData.BuffGuid` is barred as a route to item STATS, because
+`ModifyUnitStatBuff_DOTS` sits on the item prefab itself and cycle 2 settled
+that. For ABILITIES the equip buff is the only route, and it is the right one.
+
+### Subject 5: the LIVE INSTANCED boss, and the liveness assertion
+
+`CHAR_Vampire_Dracula_VBlood` exists as a spawned entity in `world1` on the
+dedicated server. The stub-proof assertion the spec asks for HOLDS:
+
+| | prefab | live instance |
+|---|---|---|
+| entity index | 29012 | **322916** |
+| `Unity.Entities.Prefab` | present | **absent** |
+| components | 150 | 151 |
+
+Instance-only: `ProjectM.AttachParentId`, `ProjectM.AttachedBuffer`,
+`ProjectM.DisabledDueToNoPlayersInRange`, `Unity.Entities.Disabled`.
+Prefab-only: `Unity.Entities.Prefab`, `Unity.Entities.SpawnTag`,
+`ProjectM.Pathfinding.PathRequestSolveDebugBuffer`.
+
+**Every stat-bearing component is on BOTH.** `Health`, `UnitLevel`, `UnitStats`
+and `ResistanceData` are present on the instance and on the prefab, so the
+prefab-versus-instance control of phase 3 has a real subject on both sides and
+can be a value comparison rather than a presence check. The two entities differ
+only in spawn, attachment and disabled-state machinery, which is what an
+unvisited boss should look like.
+
+### The 14 required fields, phase 1 verdict
+
+Named per the spec's closure rule. SOURCED means the component and field are
+named here; VALUES are phase 2 and are read with typed accessors.
+
+| id | field | state | source |
+|---|---|---|---|
+| T1 | boss max health | SOURCED | `ProjectM.Health.MaxHealth` |
+| T2 | resistance per damage type | SOURCED for 4 of 7, PROVEN ABSENT for 3 | `UnitStats.PhysicalResistance` / `.SpellResistance` / `.FireResistance` / `.CorruptionDamageReduction`; Holy, Silver and Garlic have no unit-side field across 150 enumerated components |
+| T3 | boss unit level | SOURCED | `ProjectM.UnitLevel.Level` |
+| T4 | target-side diff input | SOURCED as candidates | `UnitLevel.Level`, `UnitStats.PhysicalPower` / `.SpellPower` |
+| A1 | cast time | SOURCED | `AbilityCastTimeData.MaxCastTime`, `.PostCastTime` |
+| A2 | cooldown | SOURCED | `AbilityCooldownData.Cooldown`, `GlobalCooldown.Value` |
+| A3 | damage coefficient | SOURCED | `DealDamageParameters.MainFactor`, `.RawDamageValue`, `.RawDamagePercent` |
+| A4 | damage type | SOURCED | `DealDamageParameters.MainType` |
+| A5 | which power stat | PROVEN ABSENT as a field | no power-selector member on the `_Hit` entity's 51 components; `MainType` is the only discriminator present |
+| A6 | hits per cast | PARTIAL | `DealDamageOnGameplayEvent.DamageModifierPerHit`, `.MultiplyMainFactorWithStacks`; multiplicity is buffer LENGTHS, not yet counted |
+| P1 | weapon power | SOURCED, cycle 2 | `DynamicBuffer<ModifyUnitStatBuff_DOTS>` on the item prefab |
+| P2 | player-side diff input | SOURCED as candidates | `WeaponLevelSource` on the item, `WeaponLevel` on the equip buff, `UnitStats` on the character |
+| L1 | weapon to ability group | SOURCED | the four-hop chain above, ending at `ReplaceAbilityOnSlotBuff.NewGroupId` |
+| L2 | group to coefficients | SOURCED | cycle 2's chain, with the payload fields now named under subject 3 |
+
+NOT ATTEMPTED is EMPTY. A6 is the only partial and it is a counting job, not a
+hunt.
+
 ## Tooling note
 
 The spike tool is `_scratch\typedump\`, a throwaway net8.0 console app that

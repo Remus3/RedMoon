@@ -88,8 +88,18 @@ those assemblies are the plugin's compile-time references. Building before this
 step cannot work.
 
 ```
-dotnet build bridge\RedMoon.Bridge.sln -c Release
+dotnet build bridge\src\RedMoon.Bridge\RedMoon.Bridge.csproj -c Release
 ```
+
+There is no `.sln`. This line named one until 2026-07-26 and it never existed;
+`-t:Rebuild` is worth adding when a stale obj is suspected.
+
+**Deploy to ONE path per host, and check for a second copy first.** BepInEx loads
+every assembly under `plugins\`, so a flat `plugins\RedMoon.Bridge.dll` left
+beside `plugins\RedMoon.Bridge\RedMoon.Bridge.dll` gives two plugin instances:
+one binds the port and the other stands down, and which one wins is not the one
+you just built. MEASURED 2026-07-26 - a stale flat copy served `/health`
+correctly while answering `not_found` for an endpoint that was in the new build.
 
 Build output lands under `_scratch\bridge-build\`, outside the ASCII-scanned
 tree. Deploy the SAME DLL into both targets:

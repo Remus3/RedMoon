@@ -39,6 +39,13 @@
     <Compile Include="Plugin.cs" />
     <Compile Include="BridgeServer.cs" />
     <Compile Include="PrefabDumper.cs" />
+    <!--
+      EXPLORATORY, cycle 3 phase 1. Carries no schema and no ingest gate and is
+      never promoted. It stays in the build rather than being deleted after the
+      spike: cycle 2 proved this class of question recurs, and deleting the tool
+      means rebuilding it in cycle 4.
+    -->
+    <Compile Include="ComponentDumper.cs" />
     <Compile Include="StateReader.cs" />
     <Compile Include="Localization.cs" />
     <!--

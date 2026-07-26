@@ -167,6 +167,26 @@ namespace RedMoon.Bridge
             }
         }
 
+        /// <summary>
+        /// World selection, shared with the exploratory ComponentDumper so the
+        /// two cannot drift apart on the by-name rule. See trap 2 in the header:
+        /// "first Simulation world" is a wrong rule that happens to be plausible.
+        /// </summary>
+        internal static World FindTargetWorld()
+        {
+            return FindTarget();
+        }
+
+        /// <summary>
+        /// The prefab map, but only once GameDataInitialized has flipped. One
+        /// entry point rather than two so no caller can accidentally skip the
+        /// readiness gate and take a castle-asset subset (trap 1).
+        /// </summary>
+        internal static bool TryGetReadyMap(World world, out Stunlock.Core.PrefabLookupMap map)
+        {
+            return TryGetMap(world, out map) && IsReady(map);
+        }
+
         private static bool IsReady(Stunlock.Core.PrefabLookupMap map)
         {
             try

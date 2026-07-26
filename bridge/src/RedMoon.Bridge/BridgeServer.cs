@@ -124,7 +124,27 @@ namespace RedMoon.Bridge
             Table = table;
         }
 
+        /// <summary>
+        /// The EXPLORATORY component dump (cycle 3 phase 1). It rides the same
+        /// main-thread handoff as the table dump rather than getting a second
+        /// one, because D7's whole point is that there is exactly one place ECS
+        /// is read from.
+        /// </summary>
+        internal DumpRequest(int guid, string namePrefix, int limit, bool instanced)
+        {
+            Components = true;
+            Guid = guid;
+            NamePrefix = namePrefix;
+            Limit = limit;
+            Instanced = instanced;
+        }
+
         internal readonly string Table;
+        internal readonly bool Components;
+        internal readonly int Guid;
+        internal readonly string NamePrefix;
+        internal readonly int Limit;
+        internal readonly bool Instanced;
         internal readonly ManualResetEventSlim Done = new ManualResetEventSlim(false);
         internal string Body;
     }
@@ -250,7 +270,10 @@ namespace RedMoon.Bridge
 
             try
             {
-                request.Body = PrefabDumper.Dump(_build, _plugin, request.Table);
+                request.Body = request.Components
+                    ? ComponentDumper.Dump(_build, _plugin, request.Guid, request.NamePrefix,
+                                           request.Limit, request.Instanced)
+                    : PrefabDumper.Dump(_build, _plugin, request.Table);
             }
             catch (Exception ex)
             {
@@ -322,7 +345,34 @@ namespace RedMoon.Bridge
                 }
 
                 int status;
-                string body = RequestDump(table, out status);
+                string body = RequestDump(new DumpRequest(table), out status);
+                TryRespond(context, status, body);
+                return;
+            }
+
+            // EXPLORATORY, cycle 3 phase 1. No schema, no ingest gate, never
+            // promoted, and deliberately absent from /dump/prefabs so nothing
+            // downstream can start depending on its shape. It DOES wait on the
+            // same GameDataInitialized readiness gate, which is a precondition
+            // for reading anything at all rather than a validation of what was
+            // read.
+            if (path == "/dump/components")
+            {
+                int guid = QueryInt(context, "guid", 0);
+                string namePrefix = context.Request.QueryString["name"];
+                int limit = QueryInt(context, "limit", ComponentDumper.DefaultLimit);
+                bool instanced = QueryInt(context, "instanced", 0) != 0;
+
+                if (guid == 0 && string.IsNullOrEmpty(namePrefix))
+                {
+                    TryRespond(context, 400, Error("bad_request", "pass guid, or name as a "
+                                                   + "prefix, so the scan has a subject"));
+                    return;
+                }
+
+                int status;
+                string body = RequestDump(
+                    new DumpRequest(guid, namePrefix, limit, instanced), out status);
                 TryRespond(context, status, body);
                 return;
             }
@@ -330,11 +380,28 @@ namespace RedMoon.Bridge
             TryRespond(context, 404, Error("not_found", "no such endpoint"));
         }
 
-        /// <summary>Hand the dump to the main thread and wait for it (D7).</summary>
-        private string RequestDump(string table, out int status)
+        /// <summary>
+        /// A query parameter as an int, falling back rather than throwing. A
+        /// malformed value takes the default, which keeps a typo in a probe URL
+        /// from reaching the main thread as an exception.
+        /// </summary>
+        private static int QueryInt(HttpListenerContext context, string key, int fallback)
         {
-            var request = new DumpRequest(table);
+            string raw = context.Request.QueryString[key];
+            int value;
+            if (string.IsNullOrEmpty(raw)
+                || !int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                                 out value))
+            {
+                return fallback;
+            }
 
+            return value;
+        }
+
+        /// <summary>Hand the dump to the main thread and wait for it (D7).</summary>
+        private string RequestDump(DumpRequest request, out int status)
+        {
             // One dump at a time. The tick services a single pending request, so
             // concurrent callers queue here rather than overwriting each other.
             lock (_dumpGate)

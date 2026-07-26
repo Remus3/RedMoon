@@ -26,15 +26,19 @@ TASKS: dict[str, dict] = {
 }
 
 
-def build_create_command(name: str) -> list[str]:
-    """schtasks argv that creates the named task."""
-    spec = TASKS[name]
-    action = f'"{PYTHONW}" "{spec["script"]}"'
+def _build_create_argv_from_spec(
+    task_name: str, pythonw_path: str, spec: dict
+) -> list[str]:
+    """Build schtasks /create argv from a spec dict.
+
+    Separated from build_create_command to allow test injection of specs.
+    """
+    action = f'"{pythonw_path}" "{spec["script"]}"'
     return [
         "schtasks",
         "/create",
         "/tn",
-        name,
+        task_name,
         "/tr",
         action,
         "/sc",
@@ -45,6 +49,12 @@ def build_create_command(name: str) -> list[str]:
         "HIGHEST",
         "/f",
     ]
+
+
+def build_create_command(name: str) -> list[str]:
+    """schtasks argv that creates the named task."""
+    spec = TASKS[name]
+    return _build_create_argv_from_spec(name, str(PYTHONW), spec)
 
 
 def build_delete_command(name: str) -> list[str]:
@@ -64,7 +74,9 @@ def main() -> int:
 
     for name in TASKS:
         if args.show:
-            print(f"{name}: {' '.join(build_create_command(name))}")
+            argv = build_create_command(name)
+            cmdline = subprocess.list2cmdline(argv)
+            print(f"{name}: {cmdline}")
             continue
         argv = build_create_command(name) if args.install else build_delete_command(name)
         result = subprocess.run(argv, capture_output=True, text=True)

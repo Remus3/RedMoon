@@ -18,8 +18,28 @@ item and ability stat data.
 
 Spec: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md` (APPROVED
 2026-07-26). The plugin targets both the client and the dedicated server, per
-ADR-004. `PrefabCollectionSystem` above is an unverified label, not a confirmed
-type name; spike S1 in the spec resolves it.
+ADR-004, and each host binds its own port, per ADR-005.
+
+`PrefabCollectionSystem` is no longer an unverified label. It was CONFIRMED
+against this build on 2026-07-26: `ProjectM.PrefabCollectionSystem` in
+`ProjectM.Shared.dll`. See `docs/BRIDGE_SPIKES.md`.
+
+Progress. The Python half is shipped and green (ledger 002a): port generation,
+the bridge client, the nested-shape gate, the VERSION-asserting installer, the
+ingest and quarantine path, and the wiredness probe. BepInEx is installed in
+both hosts and the dedicated server has generated its interop assemblies.
+
+Remaining, in order:
+
+1. Launch the CLIENT once so it generates its own `BepInEx\interop\`, then diff
+   the two interop sets. No `.csproj` reference may be pinned before that diff
+   (risk R17).
+2. Build a MINIMAL enumerate-and-log plugin first, not the full bridge. Spike S1
+   parts b, c and d - the world names per host and the host-detection mechanism
+   - cannot be answered from static metadata and need a plugin in-process.
+3. Close S2 (main-thread scheduling), S3 (the field-by-field component mapping),
+   S5 (listener viability) and S6 (dump cost).
+4. Then the full bridge, the live gate once per host, and the first dump.
 
 The seam is already on disk: `data/rmdata/<build>/tables/` holds one empty,
 schema-valid envelope per table name in `core/tables.py`. The dump fills those

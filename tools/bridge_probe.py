@@ -299,7 +299,7 @@ def game_root_problems(host: str, raw) -> list[str]:
         return [f"/health reported no usable game_root ({raw!r})"]
 
     parts = Path(raw).parts
-    if False:
+    if any(part.lower() == STALE_COPY_DIRNAME for part in parts):
         return [
             f"game_root {raw!r} has a {STALE_COPY_DIRNAME!r} path component - that is "
             "the stale second copy of the game, so a stale install answered and "

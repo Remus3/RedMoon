@@ -248,6 +248,32 @@ def test_loader_log_fails_on_a_log_without_the_banner(tmp_path, capsys):
     assert "no plugin banner" in out.lower()
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "[Info   :RedMoon.Bridge] snapshot published",
+        "[Info   :RedMoon.Bridge] RedMoon.Bridge v0.1.0 host=client",
+        f"[Info   :RedMoon.Bridge] RedMoon.Bridge host=client "
+        f"port={ports.bridge_port_for_host('client')}",
+        "[Info   :RedMoon.Bridge] RedMoon.Bridge v0.1.0 "
+        f"port={ports.bridge_port_for_host('client')}",
+    ],
+)
+def test_loader_log_rejects_a_line_that_is_not_the_full_banner(tmp_path, capsys, line):
+    """Cycle 1's bug was a matcher that matched the wrong thing and never fired.
+
+    A log line merely MENTIONING the plugin - its logger prefix appears on every
+    line it ever writes - is not the banner. The banner names the version, the
+    host and the bound port, and a line missing any one of the three must not
+    satisfy this leg.
+    """
+    log = tmp_path / "LogOutput.log"
+    log.write_text(line + "\n", encoding="utf-8")
+    code, out = run(["--loader-log", "--log-path", str(log)], capsys)
+    assert code != 0
+    assert "no plugin banner" in out.lower()
+
+
 def test_loader_log_fails_when_the_banner_names_the_other_host(tmp_path, capsys):
     log = tmp_path / "LogOutput.log"
     log.write_text(banner_line("server") + "\n", encoding="utf-8")

@@ -3,6 +3,58 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - Cycle 2 part 1: ADR-005, the Python half, spikes S4 and S3a closed
+
+Branch `cycle-2-bridge`, two commits (`9fbce0c`, `251803b`). Cycle 2 is NOT
+done and is not claimed to be. Ledger entry 002a carries the detail.
+
+The two things the last session said must be settled BEFORE code are settled:
+
+1. Port arbitration. RULED: mint the fifth port. Client binds 8777, dedicated
+   server binds 8780, chosen by `core.ports.bridge_port_for_host`. ADR-005
+   amends ADR-003. The stand-down path, install step 6b, acceptance criterion 5b
+   and risk R15 are STRUCK from the spec - do not implement them. Operator
+   approved the frozen `core/ports.py` edit and the ADR amendment before it was
+   made.
+2. `PrefabCollectionSystem`. CONFIRMED, not corrected:
+   `ProjectM.PrefabCollectionSystem` in `ProjectM.Shared.dll`, deriving from
+   `Stunlock.Core.PrefabCollectionSystem_Base`. The label carried from
+   `ROADMAP.md` survives contact with the build.
+
+State at close, every number observed in one run after the last edit:
+`python -m pytest` 241 passed (was 106), `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0.
+
+Shipped: `gen_bridge_ports.py`, `core/bridge_client.py`, `core/table_deep.py`,
+`install_bepinex.py`, `rmdata_ingest.py`, `bridge_probe.py`,
+`Directory.Build.props`, ADR-005, `docs/BRIDGE_SPIKES.md`.
+
+Environment, done and verified live: BepInEx 1.733.2 installed into BOTH hosts
+(233 files each, Thunderstore metadata dropped, `v3\` untouched). The dedicated
+server launched once and generated 169 Il2CppInterop assemblies. Both v3
+negative controls refuse.
+
+Spike status. S4 CLOSED by measurement: a net6.0 library builds under SDK
+10.0.301 with NO targeting pack and NO `global.json` - neither fallback is
+needed. S3a CLOSED. S3 PARTIAL - the component types are located and named
+(`EquippableData`, `RecipeData`, `RecipeRequirementBuffer`, `SpellLevel`,
+`BloodQualityBuff`), the field mapping is not done. S1, S2, S5, S6 OPEN.
+
+Three things the next session must not get wrong:
+
+1. The CLIENT has BepInEx but has NOT been launched, so it has no `interop\`
+   tree yet. The R17 interop diff cannot run and no `.csproj` reference set may
+   be pinned until it does. Launching the game client was left to the operator
+   deliberately rather than done unattended.
+2. S1 parts b, c and d are NOT answerable from static metadata. `LogOutput.log`
+   carries loader activity only and never names a world - that was checked, not
+   assumed. Enumerating worlds needs a plugin in-process, so the correct next
+   artifact is a MINIMAL enumerate-and-log plugin, not the full bridge.
+3. Honest correction to acceptance criterion 2: the `--target server` pointed at
+   the root negative control is UNREACHABLE, not refused, because the installer
+   derives the server target from `--root`. Prevented by construction, but not
+   the control the spec asked for. Do not tick it off as passed.
+
 ## 2026-07-26 - Cycle 2 spec APPROVED, no code yet
 
 Spec written and approved: `docs/superpowers/specs/2026-07-26-redmoon-bridge-design.md`.

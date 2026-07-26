@@ -28,6 +28,10 @@ CONTEXT, do not re-derive or re-verify:
 - data/rmdata/ is gitignored and regenerable: items 425 (schema 3), recipes 663
   (schema 2), abilities 54, vbloods 65, blood_types 13. Do not rebuild it.
 - Never write a port literal - import from core/ports.py.
+- The external PowerShell 7 migration doc on the Desktop is VALIDATED AND
+  CLOSED, twice, most recently against an updated copy. Its section 4c and its
+  header hostname are wrong; Red Moon has zero PowerShell call sites of any file
+  type. Do not re-audit it and do not edit it - it belongs to another project.
 
 WHAT PHASE 1 ESTABLISHED, which is what you build against.
 
@@ -126,10 +130,12 @@ OPERATIONS.
   few seconds and launch again - that works every time and is not investigated.
 - Never Stop-Process; taskkill /F through PowerShell.
 - Your PowerShell tool is pwsh 7.6.4 Core (C:\Program Files\PowerShell\7\pwsh.exe),
-  NOT 5.1, measured 2026-07-26. So &&, ||, ternary and ?? work directly. Legion
-  also still has powershell.exe 5.1 and Red Moon has zero PowerShell call sites.
-  This does NOT relax the 7-bit-ASCII rule: 5.1 is still installed, it is also an
-  operator style rule, and ascii_guard plus the precommit gate enforce it.
+  NOT 5.1, measured twice on 2026-07-26. So &&, ||, ternary and ?? work directly.
+  This box still has powershell.exe 5.1 at 5.1.19041.6456 and Red Moon has zero
+  PowerShell call sites. This does NOT relax the 7-bit-ASCII rule: 5.1 is still
+  installed and still parse-fails on a U+2014 in a no-BOM .ps1 (measured, 2
+  errors under 5.1 versus 0 under 7.6.4), it is also an operator style rule, and
+  ascii_guard plus the precommit gate enforce it.
 - Output to _scratch\rmprobe as saved JSON, not committed. Never read a number
   off a screenshot.
 

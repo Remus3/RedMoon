@@ -3,6 +3,82 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - The same PS7 doc, re-validated after the operator updated it
+
+Branch `master`. **NO ROADMAP ITEM CLOSED and no production code changed.** The
+only repo change is docs: these notes, the archive move, the next-session prompt
+and one memory seed. Cycle 3 phase 2 still has not started.
+
+State at close, observed in one run: `python -m pytest` **324 passed in 18.40s,
+exit 0**, `python tools/ascii_guard.py` exit 0. The summary line DID print, so
+the dot-counting workaround the section below describes was not needed this time
+- the line appears on some runs and not others, which is worth knowing before
+anyone "fixes" the pytest config.
+
+**The input and the ask.** The operator updated
+`C:\Users\Administrator\Desktop\POWERSHELL_7_MIGRATION.md` - the same
+another-project doc audited in the session below - and asked for it to be
+re-ingested and validated again. It is now 8 sections; the update added a
+detailed section 5 point 1 listing that project's live VBS and BAT shims that
+name `powershell.exe` explicitly, and a section 8 migration log.
+
+**Eleven claims re-measured and confirmed.** PS7 7.6.4 Core at
+`C:\Program Files\PowerShell\7\pwsh.exe`, machine PATH carries
+`C:\Program Files\PowerShell\7\`, the MSIX per-user alias
+`%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe` does NOT exist, 5.1 is intact at
+exactly `5.1.19041.6456` as its section 6 predicts, and 22 `RC-*` scheduled
+tasks exist. Its section 5 parse measurement also reproduces here, which matters
+because it is the doc's only claim that touches this repo's hard rules: a no-BOM
+UTF-8 `.ps1` with U+2014 inside a double-quoted string, through
+`[System.Management.Automation.Language.Parser]::ParseFile`, gives **2 errors
+under 5.1 and 0 under 7.6.4**.
+
+**TWO DEFECTS, AND BOTH SURVIVED THE UPDATE.**
+
+1. **Section 4c is still wrong**, and it is the doc's most actionable claim.
+   Measured again through the tool this session: `$PSVersionTable` is **7.6.4 /
+   Core** and the process `MainModule.FileName` is
+   **`C:\Program Files\PowerShell\7\pwsh.exe`**. Its PREMISE is correct and was
+   verified - the global `C:\Users\Administrator\.claude\settings.json:6` does
+   hold `CLAUDE_CODE_USE_POWERSHELL_TOOL: "1"` and there is indeed no key that
+   selects the binary - but the conclusion drawn from that premise does not
+   follow. An agent here gets pwsh, so `&&`, `||`, ternary, `??` and `?.` work
+   directly and the `& pwsh -NoProfile -File` escape hatch is real but
+   unnecessary. That the error persisted across a revision is itself the lesson:
+   **a doc being updated is not evidence that any particular claim in it was
+   re-checked.**
+2. **The header hostname is wrong.** It says `DESKTOP-JKZECV9`; this machine is
+   **`DESKTOP-LCA3EBI`**. Every other fact in the doc matches this box, so it is
+   a mis-recorded name and not a different machine. Its `legion-rc` Tailscale
+   label could not be checked at all - Tailscale is not installed and not on
+   PATH here.
+
+**Red Moon impact is still exactly zero, and the update gave a NEW way to
+check.** Section 5 point 1 now says to grep your own project for
+`powershell.exe` in `*.vbs`, `*.bat` and `*.cmd`, because a shim is easy to miss
+when it is neither a scheduled task nor a `.ps1`. Run against this repo that
+returns **no matches**, so Red Moon carries none of the live 5.1 `ParseFile`
+exposure that list documents. Combined with last session's `*.py` and `*.json`
+grep and `RM-DataRefresh` executing `pythonw.exe`, the migration surface here is
+empty by measurement across every file type the doc names.
+
+**The ASCII rule is unchanged.** 5.1 is installed and reachable, it is an
+operator style rule independent of any parser, and `tools/ascii_guard.py` plus
+the wired precommit gate enforce it mechanically. PS7 removes one failure mode,
+not the rule.
+
+**That doc was not edited.** It is another project's territory and correcting
+its 4c and its header is the operator's call. The measurements above are the
+evidence if it is corrected.
+
+**No ledger entry, for the reason the section below states at length** -
+`docs/LEDGER.md` scopes itself to completed roadmap items with an item number
+and a commit hash, and this session closed none. `reference_powershell_editions_on_legion`
+was extended with the hostname correction, the 2/0 parse numbers and the fact
+that 4c survived a revision, and `docs/memory_seed/` was re-synced in the same
+commit by copying the live file AFTER the memory system rewrote its `modified:`
+timestamp, which is the ordering last session learned the hard way.
+
 ## 2026-07-26 - A PowerShell 7 migration doc, audited against this repo
 
 Branch `master`. **NO ROADMAP ITEM CLOSED, no production code changed, and no
@@ -215,93 +291,11 @@ it now records the two-copies trap.
 
 ## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
 
-Branch `master`. Ledger 003a. Commits `774d7d3` (spec plus ROADMAP) and the docs
-commit backfilled into the ledger entry. **No production code changed and none
-was meant to** - this session was the spec, by explicit instruction.
-
-State at close, observed in one run after the last edit: `python -m pytest`
-**317 passed** (see the counting note below), `python -m ruff check .` clean,
-`python tools/ascii_guard.py` exit 0. No C# changed, so no `dotnet build` was
-run.
-
-**A counting note worth keeping, because the ritual asks for exact numbers.**
-This repo's pytest config suppresses the textual summary line - `pytest -q`
-prints only the progress block, and neither a pipeline capture nor a `>`
-redirect produced a "N passed" line. Rather than report 317 from memory or from
-eyeballing four rows of dots, the progress characters were counted directly:
-**317 dots, 0 of `F/E/s/x`, exit 0.** If a future session needs the summary line
-back, the cause is in the pytest config, not in the invocation.
-
-**What shipped: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md`,
-342 lines.** Cycle 3's first spec, and it deliberately contains no combat math.
-`ROADMAP.md` cycle 3 now names TWO specs where it said one TBD: this spike, then
-the math opened only against what the spike returns.
-
-**Five decisions the operator made, each of which changes what gets built.**
-
-1. **Scope is the spike alone**, with a declared consumer contract. Not a full
-   engine spec with the spike as phase 0.
-2. **The boss stat line reads from the PREFAB, with a live instance as a negative
-   control.** Not prefab-only, not instance-only. The prefab keeps the dump
-   repeatable; the instance is what makes a template-reading stub fail.
-3. **Coefficients key on the ability GROUP, all 1474**, in a new `ability_stats`
-   table - not by extending the 54 `abilities` rows. This is the load-bearing
-   one: it DISSOLVES ROADMAP gap 3, because a weapon ability needs no
-   `<Weapon>SpellSchoolAsset` to have coefficients, only a weapon-to-group link.
-   ADR-007 will record it.
-4. **A throwaway `/dump/components` endpoint runs FIRST**, printing full
-   component lists, with an operator gate before any schema is written.
-5. **The required-field contract includes the level/power-difference term**, not
-   just health and coefficients.
-
-**The thing this spec does that a normal spec does not: it encodes four cycle 2
-lessons as structure rather than as advice.** Advice in a doc does not survive a
-subagent; a numbered acceptance criterion does.
-
-- Full component lists, never a guessed `HasComponent` - a false return is
-  evidence only if the type name was right.
-- MINIMUM SAMPLE COUNTS, written into the protocol: three bosses spanning level
-  16 to 91, three ability groups across schools, two weapon families. The
-  `blood_types` near miss came from sampling the first two rows, which happened
-  to be the two unrepresentative ones.
-- An expected-count assertion on every table, because `vbloods` 66 survived four
-  per-row gates when every duplicate pair was byte-identical and the count was
-  the only symptom.
-- A stub-proof liveness assertion: the source entity must NOT carry
-  `Unity.Entities.Prefab` and its entity index must differ from the prefab's.
-  `StateReader.cs` compiled at 0 warnings and passed 284 tests while reading the
-  PlayerCharacter template.
-
-**The closure rule is the spec's spine.** All 14 required fields end as SOURCED
-with component and field named, or PROVEN ABSENT in the `items.tier` pattern with
-the negative control that makes the absence readable. NOT ATTEMPTED must be
-empty. No field may be defaulted to `1.0`, `0` or a plausible guess.
-
-**Self-review caught two real ambiguities, both fixed before commit.** The gates
-section demanded an expected-count assertion on every table, but `ability_stats`
-has no known count until the spike runs - so the rule now says the measured count
-is PINNED as a constant in the same commit that lands the table, which makes the
-assertion a drift detector rather than a rubber stamp. And `/dump/components` was
-called "ungated" in the deliverables while section 3 gates it on
-`GameDataInitialized`; readiness precondition and validation gate are now
-distinguished.
-
-**Housekeeping, on operator instruction.**
-
-- **There was no stray worktree.** `git worktree list` showed only
-  `C:/RedMoon [master]`. What existed was a stale BRANCH, `cycle-2-bridge`.
-  Verified fully merged first - `git merge-base --is-ancestor` exit 0 and
-  `git log master..cycle-2-bridge` empty - then deleted locally and on `origin`.
-  Nothing was lost, and the verification is why that can be said.
-- **`Remus3/RedMoon` is now PUBLIC.** Before flipping it, history was scanned:
-  `API-Key-Claude.txt` has never been committed on any ref, and no path matching
-  key/secret/token/pem/credential/password was ever ADDED in full history. The
-  repo description was also a cycle behind - it said "Cycle 1: harness plus
-  offline data floor" - and now names cycle 2 done and cycle 3 in progress.
-
-**Cycle 3 remains OPEN.** The spec is approved; nothing is implemented. Next
-session is phase 1: the exploratory endpoint and the component inventory, then
-the operator gate.
+ARCHIVED to `docs/history_notes.md`. Summary only: ledger 003a, commit
+`774d7d3`. The cycle 3 input-spike spec was approved with five operator
+decisions, the load-bearing one being that coefficients key on the ability
+GROUP rather than the ability or the school. No code was written. The repo
+was also made public after a full-history secret scan.
 
 ## 2026-07-26 - CYCLE 2 CLOSED, cycle 3 opened
 

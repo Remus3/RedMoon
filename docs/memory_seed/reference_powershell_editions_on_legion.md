@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: 9364de1e-c901-42df-aa5e-bcb1b8e0fd25
-  modified: 2026-07-26T23:32:13.674Z
+  modified: 2026-07-26T23:41:06.131Z
 ---
 
 Legion has BOTH PowerShell editions, side by side. PowerShell 7.6.4 was installed
@@ -24,17 +24,26 @@ agent PowerShell, with no `& pwsh -File` escape hatch needed.
 
 Riot Commander's `POWERSHELL_7_MIGRATION.md` section 4c claims the opposite - it
 says the tool invokes `powershell.exe` so agents must write 5.1-compatible
-PowerShell. That claim is wrong as measured. **Probe `$PSVersionTable` rather
-than trusting either that doc or this entry**, since the tool's binary can change
-under a Claude Code upgrade.
+PowerShell. That claim is wrong as measured, and it SURVIVED a revision of that
+doc: re-validated 2026-07-26 against an updated copy, 4c is unchanged and still
+wrong. **Probe `$PSVersionTable` rather than trusting either that doc or this
+entry**, since the tool's binary can change under a Claude Code upgrade.
+
+**This machine is `DESKTOP-LCA3EBI`.** That same doc's header says
+`DESKTOP-JKZECV9`, which is wrong; every other fact in it matches this box, so it
+is a mis-recorded name rather than a different machine. Tailscale is not
+installed and not on PATH here, so its `legion-rc` node label cannot be checked
+at all.
 
 Red Moon has ZERO PowerShell call sites to migrate: `RM-DataRefresh` executes
-`pythonw.exe`, and no `.py` or `.json` in the repo invokes powershell. Nothing to
-do.
+`pythonw.exe`, and no `.py`, `.json`, `.vbs`, `.bat` or `.cmd` in the repo
+invokes powershell. Nothing to do.
 
 **This does NOT relax the no-em-dash / 7-bit-ASCII rule.** PS7 does remove the
 5.1 parse failure that `CLAUDE.md` cites as the rule's rationale, so that
-rationale is now historical rather than live - but 5.1 is still installed, the
+rationale is now historical rather than live - measured here on a no-BOM UTF-8
+`.ps1` carrying U+2014 in a double-quoted string, via `[Parser]::ParseFile`,
+**5.1 reports 2 errors and 7.6.4 reports 0**. But 5.1 is still installed, the
 rule is also operator style, and `tools/ascii_guard.py` plus the precommit gate
 enforce it mechanically.
 

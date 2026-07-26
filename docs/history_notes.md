@@ -712,3 +712,93 @@ boss health is the `items.tier` fabrication with a larger blast radius.
 **Cycle 3 opens** with verified inputs on disk (`items` 425, `recipes` 663,
 `abilities` 54, `vbloods` 65, `blood_types` 13), six named gaps, and a spec
 session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.
+
+## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
+
+Branch `master`. Ledger 003a. Commits `774d7d3` (spec plus ROADMAP) and the docs
+commit backfilled into the ledger entry. **No production code changed and none
+was meant to** - this session was the spec, by explicit instruction.
+
+State at close, observed in one run after the last edit: `python -m pytest`
+**317 passed** (see the counting note below), `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0. No C# changed, so no `dotnet build` was
+run.
+
+**A counting note worth keeping, because the ritual asks for exact numbers.**
+This repo's pytest config suppresses the textual summary line - `pytest -q`
+prints only the progress block, and neither a pipeline capture nor a `>`
+redirect produced a "N passed" line. Rather than report 317 from memory or from
+eyeballing four rows of dots, the progress characters were counted directly:
+**317 dots, 0 of `F/E/s/x`, exit 0.** If a future session needs the summary line
+back, the cause is in the pytest config, not in the invocation.
+
+**What shipped: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md`,
+342 lines.** Cycle 3's first spec, and it deliberately contains no combat math.
+`ROADMAP.md` cycle 3 now names TWO specs where it said one TBD: this spike, then
+the math opened only against what the spike returns.
+
+**Five decisions the operator made, each of which changes what gets built.**
+
+1. **Scope is the spike alone**, with a declared consumer contract. Not a full
+   engine spec with the spike as phase 0.
+2. **The boss stat line reads from the PREFAB, with a live instance as a negative
+   control.** Not prefab-only, not instance-only. The prefab keeps the dump
+   repeatable; the instance is what makes a template-reading stub fail.
+3. **Coefficients key on the ability GROUP, all 1474**, in a new `ability_stats`
+   table - not by extending the 54 `abilities` rows. This is the load-bearing
+   one: it DISSOLVES ROADMAP gap 3, because a weapon ability needs no
+   `<Weapon>SpellSchoolAsset` to have coefficients, only a weapon-to-group link.
+   ADR-007 will record it.
+4. **A throwaway `/dump/components` endpoint runs FIRST**, printing full
+   component lists, with an operator gate before any schema is written.
+5. **The required-field contract includes the level/power-difference term**, not
+   just health and coefficients.
+
+**The thing this spec does that a normal spec does not: it encodes four cycle 2
+lessons as structure rather than as advice.** Advice in a doc does not survive a
+subagent; a numbered acceptance criterion does.
+
+- Full component lists, never a guessed `HasComponent` - a false return is
+  evidence only if the type name was right.
+- MINIMUM SAMPLE COUNTS, written into the protocol: three bosses spanning level
+  16 to 91, three ability groups across schools, two weapon families. The
+  `blood_types` near miss came from sampling the first two rows, which happened
+  to be the two unrepresentative ones.
+- An expected-count assertion on every table, because `vbloods` 66 survived four
+  per-row gates when every duplicate pair was byte-identical and the count was
+  the only symptom.
+- A stub-proof liveness assertion: the source entity must NOT carry
+  `Unity.Entities.Prefab` and its entity index must differ from the prefab's.
+  `StateReader.cs` compiled at 0 warnings and passed 284 tests while reading the
+  PlayerCharacter template.
+
+**The closure rule is the spec's spine.** All 14 required fields end as SOURCED
+with component and field named, or PROVEN ABSENT in the `items.tier` pattern with
+the negative control that makes the absence readable. NOT ATTEMPTED must be
+empty. No field may be defaulted to `1.0`, `0` or a plausible guess.
+
+**Self-review caught two real ambiguities, both fixed before commit.** The gates
+section demanded an expected-count assertion on every table, but `ability_stats`
+has no known count until the spike runs - so the rule now says the measured count
+is PINNED as a constant in the same commit that lands the table, which makes the
+assertion a drift detector rather than a rubber stamp. And `/dump/components` was
+called "ungated" in the deliverables while section 3 gates it on
+`GameDataInitialized`; readiness precondition and validation gate are now
+distinguished.
+
+**Housekeeping, on operator instruction.**
+
+- **There was no stray worktree.** `git worktree list` showed only
+  `C:/RedMoon [master]`. What existed was a stale BRANCH, `cycle-2-bridge`.
+  Verified fully merged first - `git merge-base --is-ancestor` exit 0 and
+  `git log master..cycle-2-bridge` empty - then deleted locally and on `origin`.
+  Nothing was lost, and the verification is why that can be said.
+- **`Remus3/RedMoon` is now PUBLIC.** Before flipping it, history was scanned:
+  `API-Key-Claude.txt` has never been committed on any ref, and no path matching
+  key/secret/token/pem/credential/password was ever ADDED in full history. The
+  repo description was also a cycle behind - it said "Cycle 1: harness plus
+  offline data floor" - and now names cycle 2 done and cycle 3 in progress.
+
+**Cycle 3 remains OPEN.** The spec is approved; nothing is implemented. Next
+session is phase 1: the exploratory endpoint and the component inventory, then
+the operator gate.

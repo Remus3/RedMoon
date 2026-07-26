@@ -20,7 +20,7 @@ Every task's requirements implicitly include this section.
 - **Game install root:** `C:\Program Files (x86)\Steam\steamapps\common\VRising`.
 - **Build pin:** `1.1.13.0-r99712`, parsed from `VERSION` (`VRising: v1.1.13.0-r99712-b17 (202605251526)`).
 - **Repo root:** `C:\RedMoon`. All paths below are relative to it unless absolute.
-- **Commit style:** `type(scope): summary`, ASCII, imperative. Commit at the end of every task.
+- **Commit style:** `type(scope): summary`, ASCII, imperative. The scope is optional for repo-wide documentation commits that span several top-level files and have no single honest scope. Commit at the end of every task.
 - **Test command:** `python -m pytest` from the repo root.
 
 ---

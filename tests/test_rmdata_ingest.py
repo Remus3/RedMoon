@@ -75,8 +75,25 @@ def good_tables():
                 "name": "Warrior",
                 "localization_guid": "guid-blood-1",
                 "bonuses": [
-                    {"quality": 30.0, "stats": {"physical_power": 5.0}},
-                    {"quality": 100.0, "stats": {"physical_power": 15.0}},
+                    {
+                        "slot": "primary",
+                        "tier": 1,
+                        "buff_guid": 4011,
+                        "buff_name": "AB_BloodBuff_Warrior_Tier1",
+                        "stats": [{"stat": "PhysicalPower", "modification": "Add"}],
+                        "value_source": "blood_quality_scaled_at_runtime",
+                    },
+                    {
+                        "slot": "primary",
+                        "tier": 2,
+                        "buff_guid": 4012,
+                        "buff_name": "AB_BloodBuff_Warrior_Tier2",
+                        "stats": [
+                            {"stat": "PhysicalPower", "modification": "Add"},
+                            {"stat": "PhysicalCriticalStrikeChance", "modification": "Add"},
+                        ],
+                        "value_source": "blood_quality_scaled_at_runtime",
+                    },
                 ],
             }
         ],
@@ -264,7 +281,11 @@ def test_census_reports_observed_nested_key_sets_and_numeric_ranges():
     assert ingredients["entry_kinds"] == ["dict"]
 
     # A container nested one level inside a list of objects is censused too.
-    assert census["blood_types"]["bonuses[].stats"]["keys"]["physical_power"]["max"] == 15.0
+    # MEASURED shape: stats is a LIST of {stat, modification} with no magnitude,
+    # so the census reports its cardinality and entry keys, not a value range.
+    nested = census["blood_types"]["bonuses[].stats"]
+    assert nested["cardinality"]["total"] == 3
+    assert set(nested["keys"]) == {"stat", "modification"}
 
     effects = census["abilities"]["effects"]
     assert effects["entry_kinds"] == ["int"]
@@ -275,7 +296,7 @@ def test_census_output_is_printed(repo, tmp_path, capsys):
     dump = write_dump(tmp_path, dump_payload())
     assert run(repo, dump) == 0
     out = capsys.readouterr().out
-    assert "physical_power" in out
+    assert "modification" in out
     assert "ingredients" in out
 
 

@@ -46,8 +46,20 @@ namespace RedMoon.Bridge
         /// </summary>
         internal static readonly string[] TargetWorldNames = { "Server", "Client_0" };
 
-        /// <summary>The only tables mapped against this build.</summary>
-        internal static readonly string[] WritableTables = { "items", "recipes" };
+        /// <summary>The tables mapped against this build.</summary>
+        internal static readonly string[] WritableTables =
+        {
+            "items", "recipes", "abilities", "vbloods", "blood_types"
+        };
+
+        /// <summary>
+        /// The suffix every spell school asset prefab carries. MEASURED: 11
+        /// prefab names contain "SpellSchool" and the school assets are exactly
+        /// "&lt;School&gt;SpellSchoolAsset". This is an ASSET IDENTIFIER, not a
+        /// semantic parsed out of a name token - the join itself is the
+        /// SpellSchoolAbility buffer on that asset's own entity.
+        /// </summary>
+        private const string SchoolAssetSuffix = "SpellSchoolAsset";
 
         internal const string ErrorWorldNotReady = "world_not_ready";
 
@@ -181,17 +193,33 @@ namespace RedMoon.Bridge
 
             bool wantItems = string.IsNullOrEmpty(table) || table == "items";
             bool wantRecipes = string.IsNullOrEmpty(table) || table == "recipes";
+            bool wantAbilities = string.IsNullOrEmpty(table) || table == "abilities";
+            bool wantVbloods = string.IsNullOrEmpty(table) || table == "vbloods";
+            bool wantBloodTypes = string.IsNullOrEmpty(table) || table == "blood_types";
 
             var watch = Stopwatch.StartNew();
             var items = new StringBuilder();
             var recipes = new StringBuilder();
+            var abilities = new StringBuilder();
+            var vbloods = new StringBuilder();
+            var bloodTypes = new StringBuilder();
             var unmapped = new StringBuilder();
             int itemCount = 0;
             int recipeCount = 0;
+            int abilityCount = 0;
+            int vbloodCount = 0;
+            int bloodTypeCount = 0;
             int unmappedCount = 0;
 
             EntityManager em = target.EntityManager;
             NativeArray<Entity> all = em.GetAllEntities(Allocator.Temp);
+
+            // The school index must exist before the first ability row, so it
+            // gets its own pass. A second full pass is affordable: the whole
+            // dump measures 57 ms for 47573 entities.
+            var schools = wantAbilities
+                ? BuildSchoolIndex(em, map, all)
+                : new System.Collections.Generic.Dictionary<int, string>();
 
             for (int i = 0; i < all.Length; i++)
             {
@@ -239,6 +267,61 @@ namespace RedMoon.Bridge
                         unmappedCount++;
                     }
                 }
+
+                // An ability row needs a school, which the schema requires. A
+                // group the school index does not name is not a defective row,
+                // it is a weapon or creature ability outside the six schools, so
+                // it is skipped rather than reported as unmapped.
+                if (wantAbilities && schools.ContainsKey(guid.GuidHash))
+                {
+                    if (TryWriteAbility(abilities, abilityCount, em, map, e, guid,
+                                        schools[guid.GuidHash]))
+                    {
+                        abilityCount++;
+                    }
+                    else
+                    {
+                        WriteUnmapped(unmapped, unmappedCount, guid,
+                                      "spell school ability whose components could not be read");
+                        unmappedCount++;
+                    }
+                }
+
+                // MEASURED: 92 prefabs carry VBloodUnit and only 65 carry
+                // VBloodConsumeSource. The other 27 are templates such as
+                // GateBossComponentsTemplate_Major, which have a UnitLevel and
+                // would look exactly like a boss row.
+                if (wantVbloods && Has<ProjectM.VBloodUnit>(em, e)
+                    && Has<ProjectM.VBloodConsumeSource>(em, e))
+                {
+                    string reason;
+                    if (TryWriteVBlood(vbloods, vbloodCount, em, map, e, guid, out reason))
+                    {
+                        vbloodCount++;
+                    }
+                    else
+                    {
+                        WriteUnmapped(unmapped, unmappedCount, guid, reason);
+                        unmappedCount++;
+                    }
+                }
+
+                // Selected by marker component, never by the BloodType_ name
+                // prefix: HasBuffer is a fact, a prefix is a guess about
+                // Stunlock's conventions.
+                if (wantBloodTypes && HasBuffer<ProjectM.Shared.PrimaryUnitBloodTypeBuffs>(em, e))
+                {
+                    if (TryWriteBloodType(bloodTypes, bloodTypeCount, em, map, e, guid))
+                    {
+                        bloodTypeCount++;
+                    }
+                    else
+                    {
+                        WriteUnmapped(unmapped, unmappedCount, guid,
+                                      "blood type prefab whose bonus buffers could not be read");
+                        unmappedCount++;
+                    }
+                }
             }
 
             watch.Stop();
@@ -251,9 +334,15 @@ namespace RedMoon.Bridge
             body.Append(",\"counts\":{");
             body.Append("\"items\":").Append(itemCount);
             body.Append(",\"recipes\":").Append(recipeCount);
+            body.Append(",\"abilities\":").Append(abilityCount);
+            body.Append(",\"vbloods\":").Append(vbloodCount);
+            body.Append(",\"blood_types\":").Append(bloodTypeCount);
             body.Append("},\"tables\":{");
             body.Append("\"items\":[").Append(items).Append(']');
             body.Append(",\"recipes\":[").Append(recipes).Append(']');
+            body.Append(",\"abilities\":[").Append(abilities).Append(']');
+            body.Append(",\"vbloods\":[").Append(vbloods).Append(']');
+            body.Append(",\"blood_types\":[").Append(bloodTypes).Append(']');
             body.Append("},\"unmapped\":[").Append(unmapped).Append("]}");
             return body.ToString();
         }
@@ -268,6 +357,388 @@ namespace RedMoon.Bridge
             {
                 return false;
             }
+        }
+
+        private static bool HasBuffer<T>(EntityManager em, Entity e) where T : unmanaged
+        {
+            try
+            {
+                return em.HasBuffer<T>(e);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // the school index
+        // -------------------------------------------------------------------
+        /// <summary>
+        /// Ability group PrefabGUID hash to school name, built from the spell
+        /// school ASSET prefabs.
+        ///
+        /// MEASURED, and the measurement is the reason this exists rather than a
+        /// name join: the `_AbilityGroup` to `_Hit` name join reaches only 258 of
+        /// 1474 groups, while the reference chain
+        /// `AbilityGroupStartAbilitiesBuffer -> _Cast -> AbilitySpawnPrefabOnCast`
+        /// resolves a cast for 1474 of 1474. The SCHOOL is a separate join
+        /// again: `ProjectM.SpellSchoolAbility` is a buffer on the
+        /// `*SpellSchoolAsset` prefab entity and names the ability group.
+        /// </summary>
+        private static System.Collections.Generic.Dictionary<int, string> BuildSchoolIndex(
+            EntityManager em, Stunlock.Core.PrefabLookupMap map, NativeArray<Entity> all)
+        {
+            var index = new System.Collections.Generic.Dictionary<int, string>();
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                Entity e = all[i];
+                Stunlock.Core.PrefabGUID guid;
+                try
+                {
+                    if (!em.HasComponent<Stunlock.Core.PrefabGUID>(e))
+                    {
+                        continue;
+                    }
+
+                    guid = em.GetComponentData<Stunlock.Core.PrefabGUID>(e);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (!HasBuffer<ProjectM.SpellSchoolAbility>(em, e))
+                {
+                    continue;
+                }
+
+                string name;
+                try
+                {
+                    name = map.GetName(guid);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (name == null || !name.EndsWith(SchoolAssetSuffix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string school = name
+                    .Substring(0, name.Length - SchoolAssetSuffix.Length)
+                    .ToLowerInvariant();
+
+                try
+                {
+                    var buffer = em.GetBuffer<ProjectM.SpellSchoolAbility>(e, true);
+                    for (int k = 0; k < buffer.Length; k++)
+                    {
+                        index[buffer[k].AbilityGroup.GuidHash] = school;
+                    }
+                }
+                catch (Exception)
+                {
+                    // A school whose buffer cannot be read contributes nothing.
+                    // Its abilities then have no school and are skipped, which
+                    // is the honest outcome, not a zero-filled row.
+                }
+            }
+
+            return index;
+        }
+
+        // -------------------------------------------------------------------
+        // abilities
+        // -------------------------------------------------------------------
+        private static bool TryWriteAbility(StringBuilder sb, int index, EntityManager em,
+                                            Stunlock.Core.PrefabLookupMap map, Entity e,
+                                            Stunlock.Core.PrefabGUID guid, string school)
+        {
+            string name;
+            try
+            {
+                name = map.GetName(guid);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            if (index > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append("{\"prefab_guid\":").Append(guid.GuidHash);
+            sb.Append(",\"name\":").Append(Json.Str(name));
+            sb.Append(",\"school\":").Append(Json.Str(school));
+
+            // damage_type is DealDamageParameters.MainType, reached through the
+            // cast. It is NOT the school - MainType's members are Physical,
+            // Spell, Fire, Holy, Silver, Garlic, RadialHoly, RadialGarlic,
+            // WeatherLightning and Corruption, and the schema's school is one of
+            // blood, chaos, frost, illusion, storm, unholy or weapon. Writing
+            // one into the other would repeat the fabricated-tier mistake.
+            string damage = DamageType(em, map, e);
+            if (damage.Length > 0)
+            {
+                sb.Append(",\"damage_type\":").Append(Json.Str(damage));
+            }
+
+            // localization_guid is OMITTED on this host. MEASURED: the runtime
+            // route resolves 0 of 425 equippables on the dedicated server -
+            // ManagedDataRegistry.TryGet returns false for every one, and the
+            // without-logging overload agrees.
+            sb.Append('}');
+            return true;
+        }
+
+        /// <summary>
+        /// The measured chain, one hop at a time and never a name join:
+        /// group -&gt; AbilityGroupStartAbilitiesBuffer.PrefabGUID -&gt; cast entity
+        /// -&gt; AbilitySpawnPrefabOnCast.SpawnPrefab -&gt; the entity carrying
+        /// DealDamageOnGameplayEvent -&gt; .Parameters.MainType.
+        ///
+        /// MEASURED coverage: 562 of 1474 groups reach damage this way, and a
+        /// second spawn hop adds exactly ZERO more, so one hop is the whole
+        /// answer. An ability that never deals damage returns "" and the field
+        /// is omitted rather than defaulted to Physical, which is also the
+        /// enum's zero value and so unreadable as evidence.
+        /// </summary>
+        private static string DamageType(EntityManager em, Stunlock.Core.PrefabLookupMap map,
+                                         Entity group)
+        {
+            try
+            {
+                if (!em.HasBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>(group))
+                {
+                    return "";
+                }
+
+                var starts = em.GetBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>(group, true);
+                for (int s = 0; s < starts.Length; s++)
+                {
+                    Entity cast;
+                    if (!map.TryGetValue(starts[s].PrefabGUID, out cast))
+                    {
+                        continue;
+                    }
+
+                    if (!em.HasBuffer<ProjectM.AbilitySpawnPrefabOnCast>(cast))
+                    {
+                        continue;
+                    }
+
+                    var spawns = em.GetBuffer<ProjectM.AbilitySpawnPrefabOnCast>(cast, true);
+                    for (int k = 0; k < spawns.Length; k++)
+                    {
+                        Entity spawned;
+                        if (!map.TryGetValue(spawns[k].SpawnPrefab, out spawned))
+                        {
+                            continue;
+                        }
+
+                        if (!em.HasBuffer<ProjectM.DealDamageOnGameplayEvent>(spawned))
+                        {
+                            continue;
+                        }
+
+                        var hits = em.GetBuffer<ProjectM.DealDamageOnGameplayEvent>(spawned, true);
+                        if (hits.Length > 0)
+                        {
+                            return Lower(hits[0].Parameters.MainType.ToString());
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return "";
+        }
+
+        // -------------------------------------------------------------------
+        // vbloods
+        // -------------------------------------------------------------------
+        private static bool TryWriteVBlood(StringBuilder sb, int index, EntityManager em,
+                                           Stunlock.Core.PrefabLookupMap map, Entity e,
+                                           Stunlock.Core.PrefabGUID guid, out string reason)
+        {
+            reason = "";
+
+            int level;
+            try
+            {
+                // MEASURED: UnitLevel.Level ranges 16..91 over the 92 VBloodUnit
+                // prefabs. VBloodConsumeSource.Tier was the recorded candidate
+                // and is NOT the level - it is a SpellSchoolProgressionTier with
+                // values Undefined and Tier1..Tier4, measured 23/19/13/6/4.
+                level = em.GetComponentData<ProjectM.UnitLevel>(e).Level._Value;
+            }
+            catch (Exception)
+            {
+                reason = "V Blood prefab with no readable UnitLevel";
+                return false;
+            }
+
+            string name;
+            try
+            {
+                name = map.GetName(guid);
+            }
+            catch (Exception)
+            {
+                name = "";
+            }
+
+            if (index > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append("{\"prefab_guid\":").Append(guid.GuidHash);
+            sb.Append(",\"name\":").Append(Json.Str(name));
+            sb.Append(",\"level\":").Append(level);
+
+            // max_health, physical_power, spell_power, resistances, blood_type,
+            // unlocks and region are all OMITTED: none has been measured on this
+            // build, and a zero here is indistinguishable from a real zero.
+            sb.Append('}');
+            return true;
+        }
+
+        // -------------------------------------------------------------------
+        // blood_types
+        // -------------------------------------------------------------------
+        /// <summary>
+        /// MEASURED: 13 blood types, each with a primary buffer of up to 5 tier
+        /// buffs and a secondary buffer of up to 4. The buffer element carries
+        /// ONE field, a PrefabGUID naming the tier's buff prefab, so the tier
+        /// ORDER is the buffer index and there is no threshold field to read.
+        ///
+        /// The bonus VALUES are deliberately not emitted. Following the buff
+        /// guid one hop reaches a real ModifyUnitStatBuff_DOTS buffer with real
+        /// StatTypes, but every Value on it measures 0 with SoftCapValue 1 -
+        /// the magnitudes are scaled from blood quality at runtime and are not
+        /// on the prefab. Emitting those zeroes would be the fabricated
+        /// items.tier mistake with a different field name.
+        /// </summary>
+        private static bool TryWriteBloodType(StringBuilder sb, int index, EntityManager em,
+                                              Stunlock.Core.PrefabLookupMap map, Entity e,
+                                              Stunlock.Core.PrefabGUID guid)
+        {
+            string name;
+            try
+            {
+                name = map.GetName(guid);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            if (index > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append("{\"prefab_guid\":").Append(guid.GuidHash);
+            sb.Append(",\"name\":").Append(Json.Str(name));
+            sb.Append(",\"bonuses\":[");
+
+            int written = 0;
+            try
+            {
+                var primary = em.GetBuffer<ProjectM.Shared.PrimaryUnitBloodTypeBuffs>(e, true);
+                for (int i = 0; i < primary.Length; i++)
+                {
+                    WriteBonus(sb, written, em, map, "primary", i + 1, primary[i].BuffType);
+                    written++;
+                }
+
+                if (em.HasBuffer<ProjectM.Shared.SecondaryUnitBloodTypeBuffs>(e))
+                {
+                    var secondary =
+                        em.GetBuffer<ProjectM.Shared.SecondaryUnitBloodTypeBuffs>(e, true);
+                    for (int i = 0; i < secondary.Length; i++)
+                    {
+                        WriteBonus(sb, written, em, map, "secondary", i + 1,
+                                   secondary[i].BuffType);
+                        written++;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // A partially written array would be invalid JSON, so the close
+                // below is the only safe recovery.
+            }
+
+            sb.Append("]}");
+            return true;
+        }
+
+        private static void WriteBonus(StringBuilder sb, int written, EntityManager em,
+                                       Stunlock.Core.PrefabLookupMap map, string slot, int tier,
+                                       Stunlock.Core.PrefabGUID buffGuid)
+        {
+            if (written > 0)
+            {
+                sb.Append(',');
+            }
+
+            string buffName;
+            try
+            {
+                buffName = map.GetName(buffGuid);
+            }
+            catch (Exception)
+            {
+                buffName = "";
+            }
+
+            sb.Append("{\"slot\":").Append(Json.Str(slot));
+            sb.Append(",\"tier\":").Append(tier);
+            sb.Append(",\"buff_guid\":").Append(buffGuid.GuidHash);
+            sb.Append(",\"buff_name\":").Append(Json.Str(buffName));
+            sb.Append(",\"stats\":[");
+
+            int stats = 0;
+            try
+            {
+                Entity buffEntity;
+                if (map.TryGetValue(buffGuid, out buffEntity)
+                    && em.HasBuffer<ProjectM.ModifyUnitStatBuff_DOTS>(buffEntity))
+                {
+                    var buffer = em.GetBuffer<ProjectM.ModifyUnitStatBuff_DOTS>(buffEntity, true);
+                    for (int i = 0; i < buffer.Length; i++)
+                    {
+                        if (stats > 0)
+                        {
+                            sb.Append(',');
+                        }
+
+                        sb.Append("{\"stat\":").Append(Json.Str(buffer[i].StatType.ToString()));
+                        sb.Append(",\"modification\":")
+                          .Append(Json.Str(buffer[i].ModificationType.ToString()));
+                        sb.Append('}');
+                        stats++;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            // value_source is a fact about the data, not a value: the prefab
+            // carries the stat NAMES and zero magnitudes.
+            sb.Append("],\"value_source\":\"blood_quality_scaled_at_runtime\"}");
         }
 
         private static void WriteUnmapped(StringBuilder sb, int index,

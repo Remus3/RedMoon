@@ -62,11 +62,13 @@ REQUIRED_REFERENCES = frozenset(
     }
 )
 
-# Only items and recipes are mapped against build 1.1.13.0-r99712. abilities,
-# vbloods and blood_types are NOT writable and must not be emitted
-# (BRIDGE_SPIKES.md, S3 live entity dump).
-WRITABLE_TABLES = ("items", "recipes")
-UNWRITABLE_TABLES = ("abilities", "vbloods", "blood_types")
+# All five tables are mapped against build 1.1.13.0-r99712 as of the cycle 2
+# measurement pass (BRIDGE_SPIKES.md, sections A to F): the ability school is
+# SpellSchoolAbility.AbilityGroup on the *SpellSchoolAsset prefab, the V Blood
+# level is UnitLevel.Level, and the blood bonus tiers are the two
+# UnitBloodTypeBuffs buffers.
+WRITABLE_TABLES = ("items", "recipes", "abilities", "vbloods", "blood_types")
+UNWRITABLE_TABLES = ()
 
 PORT_LITERALS = re.compile(r"\b(?:" + "|".join(str(port) for port in sorted(ports.ALL)) + r")\b")
 
@@ -238,7 +240,7 @@ def test_no_raw_exception_message_reaches_a_caller():
 # ---------------------------------------------------------------------------
 # the dumper writes only what is mapped
 # ---------------------------------------------------------------------------
-def test_dumper_emits_only_the_two_mapped_tables():
+def test_dumper_emits_only_the_mapped_tables():
     text = _unescaped(SRC / "PrefabDumper.cs")
     for name in WRITABLE_TABLES:
         assert f'"{name}"' in text, f"PrefabDumper.cs never emits {name}"
@@ -246,6 +248,40 @@ def test_dumper_emits_only_the_two_mapped_tables():
         assert f'"{name}"' not in text, (
             f"PrefabDumper.cs emits {name}, which BRIDGE_SPIKES.md records as NOT writable"
         )
+
+
+def test_ability_school_is_not_the_damage_type():
+    """MEASURED: DealDamageParameters.MainType is Physical, Spell, Fire, Holy,
+    Silver, Garlic, Corruption - a DAMAGE type. abilities.school is declared as
+    blood, chaos, frost, illusion, storm, unholy or weapon and comes from the
+    *SpellSchoolAsset prefab's SpellSchoolAbility buffer. Writing MainType into
+    school would be the same class of error as the fabricated items.tier."""
+    text = _unescaped(SRC / "PrefabDumper.cs")
+    assert "SpellSchoolAbility" in text, "the school does not come from the school asset"
+    school_line = [line for line in text.splitlines() if '"school"' in line]
+    assert school_line, "no school field is emitted"
+    for line in school_line:
+        assert "MainType" not in line, f"MainType is written into school: {line.strip()!r}"
+
+
+def test_ability_group_join_is_the_measured_reference_not_the_name():
+    """MEASURED: the name join reaches only 258 of 1474 _Hit siblings, while
+    AbilityGroupStartAbilitiesBuffer resolves a cast for 1474 of 1474."""
+    text = _read(SRC / "PrefabDumper.cs")
+    assert "AbilityGroupStartAbilitiesBuffer" in text
+    assert '"_Hit"' not in text, "the dumper joins abilities by name suffix"
+
+
+def test_vblood_level_is_unit_level_not_the_progression_tier():
+    """MEASURED: VBloodConsumeSource.Tier is a SpellSchoolProgressionTier with
+    values Undefined and Tier1..Tier4 over 65 V Bloods, which cannot be a boss
+    level. UnitLevel.Level ranges 16..91 over the same family."""
+    text = _unescaped(SRC / "PrefabDumper.cs")
+    assert "UnitLevel" in text
+    school_free = [line for line in text.splitlines() if '"level"' in line]
+    assert school_free, "no level field is emitted"
+    for line in school_free:
+        assert "Tier" not in line, f"the progression tier is written into level: {line.strip()!r}"
 
 
 def test_dumper_carries_the_mandatory_unmapped_array():

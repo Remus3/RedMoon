@@ -20,7 +20,7 @@ EXPECTED_SCHEMA_VERSIONS = {
     "items": 3,
     "abilities": 1,
     "vbloods": 1,
-    "blood_types": 1,
+    "blood_types": 2,
     "recipes": 1,
 }
 

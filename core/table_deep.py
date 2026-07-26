@@ -14,9 +14,14 @@ Contracts asserted here:
 
 1. recipes.ingredients   - list of objects, each with an integer prefab_guid and
                            an integer amount, and no undeclared keys.
-2. blood_types.bonuses   - list of objects, each with a numeric quality
-                           threshold and a stats mapping of name to number,
-                           ordered by ascending quality.
+2. blood_types.bonuses   - list of objects, each naming a tier's buff prefab
+                           and the stat names it modifies, ordered by ascending
+                           tier within a slot. schema_version 2. The version 1
+                           contract - a numeric quality threshold and a stats
+                           mapping of name to number - was MEASURED WRONG: the
+                           blood type prefab carries no threshold field at all,
+                           and every stat magnitude on the tier buff reads 0
+                           because it is scaled from blood quality at runtime.
 3. items.stats           - object mapping string keys to numeric values, flat.
 4. vbloods.resistances   - object mapping string keys to numeric values.
 5. vbloods.unlocks and abilities.effects - lists of scalars of a single
@@ -39,8 +44,15 @@ from core.tables import TABLE_NAMES
 INGREDIENT_KEYS = ("prefab_guid", "amount")
 """The only keys a recipes.ingredients entry may carry (recipes schema line 10)."""
 
-BONUS_QUALITY_KEY = "quality"
 BONUS_STATS_KEY = "stats"
+BONUS_REQUIRED_KEYS = ("slot", "tier", "buff_guid", BONUS_STATS_KEY)
+BONUS_OPTIONAL_KEYS = ("buff_name", "value_source")
+BONUS_SLOTS = ("primary", "secondary")
+"""MEASURED: the two buffers are PrimaryUnitBloodTypeBuffs and
+SecondaryUnitBloodTypeBuffs, so a bonus belongs to exactly one of them."""
+
+BONUS_STAT_KEYS = ("stat", "modification")
+"""A tier buff element carries a StatType and a ModificationType and NO value."""
 
 SCALAR_LIST_TYPES = (int, str)
 """Scalar kinds a single-type list may hold. bool is rejected separately."""
@@ -102,43 +114,74 @@ def _check_ingredients(index: int, field: str, value: object, problems: list[str
 
 
 def _check_bonuses(index: int, field: str, value: object, problems: list[str]) -> None:
-    """Assert bonus tiers carry a numeric quality plus stats, ascending by quality."""
+    """Assert bonus tiers name a slot, a tier, a buff and its stat names.
+
+    Tiers ascend WITHIN a slot, not across the list: the measured row carries
+    primary tiers 1..5 followed by secondary tiers 1..4, which is ordered data
+    and would fail a single global ascent check.
+    """
     if not isinstance(value, list):
         return
-    thresholds: list[float] = []
-    ordered = True
+    seen: dict[str, list[int]] = {}
     for position, entry in enumerate(value):
         where = f"row {index} field {field}[{position}]"
         if not isinstance(entry, dict):
             problems.append(f"{where} is {_kind(entry)}, expected an object")
-            ordered = False
             continue
-        if BONUS_QUALITY_KEY not in entry:
-            problems.append(f"{where} is missing {BONUS_QUALITY_KEY}")
-            ordered = False
-        elif not _is_number(entry[BONUS_QUALITY_KEY]):
+        for key in BONUS_REQUIRED_KEYS:
+            if key not in entry:
+                problems.append(f"{where} is missing {key}")
+        for key in entry:
+            if key not in BONUS_REQUIRED_KEYS and key not in BONUS_OPTIONAL_KEYS:
+                problems.append(f"{where} has undeclared key {key}")
+
+        slot = entry.get("slot")
+        if slot is not None and slot not in BONUS_SLOTS:
             problems.append(
-                f"{where} {BONUS_QUALITY_KEY} is {_kind(entry[BONUS_QUALITY_KEY])}, "
-                f"expected a number"
+                f"{where} slot is {slot!r}, expected one of {BONUS_SLOTS}"
             )
-            ordered = False
-        else:
-            thresholds.append(float(entry[BONUS_QUALITY_KEY]))
-        if BONUS_STATS_KEY not in entry:
-            problems.append(f"{where} is missing {BONUS_STATS_KEY}")
-        elif not isinstance(entry[BONUS_STATS_KEY], dict):
+
+        tier = entry.get("tier")
+        if tier is not None:
+            if not _is_integer(tier):
+                problems.append(f"{where} tier is {_kind(tier)}, expected an integer")
+            elif isinstance(slot, str):
+                seen.setdefault(slot, []).append(tier)
+
+        for key in ("buff_guid",):
+            if key in entry and not _is_integer(entry[key]):
+                problems.append(f"{where} {key} is {_kind(entry[key])}, expected an integer")
+        for key in ("buff_name", "value_source"):
+            if key in entry and not isinstance(entry[key], str):
+                problems.append(f"{where} {key} is {_kind(entry[key])}, expected a string")
+
+        stats = entry.get(BONUS_STATS_KEY)
+        if stats is None:
+            continue
+        if not isinstance(stats, list):
             problems.append(
-                f"{where} {BONUS_STATS_KEY} is {_kind(entry[BONUS_STATS_KEY])}, "
-                f"expected an object"
+                f"{where} {BONUS_STATS_KEY} is {_kind(stats)}, expected a list"
             )
-        else:
-            _check_number_mapping(
-                index, f"{field}[{position}].{BONUS_STATS_KEY}", entry[BONUS_STATS_KEY], problems
+            continue
+        for offset, stat in enumerate(stats):
+            spot = f"{where}.{BONUS_STATS_KEY}[{offset}]"
+            if not isinstance(stat, dict):
+                problems.append(f"{spot} is {_kind(stat)}, expected an object")
+                continue
+            for key in BONUS_STAT_KEYS:
+                if key not in stat:
+                    problems.append(f"{spot} is missing {key}")
+                elif not isinstance(stat[key], str):
+                    problems.append(f"{spot} {key} is {_kind(stat[key])}, expected a string")
+            for key in stat:
+                if key not in BONUS_STAT_KEYS:
+                    problems.append(f"{spot} has undeclared key {key}")
+
+    for slot, tiers in seen.items():
+        if tiers != sorted(tiers):
+            problems.append(
+                f"row {index} field {field} {slot} tiers {tiers} do not ascend"
             )
-    if ordered and thresholds != sorted(thresholds):
-        problems.append(
-            f"row {index} field {field} thresholds {thresholds} do not ascend"
-        )
 
 
 def _check_scalar_list(index: int, field: str, value: object, problems: list[str]) -> None:

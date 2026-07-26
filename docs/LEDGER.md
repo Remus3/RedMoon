@@ -14,6 +14,60 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 002e - Cycle 2 part 5: all five tables populated, and two recorded findings corrected (2026-07-26)
+
+Code and docs on `master`. Commit hash backfilled below.
+
+WHAT SHIPPED. `PrefabDumper.cs` now writes every table in `core/tables.py`. One
+live `/dump/prefabs` against the standalone dedicated server, 714 ms, validated
+and promoted by `tools/rmdata_ingest.py --accept`:
+
+| table | rows | schema_version |
+|---|---|---|
+| `items` | 425 | 3 |
+| `recipes` | 663 | 1 |
+| `abilities` | 54 | 1 |
+| `vbloods` | 66 | 1 |
+| `blood_types` | 13 | 2 |
+
+VERIFICATION, all four re-run by this session after the last edit rather than
+taken from a report: `python -m pytest` 289 passed, `python -m ruff check .`
+clean, `python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild`
+exit 0 with 0 warnings.
+
+HOW IT WAS MEASURED. Three runs of an extended `_scratch\rmprobe` in the
+dedicated server, each behind the `GameDataInitialized` gate, printing FULL
+component lists rather than probing for guessed component names. Every number is
+in `docs/BRIDGE_SPIKES.md`, "The cycle 2 measurement pass".
+
+THE TWO CORRECTIONS, both to findings this project had already recorded as
+measured:
+
+1. The ability school is NOT `DealDamageParameters.MainType`. That is the damage
+   type. `abilities.school` comes from `SpellSchoolAbility.AbilityGroup` on the
+   `<School>SpellSchoolAsset` prefab - 9 abilities in each of six schools.
+2. The V Blood level is NOT `VBloodConsumeSource.Tier`, a five-valued
+   `SpellSchoolProgressionTier`. It is `UnitLevel.Level`, measured 16 to 91.
+
+THE SCHEMA AMENDMENT, ruled on evidence. `blood_types` goes to `schema_version`
+2. The version 1 nested contract - a numeric `quality` threshold and a
+name-to-number `stats` map - is wrong on both halves: no threshold field exists,
+and every bonus magnitude reads 0 because it is scaled from blood quality at
+runtime. `core/table_deep.py` now asserts slot, 1-based tier, `buff_guid`,
+`buff_name` and a `stats` list of `{stat, modification}`, with tiers ascending
+WITHIN a slot - a global ascent check would reject the real primary-1..5-then-
+secondary-1..4 row, and there is a regression test on exactly that.
+
+TWO NEGATIVES THAT ARE RESULTS. `recipes.station_guid` is reverse-only and
+one-to-many (942 station references over 663 recipes), so the singular schema
+field owes a decision. The runtime localization join is ABSENT on the server
+host: 0 of 425 equippables resolve, with the without-logging overload as the
+control. S7 had inferred both would work.
+
+OPERATOR FIX, out of band: the flashing PowerShell consoles were the `statusLine`
+command in the user-level `settings.json`, now running `-NonInteractive
+-WindowStyle Hidden` with the original backed up beside it.
+
 ## 002d - Cycle 2 part 4: /state goes live, and two fabricated fields are retired (2026-07-26)
 
 Code commit `2bc26d5` on `master`, docs commit `e014af7` carrying this entry.

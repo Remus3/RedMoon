@@ -1,12 +1,27 @@
 {
   "table": "blood_types",
-  "schema_version": 1,
-  "description": "Blood types and their quality-scaled bonuses. Filled by the cycle 2 bridge prefab dump. UNVALIDATED NESTED SHAPE: validate_table checks only that bonuses is a list; the described ordered tiers, each with a quality threshold and scaled stat values, are documented but never checked. A passing validate_table is not a guarantee about what is inside bonuses.",
-  "required": ["prefab_guid", "name"],
+  "schema_version": 2,
+  "description": "Blood types and their quality-scaled bonuses. Filled by the cycle 2 bridge prefab dump. schema_version 2: a bonus entry names a slot (primary or secondary), a 1-based tier, the tier's buff prefab and the STAT NAMES it modifies. It carries no quality threshold and no magnitudes, because MEASURED against build 1.1.13.0-r99712 the prefab has neither: the two UnitBloodTypeBuffs buffer elements carry one PrefabGUID each and every Value on the tier buff reads 0, scaled from blood quality at runtime. core/table_deep.py asserts the nested shape; validate_table still only checks that bonuses is a list.",
+  "required": [
+    "prefab_guid",
+    "name"
+  ],
   "fields": {
-    "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
-    "name": {"type": "string", "description": "Resolved English display name, such as Warrior or Rogue."},
-    "localization_guid": {"type": "string", "description": "Key into strings.json."},
-    "bonuses": {"type": "array", "description": "Ordered bonus tiers, each with a quality threshold and scaled stat values."}
+    "prefab_guid": {
+      "type": "integer",
+      "description": "Stable in-game PrefabGUID hash."
+    },
+    "name": {
+      "type": "string",
+      "description": "Resolved English display name, such as Warrior or Rogue."
+    },
+    "localization_guid": {
+      "type": "string",
+      "description": "Key into strings.json."
+    },
+    "bonuses": {
+      "type": "array",
+      "description": "Bonus tiers, each with slot, tier, buff_guid, buff_name, a stats list of {stat, modification} and a value_source. Ordered by ascending tier within a slot."
+    }
   }
 }

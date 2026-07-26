@@ -231,3 +231,76 @@ Parked: seed_tables uses `if path.exists()` not `is_file()`, so a directory occu
 Parked: stale-file deletion in tables/ is extension-agnostic by design and matches the instruction as written, with a covering test - ruling: intentional, not a defect.
 Parked: test_live_memory_matches_the_committed_seed and test_memory_seed_is_ascii lack their own non-emptiness guard - ruling: the sibling test_memory_seed_covers_every_live_memory_file asserts is_dir() and set-equality, so the suite cannot pass with a missing or empty seed.
 Deferred (doc-sync opportunity, not a blocker): docs/BLOODFORGE.md never gained a line acknowledging the new never-clobber-a-populated-table guarantee that cycle 2 and 3 will depend on.
+
+## 2026-07-26 - Cycle 2 part 2: the probe plugin, and seven spikes closed by running it
+
+Branch `cycle-2-bridge`, three commits on top of `5933cfe`. Cycle 2 is still NOT
+done. Ledger entry 002b carries the detail.
+
+State at close, every number observed in one run after the last edit:
+`python -m pytest` 245 passed, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0.
+
+The artifact is `_scratch\rmprobe\`, a MINIMAL enumerate-and-log BepInEx plugin
+built and deployed to both hosts BEFORE any bridge code. It is scratch and not
+committed, same rule as `_scratch\typedump\`. It compiles the same generated
+`RmPorts.g.cs` the real plugin will, so the no-port-literal rule holds even in
+scratch, and it reads ECS only from `Update()` while its listener thread serves a
+constant, so it tests both halves of D7 without violating D7.
+
+Closed by measurement, not by reading:
+
+- **R17.** The client generated its own interop tree: 172 files, 169 dll,
+  matching the server exactly. That also explains the earlier "169 assemblies" -
+  it was the dll count, so no correction was needed. Assembly NAME sets are
+  identical. All 169 hashes differ, which is NOT a divergence signal because
+  Il2CppInterop codegen is non-deterministic; a hash diff would report 100
+  percent divergence between any two generations. The type-level diff is the one
+  that decides the `.csproj`, and `ProjectM.Shared`, `Stunlock.Core`,
+  `Unity.Entities` and `ProjectM.Gameplay.Systems` have ZERO real divergence.
+- **S4 fully, R2 retired.** The build works with the whole reference set, not
+  just the bare target framework. One non-obvious reference:
+  `Paths.BepInExVersion` returns a `SemanticVersioning.Version`.
+- **S1(a)** `World.All`. **S1(d)** `BepInEx.Paths.ProcessName`, `VRising` vs
+  `VRisingServer`.
+- **S1(c)** the server's target world is named `Server`, 710 systems, and world
+  selection MUST be by name: `Default World` is also a Simulation world, sits at
+  index 0, and throws when asked for the prefab map.
+- **S2** an Il2Cpp-injected `MonoBehaviour` `Update` reaches main thread 1 in
+  both hosts. No Harmony patch needed.
+- **S5 and R11** `HttpListener` binds and serves in both hosts CONCURRENTLY,
+  which is the ADR-005 payoff observed rather than argued, and after
+  `taskkill /F` the port holds no LISTEN and `--expect-unreachable` passes.
+- **S6 partial** prefab map `Count` 1189 in under a millisecond.
+- **S3** items and recipes are mapped. The headline: `EquippableData` carries NO
+  stats, only a `BuffGuid`, so `items.stats` is a two-hop read through the buff
+  prefab's `DynamicBuffer<ModifyUnitStatBuff_DOTS>`.
+
+One finding that is a real defect rather than a spike result. The suite had a
+test whose comment read "nothing is listening on the bridge ports during the
+suite" and which relied on it. The probe bound the client port, the connection
+succeeded, and the test failed with no defect in the code under test. That is the
+mirror image of cycle 1's gate-that-cannot-fail: a gate that fails for reasons
+unrelated to its assertion. Fixed by pointing `RM_GAME_HOST` at `192.0.2.1`
+(RFC 5737 TEST-NET-1). Proof it is real: 245 passed with the probe still bound
+and answering curl.
+
+Three things the next session must not get wrong:
+
+1. **A client-side dump is UNPROVEN.** At the main menu the client has TWO worlds
+   and NO prefab-carrying world at all. S1(b) has only the menu sample. The
+   in-game client world set needs a character loaded and was not measured - the
+   operator chose to wrap instead. Do not write down that the client can serve a
+   dump.
+2. The rest of S3 - ability school, V Blood level, blood bonus tiers - is gated
+   behind the SAME in-game sample, not behind more metadata reading. There is no
+   `SpellSchool` component type; the school-shaped types found are
+   `SpellSchoolAuthoring`, `SchoolDebuffData` and
+   `SpellSchoolTierProgressionPoints`, none obviously the per-ability field.
+3. `items.stats` as a flat name-to-number map is expected to need a schema
+   amendment, because it cannot carry `ModificationType`. Decide that at the
+   first-dump review, from the census, not before.
+
+Operator request logged, not started: automated V Rising launch plus OBS capture.
+Filed in `BACKLOG.md` and scoped to cycle 8 - it is an ops concern and was
+deliberately kept out of the middle of the spike chain.

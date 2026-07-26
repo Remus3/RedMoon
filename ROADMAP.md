@@ -88,18 +88,36 @@ Two fabricated fields were retired on evidence rather than convention:
 fields across 169 assemblies, zero per item), and the prefab-to-localization
 join does not exist offline (0 of 425 on seven key forms).
 
+Status 2026-07-26, ledger 002e. **All five tables are populated.**
+`items` 425, `recipes` 663, `abilities` 54, `vbloods` 66, `blood_types` 13, from
+one live server dump in 714 ms. The six open measurements are all closed, and
+`docs/BRIDGE_SPIKES.md` "The cycle 2 measurement pass" carries every number.
+
+The corrections that came out of it:
+
+- The ability school is NOT `DealDamageParameters.MainType`. That is the DAMAGE
+  type. The schema's `school` comes from `SpellSchoolAbility.AbilityGroup` on the
+  `<School>SpellSchoolAsset` prefab, which yields 9 abilities in each of the six
+  schools.
+- The V Blood level is NOT `VBloodConsumeSource.Tier`, which is a five-valued
+  spell-school progression tier. It is `UnitLevel.Level`, measured 16 to 91.
+- `blood_types` is `schema_version` 2. There is no quality threshold on the
+  prefab and every bonus magnitude reads 0, scaled from blood quality at runtime,
+  so the table carries stat NAMES and never a fabricated number.
+
 REMAINING before cycle 2 can close:
 
-- `abilities` and `vbloods` are still not writable. The ability school is found
-  (`DealDamageParameters.MainType` on the `_Hit` entity) but the
-  ability-group-to-`_Hit` join is not traced, so a row cannot be assembled.
-- `blood_types` buffer element fields are unread.
-- `recipes.station_guid` is OPEN - the station references the recipe, not the
-  reverse.
-- `localization_guid` needs the runtime `GameDataSystem.ManagedDataRegistry`
-  read.
+- `recipes.station_guid` stays OMITTED. It is reverse-only (35 workstations plus
+  23 refinement stations reference 942 recipes) and ONE-TO-MANY, so the singular
+  schema field owes a decision before ingest can invert it.
+- `localization_guid` is measured ABSENT on the server host: 0 of 425
+  equippables resolve through `ManagedDataRegistry`. Whether the CLIENT host
+  registers it is untested.
 - Whether client item COMPONENT data matches the server's is UNTESTED; only the
-  prefab maps were compared.
+  prefab maps were compared. Same client run settles both this and the line
+  above.
+- `abilities` covers the 54 spell-school abilities only; weapon abilities have no
+  school asset, and 38 of the 54 rows carry no `damage_type`.
 - `Unload()`'s graceful path is unobserved, and 4 recipes remain unmapped.
 
 ## Cycle 3 - Bloodforge core

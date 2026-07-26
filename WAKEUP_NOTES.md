@@ -3,6 +3,85 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - Cycle 2 part 5: all five tables populated, two recorded answers corrected
+
+Branch `master`. Ledger 002e.
+
+State at close, every number observed in one run after the last edit:
+`python -m pytest` **289 passed**, `python -m ruff check .` clean,
+`python tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on
+`bridge/src/RedMoon.Bridge` exit 0 with 0 warnings. All four re-run by this
+session, not taken from a report.
+
+**The headline: `abilities` 54, `vbloods` 66, `blood_types` 13 are on disk.**
+Together with `items` 425 and `recipes` 663 that is every table in
+`core/tables.py`, from one `/dump/prefabs` in 714 ms, validated and promoted by
+`rmdata_ingest --accept`.
+
+**Two things that were WRITTEN DOWN as findings and were wrong. Both were
+recorded by this project as measured, and both are the same failure: a real
+measurement answering a question nobody had checked was the right question.**
+
+1. **The ability school is not `DealDamageParameters.MainType`.** That reading is
+   correct and it is the DAMAGE type - `Physical`, `Spell`, `Fire`, `Holy`,
+   `Silver`, `Garlic`, `Corruption`. `abilities.school` is declared as blood,
+   chaos, frost, illusion, storm, unholy or weapon. The real join is
+   `DynamicBuffer<ProjectM.SpellSchoolAbility>` on the `<School>SpellSchoolAsset`
+   prefab, whose element carries `.AbilityGroup`. It yields exactly 9 abilities in
+   each of the six schools, which is itself a liveness signal - six buffers read
+   independently do not land on the same count by accident.
+2. **The V Blood level is not `VBloodConsumeSource.Tier`.** That field is a
+   `SpellSchoolProgressionTier` with five members, measured
+   `Tier1:23 Tier2:19 Tier3:13 Tier4:6 Undefined:4`. Five buckets cannot be a
+   boss level. It is `ProjectM.UnitLevel.Level`, measured 16 to 91 over 92
+   prefabs.
+
+**The ability-group join, which was the session's first task, is a REFERENCE
+join and the numbers are why.** Name join over 1474 `_AbilityGroup` names reaches
+`_Cast` 1291 but `_Hit` only **258**. The reference chain
+`AbilityGroupStartAbilitiesBuffer -> _Cast -> AbilitySpawnPrefabOnCast` resolves
+a cast for **1474 of 1474**. A second spawn hop adds exactly 0, so one hop is the
+answer and the 912 groups that never reach damage genuinely do not.
+
+**`blood_types` went to `schema_version` 2 on evidence.** The version 1 nested
+contract - a numeric `quality` threshold plus a name-to-number `stats` map - is
+wrong on BOTH halves: no threshold field exists on the prefab, and every stat
+magnitude on the tier buff reads 0 with `SoftCapValue` 1, scaled from blood
+quality at runtime. The table now carries slot, 1-based tier, `buff_guid`,
+`buff_name` and stat NAMES. Tiers ascend WITHIN a slot, not across the list; the
+real row is primary 1..5 then secondary 1..4 and a global ascent check would
+reject it. There is a regression test on that specific trap.
+
+**Two negatives that are results, not failures:**
+
+- `recipes.station_guid` is reverse-only AND one-to-many. `RecipeLinkBuffer`
+  looked like the forward link and is not - 5 of 667 recipes carry it and every
+  link resolves to another RECIPE. The station side is 35 `WorkstationRecipesBuffer`
+  plus 23 `RefinementstationRecipesBuffer` holding 942 references over 663
+  recipes. The field stays omitted until the singular-vs-plural schema question
+  is decided.
+- The runtime localization join is ABSENT on the server host. Over all 425
+  equippables, `TryGet<ManagedItemData>` returns false 425 times, and the
+  `TryGetWithoutLogging` control agrees, so it is not a logging refusal.
+  `ManagedAbilityGroupData` over 200 groups: 0 hits. S7 had this INFERRED as
+  working; it does not on this host.
+
+Near miss worth keeping: the first blood-type deep dump sampled the first two
+types, which are `BloodType_VBlood` and `BloodType_GateBoss`, both pointing at
+the single buff that has no stat buffer. It looked exactly like "blood bonuses
+carry no stats at all". Naming two REAL types settled it. Same shape as last
+session's `equip=2 recipe=2` near miss: an unrepresentative sample that reads as
+a family-wide absence.
+
+Process note: the flashing PowerShell consoles the operator saw were the
+`statusLine` command in `C:\Users\Administrator\.claude\settings.json`, which
+spawns `powershell.exe` on every status refresh. It now runs with
+`-NonInteractive -WindowStyle Hidden`; a backup of the original sits beside it as
+`settings.json.bak-statusline`. Three other scheduled tasks outside the `RM-*`
+namespace also run `powershell.exe`, two with an Interactive logon, but they fire
+daily and weekly at 03:00 and 04:15 and belong to another project on this
+machine, so they were left alone.
+
 ## 2026-07-26 - Cycle 2 part 4: /state goes live, two fabricated fields retired, S1(b) closed
 
 Branch `master` (see the branch note below), commit `2bc26d5`. Ledger 002d.
@@ -149,76 +228,3 @@ showed a second tree. Nothing was lost, but the "never commit while agents live"
 rule did real work here. It also read one instruction in its brief against
 `docs/API.md` D3, followed the repo rule, and flagged the conflict instead of
 silently choosing - which is the behaviour that should be reinforced.
-
-## 2026-07-26 - Cycle 2 part 2: the probe plugin, and seven spikes closed by running it
-
-Branch `cycle-2-bridge`, three commits on top of `5933cfe`. Cycle 2 is still NOT
-done. Ledger entry 002b carries the detail.
-
-State at close, every number observed in one run after the last edit:
-`python -m pytest` 245 passed, `python -m ruff check .` clean,
-`python tools/ascii_guard.py` exit 0.
-
-The artifact is `_scratch\rmprobe\`, a MINIMAL enumerate-and-log BepInEx plugin
-built and deployed to both hosts BEFORE any bridge code. It is scratch and not
-committed, same rule as `_scratch\typedump\`. It compiles the same generated
-`RmPorts.g.cs` the real plugin will, so the no-port-literal rule holds even in
-scratch, and it reads ECS only from `Update()` while its listener thread serves a
-constant, so it tests both halves of D7 without violating D7.
-
-Closed by measurement, not by reading:
-
-- **R17.** The client generated its own interop tree: 172 files, 169 dll,
-  matching the server exactly. That also explains the earlier "169 assemblies" -
-  it was the dll count, so no correction was needed. Assembly NAME sets are
-  identical. All 169 hashes differ, which is NOT a divergence signal because
-  Il2CppInterop codegen is non-deterministic; a hash diff would report 100
-  percent divergence between any two generations. The type-level diff is the one
-  that decides the `.csproj`, and `ProjectM.Shared`, `Stunlock.Core`,
-  `Unity.Entities` and `ProjectM.Gameplay.Systems` have ZERO real divergence.
-- **S4 fully, R2 retired.** The build works with the whole reference set, not
-  just the bare target framework. One non-obvious reference:
-  `Paths.BepInExVersion` returns a `SemanticVersioning.Version`.
-- **S1(a)** `World.All`. **S1(d)** `BepInEx.Paths.ProcessName`, `VRising` vs
-  `VRisingServer`.
-- **S1(c)** the server's target world is named `Server`, 710 systems, and world
-  selection MUST be by name: `Default World` is also a Simulation world, sits at
-  index 0, and throws when asked for the prefab map.
-- **S2** an Il2Cpp-injected `MonoBehaviour` `Update` reaches main thread 1 in
-  both hosts. No Harmony patch needed.
-- **S5 and R11** `HttpListener` binds and serves in both hosts CONCURRENTLY,
-  which is the ADR-005 payoff observed rather than argued, and after
-  `taskkill /F` the port holds no LISTEN and `--expect-unreachable` passes.
-- **S6 partial** prefab map `Count` 1189 in under a millisecond.
-- **S3** items and recipes are mapped. The headline: `EquippableData` carries NO
-  stats, only a `BuffGuid`, so `items.stats` is a two-hop read through the buff
-  prefab's `DynamicBuffer<ModifyUnitStatBuff_DOTS>`.
-
-One finding that is a real defect rather than a spike result. The suite had a
-test whose comment read "nothing is listening on the bridge ports during the
-suite" and which relied on it. The probe bound the client port, the connection
-succeeded, and the test failed with no defect in the code under test. That is the
-mirror image of cycle 1's gate-that-cannot-fail: a gate that fails for reasons
-unrelated to its assertion. Fixed by pointing `RM_GAME_HOST` at `192.0.2.1`
-(RFC 5737 TEST-NET-1). Proof it is real: 245 passed with the probe still bound
-and answering curl.
-
-Three things the next session must not get wrong:
-
-1. **A client-side dump is UNPROVEN.** At the main menu the client has TWO worlds
-   and NO prefab-carrying world at all. S1(b) has only the menu sample. The
-   in-game client world set needs a character loaded and was not measured - the
-   operator chose to wrap instead. Do not write down that the client can serve a
-   dump.
-2. The rest of S3 - ability school, V Blood level, blood bonus tiers - is gated
-   behind the SAME in-game sample, not behind more metadata reading. There is no
-   `SpellSchool` component type; the school-shaped types found are
-   `SpellSchoolAuthoring`, `SchoolDebuffData` and
-   `SpellSchoolTierProgressionPoints`, none obviously the per-ability field.
-3. `items.stats` as a flat name-to-number map is expected to need a schema
-   amendment, because it cannot carry `ModificationType`. Decide that at the
-   first-dump review, from the census, not before.
-
-Operator request logged, not started: automated V Rising launch plus OBS capture.
-Filed in `BACKLOG.md` and scoped to cycle 8 - it is an ops concern and was
-deliberately kept out of the middle of the spike chain.

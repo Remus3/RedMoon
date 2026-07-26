@@ -718,6 +718,169 @@ mismatch no default constructor produces. The lesson to carry: for a live-data
 reader, a green suite and a clean build are necessary and nowhere near
 sufficient. Only the liveness probe distinguished real from plausible.
 
+## The cycle 2 measurement pass, 2026-07-26: all five tables become writable
+
+Six open questions were carried into this pass. All six are now measured, three
+runs of an extended `_scratch\rmprobe` in the standalone dedicated server, each
+behind the same `GameDataInitialized` gate the census uses. The probe printed
+FULL component lists rather than probing for a guessed component name, because a
+`HasComponent` that returns false is only evidence when the type name was right.
+
+### A - the ability-group join: CLOSED, and it is a REFERENCE join
+
+The name join is not viable and the number says why. Over 1474 `_AbilityGroup`
+names: `_Cast` 1291, **`_Hit` 258**, `_Projectile` 177, `_Buff` 247. A join that
+reaches 17 percent of the family is not a join.
+
+The reference chain, read off the group's own component list:
+
+```
+_AbilityGroup
+  -> DynamicBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>  .PrefabGUID
+  -> the _Cast entity
+  -> DynamicBuffer<ProjectM.AbilitySpawnPrefabOnCast>          .SpawnPrefab
+  -> the entity carrying DealDamageOnGameplayEvent
+  -> .Parameters.MainType
+```
+
+MEASURED over all 1474 groups: `withStartBuffer=1474`, `startElements=1664`,
+`castResolved=1474`, `castWithSpawnBuffer=1371`, `spawnElements=1868`,
+`reachedDealDamage=562`. A SECOND spawn hop adds exactly **0** more, so one hop
+is the whole answer and the remaining 912 groups genuinely never deal damage
+through this path.
+
+### A2 - the school is NOT the damage type, and the schema meant the school
+
+This is the correction that matters most in this section. `BRIDGE_SPIKES.md`
+recorded "the ability school is `DealDamageParameters.MainType`". `MainType`'s
+members are `Physical`, `Spell`, `Fire`, `Holy`, `Silver`, `Garlic`,
+`RadialHoly`, `RadialGarlic`, `WeatherLightning`, `Corruption` - a DAMAGE type.
+`abilities.school` is declared as blood, chaos, frost, illusion, storm, unholy or
+weapon. They are different fields, and writing one into the other would have been
+the fabricated `items.tier` mistake with a new name.
+
+The real school join is on the SCHOOL asset, not the ability:
+
+```
+<School>SpellSchoolAsset prefab entity
+  -> DynamicBuffer<ProjectM.SpellSchoolAbility>
+  -> element .AbilityGroup   (PrefabGUID), plus .Tier and .MinDropLevel
+```
+
+`BloodSpellSchoolAsset`'s component list carries `ProjectM.SpellSchoolAbility`,
+`ProjectM.SpellSchoolPassive` and `ProjectM.SpellPointPassiveProgression`, all
+present on the SERVER host. The dump that followed emits **54 ability rows, 9 in
+each of the six schools** - blood, chaos, frost, illusion, storm, unholy. An
+even 9 across six independently-read buffers is itself a liveness signal.
+
+What this does NOT cover, stated rather than hidden: weapon abilities have no
+school asset and so produce no row, and only 16 of the 54 rows carry a
+`damage_type`, because a spell whose projectile deals the damage is not reached
+by the one measured hop. `damage_type` is OMITTED when unknown, never defaulted
+to `Physical`, which is also the enum's zero value and therefore unreadable as
+evidence.
+
+### B - the V Blood level: `UnitLevel.Level`, and `Tier` was the wrong candidate
+
+`ProjectM.VBloodConsumeSource.Tier` was the recorded level candidate. It is a
+`ProjectM.SpellSchoolProgressionTier`, whose only members are `Undefined` and
+`Tier1` to `Tier4`, and its measured distribution over the 65 V Bloods carrying
+the component is `Tier1:23 Tier2:19 Tier3:13 Tier4:6 Undefined:4`. Five buckets
+cannot be a boss level. It is the spell-school progression tier the boss grants.
+
+The level is `ProjectM.UnitLevel.Level`, a `ModifiableInt`, read off the real
+component list of `CHAR_Militia_HoundMaster_VBlood`. MEASURED: all 92
+`VBloodUnit` prefabs carry it, range **16 to 91**, 33 distinct values.
+
+The marker matters too. 92 prefabs carry `VBloodUnit` and only 65 carry
+`VBloodConsumeSource`; the other 27 are templates such as
+`GateBossComponentsTemplate_Major` (UnitLevel 85) that would have passed for
+bosses. The dumper requires BOTH and emits 66 rows.
+
+### C - blood type bonuses: shape MEASURED, magnitudes ABSENT
+
+13 blood types. `PrimaryUnitBloodTypeBuffs` and `SecondaryUnitBloodTypeBuffs`
+each carry ONE field, `BuffType` (a `PrefabGUID`), so the tier ORDER is the
+buffer index and there is no quality-threshold field anywhere on the prefab. The
+ordinary types carry 5 primary and 4 secondary entries; `BloodType_None` carries
+0 and `BloodType_VBlood` and `BloodType_GateBoss` carry a single shared
+`AB_BloodBuff_VBlood_0`.
+
+Following `BuffType` one hop reaches a real `ModifyUnitStatBuff_DOTS` buffer with
+real `StatType`s - `PhysicalCriticalStrikeChance`, `BonusMovementSpeed`,
+`PhysicalLifeLeech` and so on - and **every `Value` on it measures 0** with
+`SoftCapValue` 1. The magnitudes are scaled from blood quality at runtime and are
+not on the prefab. So `blood_types` is writable as slot, tier, buff and stat
+NAMES, and emitting those zeroes would have been a fabricated field.
+
+A near miss worth recording: the first pass deep-dumped the first two blood
+types, which are `BloodType_VBlood` and `BloodType_GateBoss`, both pointing at
+the one buff that has NO stat buffer at all. That looked exactly like "blood
+bonuses carry no stats". Naming two REAL types settled it.
+
+CONSEQUENCE: `blood_types` goes to **`schema_version` 2**. The version 1 nested
+contract in `core/table_deep.py` - a numeric `quality` threshold and a
+name-to-number `stats` mapping, ascending by quality - was measured wrong on
+both halves. The new contract is slot, 1-based tier, `buff_guid`, `buff_name`, a
+`stats` list of `{stat, modification}` and a `value_source`, with tiers ascending
+WITHIN a slot. A single global ascent check would reject the real row, which runs
+primary 1..5 then secondary 1..4, and there is a regression test for exactly that.
+
+### D - `recipes.station_guid`: CONFIRMED reverse-only, and one-to-many
+
+`ProjectM.RecipeLinkBuffer` looked like the forward link and is NOT it. MEASURED:
+5 of 667 recipes carry it, 56 links total, and every link resolves to ANOTHER
+RECIPE - `Recipe_Ingredient_FakeGemDust` links 24 gem recipes. It is a
+recipe-group alias, not a station reference.
+
+The station side, measured over the whole world: **35 prefabs carry
+`WorkstationRecipesBuffer` with 693 recipe references, and 23 carry
+`RefinementstationRecipesBuffer` with 249**. 942 references over 663 recipes.
+
+Two consequences, and the second is a schema question rather than a dumper one:
+
+1. `station_guid` must be INVERTED at ingest time. Nothing on the recipe entity
+   names a station.
+2. It cannot be a single guid. A recipe appears at several stations -
+   `TM_SpecialStation_PrisonCell` and `TM_SpecialStation_PrisonCell_StrongbladeDLC`
+   share all 14 - and the crafting `User` prefab itself carries 29. The field
+   stays OMITTED until that is settled; a first-station-wins value would be
+   indistinguishable from a real one.
+
+### E - the runtime localization join: MEASURED ABSENT on the server host
+
+S7 recorded the runtime route as verified in metadata and INFERRED for two
+things: that `ManagedItemData` is registered for all 425 equippables, and that
+localization is initialized on a server host. Both are now measured, and the
+answer is no.
+
+Over all 425 equippables on the dedicated server:
+`resolvedNonEmptyKey=0 resolvedEmptyKey=0 tryGetMissed=425 tryGetNullData=0
+withoutLoggingHits=0`. `GameDataSystem` is present and non-null,
+`ManagedDataRegistry` is present and non-null, and `TryGet<ManagedItemData>`
+returns false for every one. The `TryGetWithoutLogging` overload was run as the
+control and agrees, so this is not a logging-path refusal. `ManagedAbilityGroupData`
+over 200 ability groups: 0 hits.
+
+CONCLUSION: managed presentation data is not loaded in the dedicated server host.
+`localization_guid` stays omitted from every table. Whether the CLIENT host
+registers it is UNTESTED and is the natural next client-side measurement - it is
+the same host question as the item COMPONENT diff.
+
+### The dump that followed
+
+Server host, `/dump/prefabs`, 714 ms, promoted by `rmdata_ingest --accept`:
+
+| table | rows | schema_version |
+|---|---|---|
+| `items` | 425 | 3 |
+| `recipes` | 663 | 1 |
+| `abilities` | 54 | 1 |
+| `vbloods` | 66 | 1 |
+| `blood_types` | 13 | 2 |
+
+`unmapped` is still the same 4 recipes with an empty item output buffer.
+
 ## Tooling note
 
 The spike tool is `_scratch\typedump\`, a throwaway net8.0 console app that

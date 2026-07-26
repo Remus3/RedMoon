@@ -39,8 +39,14 @@ VALID_ROWS = {
         "prefab_guid": 4,
         "name": "Warrior",
         "bonuses": [
-            {"quality": 0.0, "stats": {"PhysicalPower": 1.0}},
-            {"quality": 30.0, "stats": {"PhysicalPower": 5.0}},
+            {"slot": "primary", "tier": 1, "buff_guid": 11,
+             "buff_name": "AB_BloodBuff_Warrior_Tier1",
+             "stats": [{"stat": "PhysicalPower", "modification": "Add"}],
+             "value_source": "blood_quality_scaled_at_runtime"},
+            {"slot": "primary", "tier": 2, "buff_guid": 12,
+             "buff_name": "AB_BloodBuff_Warrior_Tier2",
+             "stats": [{"stat": "PhysicalPower", "modification": "Add"}],
+             "value_source": "blood_quality_scaled_at_runtime"},
         ],
     },
     "recipes": {
@@ -175,60 +181,98 @@ def test_recipes_ingredient_boolean_prefab_guid_is_caught():
 # --- contract 2: blood_types.bonuses -----------------------------------------
 
 
+def _bonus(**overrides) -> dict:
+    """A measured-shape bonus entry: slot, 1-based tier, buff, stat NAMES."""
+    entry = {
+        "slot": "primary",
+        "tier": 1,
+        "buff_guid": 11,
+        "buff_name": "AB_BloodBuff_Warrior_Tier1",
+        "stats": [{"stat": "PhysicalPower", "modification": "Add"}],
+        "value_source": "blood_quality_scaled_at_runtime",
+    }
+    entry.update(overrides)
+    return entry
+
+
 def test_blood_types_bonuses_valid_passes():
     row = dict(VALID_ROWS["blood_types"])
     row["bonuses"] = [
-        {"quality": 0, "stats": {"PhysicalPower": 1}},
-        {"quality": 30.5, "stats": {"PhysicalPower": 5.0, "SpellPower": 2}},
-        {"quality": 100, "stats": {"PhysicalPower": 9.0}},
+        _bonus(tier=1),
+        _bonus(tier=2),
+        _bonus(slot="secondary", tier=1),
+        _bonus(slot="secondary", tier=2),
     ]
     assert deep_problems("blood_types", _table("blood_types", row)) == []
 
 
-def test_blood_types_bonuses_out_of_threshold_order_is_caught():
+def test_blood_types_bonuses_out_of_tier_order_is_caught():
     bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [
-        {"quality": 30.0, "stats": {"PhysicalPower": 5.0}},
-        {"quality": 10.0, "stats": {"PhysicalPower": 1.0}},
-    ]
+    bad["bonuses"] = [_bonus(tier=3), _bonus(tier=1)]
     problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
     _assert_flags_row_1(problems)
     assert any("ascend" in problem for problem in problems), problems
 
 
-def test_blood_types_bonus_boolean_quality_is_caught():
+def test_blood_types_tiers_ascend_within_a_slot_not_across_the_list():
+    """The measured row is primary 1..5 then secondary 1..4. A single global
+    ascent check would reject real data, so this is a regression gate on the
+    gate itself."""
+    row = dict(VALID_ROWS["blood_types"])
+    row["bonuses"] = [
+        _bonus(tier=1), _bonus(tier=2), _bonus(tier=3), _bonus(tier=4), _bonus(tier=5),
+        _bonus(slot="secondary", tier=1), _bonus(slot="secondary", tier=2),
+    ]
+    assert deep_problems("blood_types", _table("blood_types", row)) == []
+
+
+def test_blood_types_bonus_boolean_tier_is_caught():
     bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [{"quality": True, "stats": {"PhysicalPower": 1.0}}]
+    bad["bonuses"] = [_bonus(tier=True)]
+    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
+    _assert_flags_row_1(problems)
+    assert any("tier" in problem for problem in problems), problems
+
+
+def test_blood_types_bonus_unknown_slot_is_caught():
+    bad = dict(VALID_ROWS["blood_types"])
+    bad["bonuses"] = [_bonus(slot="tertiary")]
+    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
+    _assert_flags_row_1(problems)
+    assert any("slot" in problem for problem in problems), problems
+
+
+def test_blood_types_bonus_missing_buff_guid_is_caught():
+    bad = dict(VALID_ROWS["blood_types"])
+    entry = _bonus()
+    del entry["buff_guid"]
+    bad["bonuses"] = [entry]
+    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
+    _assert_flags_row_1(problems)
+    assert any("buff_guid" in problem for problem in problems), problems
+
+
+def test_blood_types_bonus_stat_entry_missing_modification_is_caught():
+    bad = dict(VALID_ROWS["blood_types"])
+    bad["bonuses"] = [_bonus(stats=[{"stat": "PhysicalPower"}])]
+    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
+    _assert_flags_row_1(problems)
+    assert any("modification" in problem for problem in problems), problems
+
+
+def test_blood_types_bonus_numeric_stat_value_is_rejected():
+    """schema_version 1 carried a name-to-number mapping. MEASURED: the prefab
+    holds no magnitudes at all, so a number here is stale data, not a bonus."""
+    bad = dict(VALID_ROWS["blood_types"])
+    bad["bonuses"] = [{"quality": 10.0, "stats": {"PhysicalPower": 5.0}}]
     problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
     _assert_flags_row_1(problems)
     assert any("quality" in problem for problem in problems), problems
 
 
-def test_blood_types_bonus_boolean_stat_value_is_caught():
+def test_blood_types_bonus_stats_not_a_list_is_caught():
     bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [{"quality": 10.0, "stats": {"PhysicalPower": True}}]
-    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
-    _assert_flags_row_1(problems)
-    assert any("PhysicalPower" in problem for problem in problems), problems
-
-
-def test_blood_types_bonus_stat_value_as_string_is_caught():
-    bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [{"quality": 10.0, "stats": {"PhysicalPower": "5"}}]
-    _assert_flags_row_1(deep_problems("blood_types", _second_row_table("blood_types", bad)))
-
-
-def test_blood_types_bonus_missing_quality_is_caught():
-    bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [{"stats": {"PhysicalPower": 5.0}}]
-    problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
-    _assert_flags_row_1(problems)
-    assert any("quality" in problem for problem in problems), problems
-
-
-def test_blood_types_bonus_stats_not_a_mapping_is_caught():
-    bad = dict(VALID_ROWS["blood_types"])
-    bad["bonuses"] = [{"quality": 10.0, "stats": [1, 2]}]
+    bad["bonuses"] = [_bonus(stats={"PhysicalPower": 1})]
     problems = deep_problems("blood_types", _second_row_table("blood_types", bad))
     _assert_flags_row_1(problems)
     assert any("stats" in problem for problem in problems), problems

@@ -92,7 +92,7 @@ Spec, first of two: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-de
 settles where the boss stat line and the ability coefficients come from. The
 combat math is a SECOND spec, opened only against what that spike returns.
 
-**Phase 1 is DONE and the OPERATOR GATE IS OPEN.** Ledger 003c, commit `68f6d57`.
+**Phase 1 is DONE and the OPERATOR GATE IS OPEN.** Ledger 003c, commit `48a9215`.
 The exploratory `/dump/components` endpoint shipped and the component inventory
 for all four subject classes is in `docs/BRIDGE_SPIKES.md` with every component
 and field named. All 14 required fields are SOURCED or PROVEN ABSENT; NOT

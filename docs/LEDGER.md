@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003d - Two drift anchors, and six checks that already existed (2026-07-26)
 
-Commits `994bd87` (tests) and `336dbd9` (ledger, notes, handoff).
+Commits `d6bfdd9` (tests) and `ba8b5d9` (ledger, notes, handoff).
 **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
 started and the operator gate on the phase 1 inventory is still open. This is
 harness work that arrived from outside the roadmap.
@@ -68,7 +68,7 @@ doc that fit is only possible after measuring which parts those are.
 
 ## 003c - Cycle 3 phase 1: the component inventory (2026-07-26)
 
-Commits `68f6d57` (endpoint plus inventory) and `4724092` (ledger, notes,
+Commits `48a9215` (endpoint plus inventory) and `2fff79f` (ledger, notes,
 ROADMAP). Exploratory only: no schema, no table, no ingest gate, no
 combat math. Stops at the operator gate by design.
 
@@ -120,11 +120,11 @@ with no `Unity.Entities.Prefab` against prefab entity 29012 with it.
 
 ## 003b - The precommit gate wired as a real git hook (2026-07-26)
 
-Commit `ca2d539`.
+Commit `64eb9e8`.
 
 THE PROBLEM. `tools/precommit_gate.py` has held the ASCII and ruff checks since
 cycle 1 and NOTHING CALLED IT. `.git/hooks` carried only `.sample` files and
-`core.hooksPath` was unset. That is how a UTF-8 BOM reached `master` in `2f14c4c`
+`core.hooksPath` was unset. That is how a UTF-8 BOM reached `master` in `56be457`
 while `python tools/ascii_guard.py` exited 1 in the same shell chain: Windows
 PowerShell 5.1 has no `&&`, so a verification joined with `;` is a log line
 rather than a gate.
@@ -210,8 +210,8 @@ the summary line, so the count was obtained by counting progress characters -
 
 STATUS. Cycle 3 is OPEN. The spec is approved and nothing is implemented.
 
-Commits: `774d7d3` (spec plus `ROADMAP.md`), `2f14c4c` (this entry, wakeup notes,
-the history archive and the phase 1 bootstrap), `f648367` (a BOM fix - see below).
+Commits: `c95c47f` (spec plus `ROADMAP.md`), `56be457` (this entry, wakeup notes,
+the history archive and the phase 1 bootstrap), `2830bfd` (a BOM fix - see below).
 
 PROCESS FAILURE IN THIS SESSION, recorded because it nearly shipped silently.
 Archiving the oldest wakeup session was done mechanically with PowerShell
@@ -220,7 +220,7 @@ put a U+FEFF at byte 0 of `WAKEUP_NOTES.md` and `ascii_guard` exited 1 - the
 exact class of defect the guard exists for, given this project's PowerShell
 parse-failure history. The guard caught it. What did NOT catch it was the shell
 chain: `guard; git add; git commit` uses `;`, so the commit ran on a FAILED gate
-and `2f14c4c` landed with the BOM in it. Fixed in `f648367`, guard back to exit 0.
+and `56be457` landed with the BOM in it. Fixed in `2830bfd`, guard back to exit 0.
 The lesson is not "remember the BOM" - it is that a verification step chained
 with `;` is not a gate, it is a log line. Chain gates with `if ($?)` or run them
 as a separate call whose exit code is read before proceeding.
@@ -290,7 +290,7 @@ because a TTK against an assumed boss health is the `items.tier` fabrication
 with a larger blast radius.
 
 VERIFICATION: `python -m pytest` 317 passed, `python tools/ascii_guard.py` exit
-0, `python -m ruff check .` clean. Commits `b78fe2a` (the close) and `3f77e22` (the
+0, `python -m ruff check .` clean. Commits `8bea7fe` (the close) and `6cf8f0a` (the
 two blockers and the doc corrections).
 
 THE LESSON CYCLE 2 LEAVES BEHIND, promoted out of the session notes because it
@@ -301,7 +301,7 @@ measurement, check what it was taken OF.
 
 ## 002f - Cycle 2 part 6: the client host, and a wrong number four gates could not see (2026-07-26)
 
-Code and docs on `master`, commit `d194589`.
+Code and docs on `master`, commit `b4e360c`.
 
 WHAT SHIPPED. The bridge now reads the localization join, inverts the station
 link, and refuses to emit a row twice. Both hosts ran the SAME binary
@@ -385,7 +385,7 @@ check what it was actually taken OF.
 
 ## 002e - Cycle 2 part 5: all five tables populated, and two recorded findings corrected (2026-07-26)
 
-Code and docs on `master`, commit `97d2a90`.
+Code and docs on `master`, commit `417060f`.
 
 WHAT SHIPPED. `PrefabDumper.cs` now writes every table in `core/tables.py`. One
 live `/dump/prefabs` against the standalone dedicated server, 714 ms, validated
@@ -439,7 +439,7 @@ command in the user-level `settings.json`, now running `-NonInteractive
 
 ## 002d - Cycle 2 part 4: /state goes live, and two fabricated fields are retired (2026-07-26)
 
-Code commit `2bc26d5` on `master`, docs commit `e014af7` carrying this entry.
+Code commit `9b1f58f` on `master`, docs commit `d0bc2b0` carrying this entry.
 No merge hash: `cycle-2-bridge` was
 fast-forwarded into `master` this session at `6acbc66` and work continued
 directly on `master`, so the code commit IS the carrying hash. The

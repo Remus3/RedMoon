@@ -5,7 +5,7 @@ Last two or three sessions at full fidelity. Archive older entries to
 
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 
-Branch `master`. Ledger 003d. Commit `994bd87` (tests) plus the docs commit that
+Branch `master`. Ledger 003d. Commit `d6bfdd9` (tests) plus the docs commit that
 carries this entry. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
 started and the operator gate on the phase 1 component inventory is STILL OPEN -
 three sessions running now. That gate is the real next action.

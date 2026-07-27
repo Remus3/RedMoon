@@ -3,7 +3,7 @@
 
 ## 2026-07-26 - The hook that was never wired, and the cycle 3 component inventory
 
-Branch `master`. Ledger 003b and 003c. Commits `ca2d539` (hooks) and `68f6d57`
+Branch `master`. Ledger 003b and 003c. Commits `64eb9e8` (hooks) and `48a9215`
 (phase 1). **Phase 1 is COMPLETE and STOPPED AT THE OPERATOR GATE.** No schema,
 no table, no ingest gate, no combat math - the spec bars all four until the
 inventory is reviewed.
@@ -17,7 +17,7 @@ session), `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0,
 
 `tools/precommit_gate.py` has held the ASCII and ruff checks since cycle 1 and
 had NO CALLER. `.git/hooks` held only `.sample` files, `core.hooksPath` was
-unset. That is the whole explanation for last session's BOM in `2f14c4c`.
+unset. That is the whole explanation for last session's BOM in `56be457`.
 
 The wiring lives entirely outside the two frozen files. `hooks/pre-commit` (sh,
 mode 100755) plus `hooks/precommit_hook.py`, committed and selected by
@@ -127,7 +127,7 @@ it now records the two-copies trap.
 ## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
 
 ARCHIVED to `docs/history_notes.md`. Summary only: ledger 003a, commit
-`774d7d3`. The cycle 3 input-spike spec was approved with five operator
+`c95c47f`. The cycle 3 input-spike spec was approved with five operator
 decisions, the load-bearing one being that coefficients key on the ability
 GROUP rather than the ability or the school. No code was written. The repo
 was also made public after a full-history secret scan.
@@ -445,7 +445,7 @@ deliberately kept out of the middle of the spike chain.
 
 ## 2026-07-26 - Cycle 2 part 4: /state goes live, two fabricated fields retired, S1(b) closed
 
-Branch `master` (see the branch note below), commit `2bc26d5`. Ledger 002d.
+Branch `master` (see the branch note below), commit `9b1f58f`. Ledger 002d.
 
 State at close, every number observed in one run after the last edit:
 `python -m pytest` **284 passed**, `python -m ruff check .` clean,
@@ -853,7 +853,7 @@ session ahead of any code. Per `ROADMAP.md` line 3 that spec is its own session.
 
 ## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
 
-Branch `master`. Ledger 003a. Commits `774d7d3` (spec plus ROADMAP) and the docs
+Branch `master`. Ledger 003a. Commits `c95c47f` (spec plus ROADMAP) and the docs
 commit backfilled into the ledger entry. **No production code changed and none
 was meant to** - this session was the spec, by explicit instruction.
 

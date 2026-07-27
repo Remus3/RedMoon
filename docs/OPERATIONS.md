@@ -21,7 +21,7 @@ Sets `core.hooksPath` to the tracked `hooks/` directory. Idempotent;
 This is mandatory, not optional hygiene. `.git/hooks` is NOT version
 controlled, so a fresh clone inherits sample files only and the gate becomes a
 script nothing calls - which is exactly what it was until 2026-07-26, when a
-UTF-8 BOM reached `master` in commit `2f14c4c` despite
+UTF-8 BOM reached `master` in commit `56be457` despite
 `python tools/ascii_guard.py` having exited 1 in the same shell chain. Windows
 PowerShell 5.1 has no `&&`, so a verification joined with `;` is a log line, not
 a gate. Only a non-zero exit from `hooks/pre-commit` blocks a commit.

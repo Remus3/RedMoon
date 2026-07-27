@@ -3,6 +3,66 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-07-26 - The co-author trailer: a policy nothing enforced, and a test that lied
+
+Branch `master`. Ledger 003e. Commits `0cb03a1` (hook plus tests), `bbc2a81`
+(CLAUDE.md), `f47acd3` (citation remap), plus the docs commit carrying this
+entry, on top of a 29-commit history rewrite that was FORCE-PUSHED to
+`origin/master`. **NO ROADMAP ITEM CLOSED.** The operator gate on the cycle 3
+phase 1 component inventory is STILL OPEN - four sessions now. That gate is the
+real next action.
+
+State at close, one run: `python -m pytest` **334 passed in 18.77s, exit 0**
+(327 before, plus 7 new), `python tools/ascii_guard.py` exit 0.
+
+**THE ASK WAS A VERIFICATION, AND IT CAME BACK NEGATIVE.** "Be sure the active
+commit-msg hook enforces the policy and strips the trailer - the tracked one
+doesn't." There was no commit-msg hook at all, tracked or active. `core.hooksPath`
+selects `hooks/`, which held only the pre-commit pair; `.git/hooks` holds only
+samples; the string `Co-Authored-By` appeared NOWHERE in the repo. The premise
+that a weaker tracked hook existed was itself wrong, and 16 commits carried the
+trailer including both of that day's earlier doc commits.
+
+**WHY AN UNWRITTEN POLICY LOSES.** The agent harness instructs the model to
+append the trailer to every commit message. A policy that lives only in the
+operator's head is a coin flip against a default that fires every single time.
+`CLAUDE.md` now carries it as a hard rule AND says the hook is a backstop, not a
+licence to emit the line - the hook cannot fire on `--no-verify` or on a rebase
+replaying old messages.
+
+**STRIP, DO NOT BLOCK.** Deliberately unlike the ASCII gate. A check that did
+not run did not pass, but a strip that did not run leaves one line the operator
+can still delete by hand; refusing the commit would trade a cosmetic defect for
+a blocked repo. Same reasoning makes a missing interpreter exit 0 in
+`hooks/commit-msg` and 1 in `hooks/pre-commit`.
+
+**THE TEST THAT WOULD HAVE LIED, AND THIS IS THE PART WORTH REMEMBERING.**
+`test_every_sha_the_ledger_cites_resolves` probes with `git cat-file -e`. Old
+objects survive a rewrite in the object database while `refs/original` and a
+backup branch still reference them, so the test went GREEN on all 36 cited SHAs
+at the exact moment a third of them named commits unreachable from master. It
+would have failed days later, after gc, with no connection to its cause. The
+remap was proven instead by grepping every tracked doc for every pre-rewrite SHA
+prefix - empty. 26 citations across five files, four of which that test does not
+even look at. **A resolving SHA is not a reachable SHA.**
+
+**BLAST RADIUS WAS MEASURED BEFORE ASKING, NOT AFTER.** Stripping 16 commits
+rewrites 29, because every descendant takes a new SHA, and all 29 were already
+on GitHub. The approval was given against that number, not against "14 commits".
+
+**THE OTHER PROJECT'S TWO TRAPS DO NOT APPLY HERE - RE-PROBED, NOT REASONED.**
+Trap 1, hooks in `.git/hooks` while `core.hooksPath` points elsewhere: RM has no
+non-sample files there. Trap 2, `precommit_gate.py` invoked with no args
+self-gating to a silent no-op: the one-liner DOES reproduce
+(`python tools/precommit_gate.py < /dev/null` exits 0) but RM never uses that
+path - `hooks/precommit_hook.py` imports `check_staged` directly. Settled by
+staging an em-dash and running a real commit: BLOCKED, `U+2014`, HEAD unmoved.
+
+**BACKUP.** Branch `backup-pre-trailer-rewrite` at the pre-rewrite tip
+`92ca7f1`, plus `refs/original/refs/heads/master`. Delete both once the
+rewritten history has been confirmed good, and note that deleting them is what
+finally makes stale citations fail the anchor test.
+
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 
 Branch `master`. Ledger 003d. Commit `d6bfdd9` (tests) plus the docs commit that

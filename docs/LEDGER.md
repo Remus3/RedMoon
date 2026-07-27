@@ -14,6 +14,72 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003e - The co-author trailer policy, enforced and backfilled (2026-07-26)
+
+Commits `0cb03a1` (hook plus tests), `bbc2a81` (CLAUDE.md hard rule), `f47acd3`
+(citation remap), plus the docs commit carrying this entry, on top of a
+history rewrite of 29 commits. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 has
+still not started and the operator gate on the phase 1 component inventory is
+STILL OPEN - four sessions running. Harness work that arrived from outside the
+roadmap.
+
+State at close, one run: `python -m pytest` **334 passed in 18.77s, exit 0**
+(327 before, plus 7 new), `python tools/ascii_guard.py` exit 0.
+
+WHAT SHIPPED.
+
+1. **The gap.** Operator policy 2026-06-03 says never emit the Claude co-author
+   trailer. Nothing enforced it. `core.hooksPath` selects `hooks/`, and `hooks/`
+   held only the pre-commit pair - there was no commit-msg hook, tracked or
+   active, and the string `Co-Authored-By` appeared nowhere in the repo. The
+   agent harness instructs the model to append the trailer to every commit, so
+   an unwritten policy lost to a default that fires constantly: 16 commits
+   carried it, and the clean ones were clean by accident.
+2. **`hooks/commit-msg` plus `hooks/commitmsg_hook.py`.** An sh shim mirroring
+   `hooks/pre-commit`, and the rewrite behind it. It STRIPS AND WARNS to stderr
+   rather than blocking, deliberately unlike the ASCII gate: a check that did
+   not run did not pass, but a strip that did not run leaves one line the
+   operator can still delete. Same reason a missing interpreter exits 0 here and
+   1 there. A human co-author survives - the policy names the Claude trailer,
+   not co-authorship. `ops/install_git_hooks.py` now requires both files, so
+   `--check` fails on a clone that lacks them.
+3. **The hard rule is written down.** `CLAUDE.md` states the policy AND states
+   that the hook is a backstop, not a licence to emit the line. Behaviour living
+   only in a hook is not a rule a reader can learn, and the harness default
+   pushes the other way in every new session.
+4. **The 16 commits were backfilled**, on explicit operator approval after the
+   blast radius was measured: stripping 16 rewrites 29, because every descendant
+   takes a new SHA, and all 29 were already pushed.
+
+THE FALSE GREEN THIS ENTRY EXISTS TO RECORD. `test_every_sha_the_ledger_cites_resolves`
+probes with `git cat-file -e`, which still resolves rewritten-away commits for
+as long as the old objects sit in the object database, referenced by
+`refs/original` and a backup branch. Immediately after the rewrite it went green
+on all 36 cited SHAs while a third of them named commits no longer reachable
+from master. THE TEST CANNOT SEE THIS CLASS OF DRIFT. The remap was verified
+instead by grepping every tracked doc for every pre-rewrite SHA prefix, which
+returns nothing. 26 citations moved across five files, and four of the five -
+`ROADMAP.md`, `WAKEUP_NOTES.md`, `docs/OPERATIONS.md`, `docs/history_notes.md` -
+are outside that test's scope entirely.
+
+VERIFICATION THAT PROVED IT, not unit tests alone. The seven new tests call the
+Python entry point directly, which cannot prove git for Windows runs the sh shim
+through `core.hooksPath`. So the trailer was deliberately included in a real
+`git commit -F` and the stored commit came back with an empty trailer field.
+
+CROSS-CHECK AGAINST THE TWO TRAPS REPORTED FROM THE OTHER PROJECT ON THIS BOX.
+Neither applies here, and both were re-probed live rather than reasoned about.
+Trap 1, hooks installed into `.git/hooks` while `core.hooksPath` points
+elsewhere: RM's `.git/hooks` holds nothing but `.sample` files, so there are no
+inert duplicates to mislead. Trap 2, a pre-commit that invokes
+`precommit_gate.py` with no arguments, where the gate reads a PreToolUse payload
+from stdin, finds no `git commit` and self-gates to a silent no-op: the
+one-liner DOES reproduce here, `python tools/precommit_gate.py < /dev/null`
+exits 0, but RM never invokes that path. `hooks/precommit_hook.py` imports
+`check_staged` directly. Settled end to end by staging an em-dash and running a
+real `git commit`: `COMMIT BLOCKED by hooks/pre-commit`, `U+2014`, HEAD
+unmoved. RM's gate is live.
+
 ## 003d - Two drift anchors, and six checks that already existed (2026-07-26)
 
 Commits `d6bfdd9` (tests) and `ba8b5d9` (ledger, notes, handoff).

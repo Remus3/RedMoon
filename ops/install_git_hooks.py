@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 HOOKS_VALUE = "hooks"
-REQUIRED_FILES = ("pre-commit", "precommit_hook.py")
+REQUIRED_FILES = ("pre-commit", "precommit_hook.py", "commit-msg", "commitmsg_hook.py")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:

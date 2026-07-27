@@ -89,6 +89,85 @@ def test_entry_point_exits_nonzero_on_a_staged_bom(tmp_path):
     assert "U+FEFF" in result.stderr
 
 
+def _run_commit_msg(tmp_path: Path, message: str) -> tuple[subprocess.CompletedProcess, str]:
+    """Run the commit-msg entry point over a message file, return it and the rewrite."""
+    target = tmp_path / "COMMIT_EDITMSG"
+    target.write_text(message, encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(HOOKS_DIR / "commitmsg_hook.py"), str(target)],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return result, target.read_text(encoding="utf-8")
+
+
+def test_commit_msg_hook_is_tracked_so_a_fresh_clone_inherits_it():
+    assert (HOOKS_DIR / "commit-msg").is_file()
+    assert (HOOKS_DIR / "commitmsg_hook.py").is_file()
+    tracked = _git("ls-files", "--error-unmatch", "hooks/commit-msg", "hooks/commitmsg_hook.py")
+    assert tracked.returncode == 0, ".git/hooks is not version controlled; hooks/ must be"
+
+
+def test_commit_msg_shim_dispatches_to_the_python_entry_point():
+    text = (HOOKS_DIR / "commit-msg").read_text(encoding="utf-8")
+    assert text.startswith("#!/bin/sh"), "git for Windows runs hooks through sh"
+    assert "commitmsg_hook.py" in text
+
+
+def test_claude_coauthor_trailer_is_stripped_and_warned(tmp_path):
+    """Operator policy 2026-06-03: never emit the Claude co-author trailer.
+
+    Fourteen of the last thirty commits carried it because nothing enforced the
+    policy. The harness default appends it, so the repo must remove it.
+    """
+    result, rewritten = _run_commit_msg(
+        tmp_path,
+        "docs(session): a subject line\n"
+        "\n"
+        "A body paragraph.\n"
+        "\n"
+        "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>\n",
+    )
+    assert result.returncode == 0, "the hook strips rather than blocks"
+    assert "Co-Authored-By" not in rewritten
+    assert "noreply@anthropic.com" not in rewritten
+    assert rewritten == "docs(session): a subject line\n\nA body paragraph.\n"
+    assert "2026-06-03" in result.stderr, "a silent strip is an invisible strip"
+
+
+def test_trailer_is_matched_regardless_of_case(tmp_path):
+    _, rewritten = _run_commit_msg(
+        tmp_path,
+        "fix: something\n\nco-authored-by: Claude <noreply@anthropic.com>\n",
+    )
+    assert "anthropic" not in rewritten.lower()
+
+
+def test_a_human_coauthor_survives(tmp_path):
+    """The policy names the Claude trailer, not co-authorship as such."""
+    _, rewritten = _run_commit_msg(
+        tmp_path,
+        "feat: paired work\n\nCo-Authored-By: Moonbeam <close.benham@gmail.com>\n",
+    )
+    assert "Moonbeam" in rewritten
+
+
+def test_a_message_without_the_trailer_is_left_byte_identical(tmp_path):
+    original = "docs(ledger): backfill a hash\n\n# Please enter the commit message.\n"
+    result, rewritten = _run_commit_msg(tmp_path, original)
+    assert rewritten == original
+    assert result.returncode == 0
+    assert result.stderr == ""
+
+
+def test_installer_requires_the_commit_msg_hook_too():
+    text = (REPO / "ops" / "install_git_hooks.py").read_text(encoding="utf-8")
+    assert "commit-msg" in text, "an uninstalled hook is a policy nothing enforces"
+    assert "commitmsg_hook.py" in text
+
+
 def test_installer_reports_the_wiring_as_installed():
     result = subprocess.run(
         [sys.executable, str(REPO / "ops" / "install_git_hooks.py"), "--check"],

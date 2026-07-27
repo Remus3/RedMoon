@@ -1,0 +1,24 @@
+#!/bin/sh
+# Red Moon git commit-msg gate. Wiring only - the rewrite lives in
+# hooks/commitmsg_hook.py.
+#
+# git for Windows runs hooks through its bundled sh, so this is a shim that
+# finds a Python interpreter and hands off, passing through the path to the
+# message file git supplies as $1.
+#
+# Unlike pre-commit, a missing interpreter does NOT fail the commit. This hook
+# removes a trailer the operator does not want; it does not certify anything.
+# Refusing the commit because the stripper is unavailable would trade a
+# cosmetic defect for a blocked repo. It warns loudly instead.
+set -e
+
+here=$(dirname "$0")
+
+for candidate in python python3 py; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        exec "$candidate" "$here/commitmsg_hook.py" "$1"
+    fi
+done
+
+echo "commit-msg: no python interpreter on PATH - trailer not stripped" >&2
+exit 0

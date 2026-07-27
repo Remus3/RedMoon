@@ -62,6 +62,13 @@ There is no bind-time race and no mandated start order.
 - **Commit messages with special characters:** use `git commit -F <tmpfile>`
   (ASCII only) or a single-quoted here-string. Never a double-quoted here-string
   and never a piped string.
+- **Never emit the Claude co-author trailer** (operator policy 2026-06-03). No
+  `Co-Authored-By: Claude ...` line in any commit message. **Why:** the agent
+  harness instructs the model to append it to every commit, so this rule exists
+  to countermand a default that fires constantly - 14 of the 30 commits before
+  it was enforced carried the trailer. `hooks/commit-msg` strips it and warns on
+  stderr, but do not rely on the hook: it is a backstop, not a licence to emit
+  the line. A human co-author is fine and is left alone.
 - **State assumptions explicitly before coding.**
 - **Frozen files** (do not modify without explicit operator approval):
   `core/ports.py`, `core/tables.py`, `tools/ascii_guard.py`,

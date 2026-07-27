@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003d - Two drift anchors, and six checks that already existed (2026-07-26)
 
-Commit `994bd87`. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
+Commits `994bd87` (tests) and `336dbd9` (ledger, notes, handoff).
+**NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
 started and the operator gate on the phase 1 inventory is still open. This is
 harness work that arrived from outside the roadmap.
 

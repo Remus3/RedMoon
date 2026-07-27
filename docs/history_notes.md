@@ -1,6 +1,144 @@
 # Red Moon History Notes
 
 
+## 2026-07-26 - The hook that was never wired, and the cycle 3 component inventory
+
+Branch `master`. Ledger 003b and 003c. Commits `ca2d539` (hooks) and `68f6d57`
+(phase 1). **Phase 1 is COMPLETE and STOPPED AT THE OPERATOR GATE.** No schema,
+no table, no ingest gate, no combat math - the spec bars all four until the
+inventory is reviewed.
+
+State at close, observed in one run after the last edit: `python -m pytest`
+**324 passed in 19.10s** (the summary line DID print this time, unlike last
+session), `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0,
+`dotnet build -c Release -t:Rebuild` on the bridge csproj exit 0 with 0 warnings.
+
+### Item 0: the gate that was a script nothing called
+
+`tools/precommit_gate.py` has held the ASCII and ruff checks since cycle 1 and
+had NO CALLER. `.git/hooks` held only `.sample` files, `core.hooksPath` was
+unset. That is the whole explanation for last session's BOM in `2f14c4c`.
+
+The wiring lives entirely outside the two frozen files. `hooks/pre-commit` (sh,
+mode 100755) plus `hooks/precommit_hook.py`, committed and selected by
+`core.hooksPath`, with `ops/install_git_hooks.py --check` asserted by the suite.
+
+**Why a wrapper rather than pointing git at the gate.** `precommit_gate.main()`
+speaks Claude Code's PreToolUse protocol: it reads JSON on stdin and ALWAYS
+returns 0, emitting a refusal as a JSON permission decision. git reads an exit
+code and nothing else, so git could never have learned a refusal from it no
+matter how it was invoked. The wrapper also does NOT swallow exceptions the way
+the PreToolUse gate must - a crashing PreToolUse hook must not block unrelated
+tooling, a crashing commit gate must block the commit.
+
+**Proven against git, which is the only proof that counts.** Seven failing tests
+first. Then a real BOM file staged in this repo and `git commit` REFUSED:
+`COMMIT BLOCKED by hooks/pre-commit`, `U+FEFF` at 1:1, exit 1, HEAD unchanged.
+Both later commits then passed through the live gate, so it blocks the bad and
+admits the good.
+
+### Phase 1: the inventory, and the value reader that had to be thrown away twice
+
+`GET /dump/components` enumerates an entity's ACTUAL component types and prints
+all of them with declared fields, nested types expanded and enum members named.
+Subjects, at the spec's minimum samples: `CHAR_*_VBlood` at levels 16, 57 and 91
+(150 components each), four ability groups across schools INCLUDING a weapon
+group, two weapon families, and a LIVE INSTANCED boss.
+
+**THE THING TO CARRY FORWARD. It reads names, not values, and that is measured.**
+Two generic value readers were built and both failed:
+
+1. Managed reflection via `EntityManagerDebug.GetComponentBoxed` - correct field
+   names, GARBAGE values. Every `Int32` on every component of every entity read
+   **539327184**, every `Single` read **1.402156E-19**. Not a plausible wrong
+   number. The SAME number everywhere, which is the tell.
+2. Raw il2cpp field offsets off that boxed pointer HARD CRASHED the dedicated
+   server process on the first request. Twice. So did the raw
+   `il2cpp_class_get_fields` iterator, reading metadata only.
+
+`GetComponentBoxed` does not hand back an object backed by real chunk memory on
+this build. **Do not spend another session on a generic value reader.** Values
+are read the way cycle 2 reads them - typed, with the type spelled out - and the
+inventory now says which type to spell.
+
+**What caught failure 1 cost nothing and is the transferable part.** Every entity
+carries `Stunlock.Core.PrefabGUID`, whose value the same response ALREADY states
+from a typed read. The generic reader said 539327184 where the truth was
+-327335305. A reader with no such control would have shipped and every line of
+the inventory would have been fiction. When building any new reader, find the
+quantity you already know and make the new path restate it.
+
+### The 14 fields, and NOT ATTEMPTED is empty
+
+T1 `ProjectM.Health.MaxHealth`. T3 `UnitLevel.Level`. T4 and P2 named as
+candidates. A1 `AbilityCastTimeData.MaxCastTime`. A2
+`AbilityCooldownData.Cooldown` plus `GlobalCooldown.Value`. A3
+`DealDamageParameters.MainFactor`. A4 `.MainType`. L1 CLOSED as a four-hop chain:
+item -> `EquippableData.BuffGuid` -> `EquipBuff_Weapon_<Family>_Base` ->
+`DynamicBuffer<ReplaceAbilityOnSlotBuff>` -> `.NewGroupId`.
+
+**T2 splits and the split is the finding.** `UnitStats` carries
+`PhysicalResistance`, `SpellResistance`, `FireResistance` and
+`CorruptionDamageReduction`. Holy, Silver and Garlic have NO unit-side field
+anywhere in 150 enumerated components; `ResistanceData` holds only global
+per-rating conversion rates. Those are the anti-vampire types, so the absence is
+coherent rather than a miss - but it is a full enumeration, not a failed
+`HasComponent`, which is what makes it readable at all.
+
+A5 is PROVEN ABSENT as a field: no power-selector member on the `_Hit` entity's
+51 components, and `MainType` is the only discriminator present. A6 is the one
+PARTIAL and it is a counting job over buffer lengths, not a hunt.
+
+### Two cycle 2 statements corrected, both by a live component list
+
+- **`ProjectM.AbilitySpellSchool` DOES exist**, on the ability GROUP, carrying
+  `SpellSchool` (guid) and `Tier`. Cycle 2 recorded "there is no `SpellSchool`
+  component type" and joined through the `<School>SpellSchoolAsset` buffer
+  instead. Those 54 rows are not wrong; the type was missed by metadata scans and
+  a live list found it in one run. Exactly the `EquippableData` shape.
+- **`ProjectM.WeaponAbilityData` tells a weapon group from a spell group by
+  COMPONENT.** That is what dissolves ROADMAP cycle 3 gap 3 in data rather than
+  by argument. `VBloodAbilityData.AbilitySchool` is a second school source and
+  its enum carries `Shadow`, which the six-school join cannot produce.
+
+### The liveness assertion, and a real subject for the phase 3 control
+
+Instanced `CHAR_Vampire_Dracula_VBlood` is entity **322916** with NO
+`Unity.Entities.Prefab`; the prefab is entity **29012** with it. 151 components
+against 150. Instance-only: `AttachParentId`, `AttachedBuffer`,
+`DisabledDueToNoPlayersInRange`, `Unity.Entities.Disabled`. **Every stat-bearing
+component is on BOTH**, so phase 3's prefab-versus-instance control can be a
+VALUE comparison rather than a presence check.
+
+### Two operational traps that each cost a debug cycle
+
+- **Two plugin copies under `plugins\`.** A stale flat
+  `plugins\RedMoon.Bridge.dll` sat beside the fresh
+  `plugins\RedMoon.Bridge\RedMoon.Bridge.dll`. BepInEx loaded both; one bound
+  8780 and the other stood down, and the one answering was the STALE build. It
+  served `/health` perfectly and returned `not_found` for the endpoint that had
+  just been built. Check for a second copy before blaming the code.
+- **The server sometimes dies on a relaunch immediately after `taskkill /F`.**
+  Waiting a few seconds and launching again works every time. Not investigated.
+
+`docs/OPERATIONS.md` named a bridge `.sln` that has never existed; corrected, and
+it now records the two-copies trap.
+
+## 2026-07-26 - Cycle 3 spike SPEC approved, and the repo went public
+
+ARCHIVED to `docs/history_notes.md`. Summary only: ledger 003a, commit
+`774d7d3`. The cycle 3 input-spike spec was approved with five operator
+decisions, the load-bearing one being that coefficients key on the ability
+GROUP rather than the ability or the school. No code was written. The repo
+was also made public after a full-history secret scan.
+
+## 2026-07-26 - CYCLE 2 CLOSED, cycle 3 opened
+
+ARCHIVED to `docs/history_notes.md`. Summary only: cycle 2 closed on the
+operator's call with three weighed residue items, and the session found the two
+cycle 3 blockers - there is no boss stat line and there are no ability
+coefficients in the promoted tables.
+
 ## 2026-07-26 - Cycle 2 part 1: ADR-005, the Python half, spikes S4 and S3a closed
 
 Branch `cycle-2-bridge`, two commits (`9fbce0c`, `251803b`). Cycle 2 is NOT

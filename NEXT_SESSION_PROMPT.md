@@ -19,7 +19,7 @@ CONTEXT, do not re-derive or re-verify:
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above rather than from a hash written here.
-- Last verified: pytest 324 passed, ruff clean, ascii_guard exit 0, dotnet build
+- Last verified: pytest 327 passed, ruff clean, ascii_guard exit 0, dotnet build
   -c Release -t:Rebuild on bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj exit 0
   with 0 warnings. There is NO .sln - build the csproj.
 - The precommit gate is now WIRED: committed hooks/ plus core.hooksPath, proven
@@ -32,6 +32,23 @@ CONTEXT, do not re-derive or re-verify:
   CLOSED, twice, most recently against an updated copy. Its section 4c and its
   header hostname are wrong; Red Moon has zero PowerShell call sites of any file
   type. Do not re-audit it and do not edit it - it belongs to another project.
+- The external DONE_RITUAL_OPTIMIZED.md on the Desktop is PROCESSED AND CLOSED,
+  ledger 003d. Six of its eight drift checks already existed here as tests; the
+  two that did not are now tests/test_drift_anchors.py. Its CI speed rewrite is
+  inapplicable - this suite is 18s and there is no .github/. Do not re-process
+  it, do not build tools/drift_guard.py, and do not add a CI workflow for it.
+- NEW GUARD, know it before you bump anything: tests/test_drift_anchors.py
+  asserts that every build pin in a non-historical tracked file equals the one
+  CLAUDE.md declares, and that every backtick-quoted hash in docs/LEDGER.md
+  resolves to a real commit. A build bump must therefore land on ALL sites in
+  one commit, and a ledger hash written from a worktree slice will now fail the
+  suite rather than rot silently. Fixture pins must use majors 8 or 9.
+- SCHEDULED TASKS ARE SETTLED. Enumerated machine-wide on 2026-07-26: no task
+  on this box can show a window. The five running a console binary are all S4U
+  or ServiceAccount, which have no desktop; every Interactive task runs a GUI
+  binary or pythonw.exe. RM-DataRefresh is Interactive but runs pythonw.exe and
+  is correct. The Hidden property only controls Task Scheduler LIST visibility,
+  not console windows - do not "fix" a task because Hidden reads False.
 
 WHAT PHASE 1 ESTABLISHED, which is what you build against.
 

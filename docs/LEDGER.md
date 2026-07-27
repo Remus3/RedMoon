@@ -14,6 +14,57 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003d - Two drift anchors, and six checks that already existed (2026-07-26)
+
+Commit `994bd87`. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
+started and the operator gate on the phase 1 inventory is still open. This is
+harness work that arrived from outside the roadmap.
+
+WHAT SHIPPED. `tests/test_drift_anchors.py`, three tests, closing the only two
+gaps a proposed eight-check drift guard actually had against this repo.
+
+1. **Build-pin anchor.** The game build pin has about 97 tracked sites and
+   nothing asserted they agree with the one CLAUDE.md declares, so a bump could
+   land on some and silently miss others. The check reads the canonical pin out
+   of CLAUDE.md rather than hardcoding it. The documented `v3` stale-trap pin is
+   allowlisted BY VALUE, not by file, so it keeps its own identity instead of
+   drifting onto the current pin. Historical records - `history_notes.md`, this
+   ledger, `BRIDGE_SPIKES.md`, `WAKEUP_NOTES.md` and the dated
+   `docs/superpowers/` specs - are excluded, because a superseded pin in a
+   record of what was true is correct. Fixture pins are recognised BY SHAPE
+   (majors 8 and 9, which V Rising cannot reach) rather than by exclusion of
+   `tests/`, so a fixture asserting against the CURRENT build still has to move
+   when the pin moves.
+2. **Ledger SHA anchor.** Nothing verified the commit hashes this file cites by
+   its own stated format. A hash written from a worktree slice does not survive
+   cherry-pick, and the failure only surfaces when someone later tries to use
+   the citation. Entry 003c needed exactly this backfill last session.
+
+THE VERIFICATION THAT PROVED IT. Both anchors were confirmed to FAIL on injected
+violations before being accepted, because a guard that cannot fail proves
+nothing: a stale pin `1.1.12.0-r99000` appended to `docs/API.md` tripped the
+first, and a fabricated eight-hex hash appended to this file tripped the second.
+Each named the offending file, line and value. The working tree was restored and
+`git status --porcelain` confirmed clean afterwards. Suite: **327 passed in
+18.47s** (324 before, plus these 3), `python tools/ascii_guard.py` exit 0.
+
+WHAT WAS DELIBERATELY NOT BUILT, AND WHY. The source proposed a standalone
+`tools/drift_guard.py` carrying eight checks. Measured against this repo, six of
+them already exist as tests: `test_claude_md_stays_under_the_size_budget`,
+`test_live_memory_matches_the_committed_seed`, `test_memory_namespace_is_seeded`
+(stricter than the proposal - an exact expected set, not a link parse),
+`test_every_adr_file_is_listed_in_the_index`, `.claude/` being fully tracked,
+and a counted-claim construct this repo does not have. Adding the script would
+have duplicated them into a second place that runs only at wrap, where the tests
+run on every `pytest`. The two real gaps became tests in the same suite instead.
+
+THE LESSON, WHICH THE SOURCE DOC TAUGHT AND THEN EARNED. Its own headline advice
+is to measure the shape before choosing a lever. Applied to itself, its central
+premise - a 27-minute suite worth moving to CI - does not hold here: this suite
+is 18.47s, there is no `.github/`, and overlapping doc-writing with a dispatched
+CI run would have been pure overhead. Adopting the parts of an external process
+doc that fit is only possible after measuring which parts those are.
+
 ## 003c - Cycle 3 phase 1: the component inventory (2026-07-26)
 
 Commits `68f6d57` (endpoint plus inventory) and `4724092` (ledger, notes,

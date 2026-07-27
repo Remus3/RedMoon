@@ -58,10 +58,22 @@ self-gating to a silent no-op: the one-liner DOES reproduce
 path - `hooks/precommit_hook.py` imports `check_staged` directly. Settled by
 staging an em-dash and running a real commit: BLOCKED, `U+2014`, HEAD unmoved.
 
-**BACKUP.** Branch `backup-pre-trailer-rewrite` at the pre-rewrite tip
-`92ca7f1`, plus `refs/original/refs/heads/master`. Delete both once the
-rewritten history has been confirmed good, and note that deleting them is what
-finally makes stale citations fail the anchor test.
+**BACKUP, NOW GONE.** Branch `backup-pre-trailer-rewrite` and
+`refs/original/refs/heads/master` were deleted and gc'd with `--prune=now` after
+the rewritten history was confirmed good. The pre-rewrite objects no longer
+resolve, which is what makes the ledger SHA anchor a real check again - it
+passes against a purged object database, so the 26-citation remap is proven
+complete rather than merely resolving off lingering objects.
+
+**ORPHANED-HOOK CLASS, CHECKED AND CLEAR - BUT RM IS PRE-ARMED FOR IT.**
+`.git/hooks` holds only `.sample` files, there is no `.gitattributes`, and
+`git lfs ls-files` is empty, so nothing was silently disabled when
+`core.hooksPath` was set. LATENT RISK: `filter.lfs.required=true` IS configured.
+`git lfs install` writes its hooks to `.git/hooks`, which `core.hooksPath`
+makes git ignore. So the first LFS-tracked file added to this repo gets an inert
+`pre-push`, pushes look clean, and the LFS content never reaches the remote.
+If LFS is ever adopted here, port the LFS hooks into `hooks/` in the same
+commit.
 
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 

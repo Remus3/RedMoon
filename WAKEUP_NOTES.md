@@ -73,7 +73,12 @@ complete rather than merely resolving off lingering objects.
 makes git ignore. So the first LFS-tracked file added to this repo gets an inert
 `pre-push`, pushes look clean, and the LFS content never reaches the remote.
 If LFS is ever adopted here, port the LFS hooks into `hooks/` in the same
-commit.
+commit. GUARDED as of this session by
+`test_no_orphaned_hooks_left_behind_in_git_hooks`. It asserts a condition that
+was ALREADY TRUE, so it could not fail first and could have shipped vacuously
+green - it was proven by injecting a fake `.git/hooks/pre-push`, watching it go
+red naming that file, and removing it. A guard test that has never been seen red
+is not a guard.
 
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 

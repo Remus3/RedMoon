@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 HOOKS_DIR = REPO / "hooks"
 
@@ -87,6 +89,51 @@ def test_entry_point_exits_nonzero_on_a_staged_bom(tmp_path):
     )
     assert result.returncode != 0, "a staged BOM must block the commit"
     assert "U+FEFF" in result.stderr
+
+
+def _default_hooks_dir() -> Path:
+    """`.git/hooks`, resolved through git so a worktree does not fool it."""
+    result = _git("rev-parse", "--git-common-dir")
+    common = Path(result.stdout.strip())
+    if not common.is_absolute():
+        common = REPO / common
+    return common / "hooks"
+
+
+def test_no_orphaned_hooks_left_behind_in_git_hooks():
+    """Setting core.hooksPath silently disables whatever `.git/hooks` holds.
+
+    This is not hypothetical - it cost the other project on this box its Git LFS
+    pre-push hook, so pushes looked clean while LFS content never reached the
+    remote. It fails in the direction that loses data and reports success, which
+    is why it is asserted rather than left as a note.
+
+    RM is pre-armed for exactly that: `filter.lfs.required=true` is configured,
+    and `git lfs install` writes its hooks to `.git/hooks`, where core.hooksPath
+    makes git ignore them. The first LFS-tracked file added here would arrive
+    with an inert pre-push unless the hooks are ported into `hooks/` too.
+    """
+    configured = _git("config", "core.hooksPath").stdout.strip()
+    default_dir = _default_hooks_dir()
+    if not configured or (REPO / configured).resolve() == default_dir.resolve():
+        # `.git/hooks` IS the active directory, so nothing there is orphaned.
+        # That core.hooksPath must be set at all is a separate assertion, in
+        # test_core_hooks_path_selects_the_committed_hooks_dir.
+        pytest.skip("core.hooksPath is unset, so .git/hooks is not bypassed")
+
+    if not default_dir.is_dir():
+        return
+
+    orphans = sorted(
+        entry.name
+        for entry in default_dir.iterdir()
+        if entry.is_file() and not entry.name.endswith(".sample")
+    )
+    assert not orphans, (
+        f"core.hooksPath={configured!r}, so git ignores {default_dir}, but it "
+        f"holds {orphans} - these hooks look installed and never run. Port them "
+        f"into hooks/ or delete them; do not leave them to be believed in."
+    )
 
 
 def _run_commit_msg(tmp_path: Path, message: str) -> tuple[subprocess.CompletedProcess, str]:

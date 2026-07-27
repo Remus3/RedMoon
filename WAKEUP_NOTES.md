@@ -6,8 +6,8 @@ Last two or three sessions at full fidelity. Archive older entries to
 ## 2026-07-26 - The co-author trailer: a policy nothing enforced, and a test that lied
 
 Branch `master`. Ledger 003e. Commits `0cb03a1` (hook plus tests), `bbc2a81`
-(CLAUDE.md), `f47acd3` (citation remap), plus the docs commit carrying this
-entry, on top of a 29-commit history rewrite that was FORCE-PUSHED to
+(CLAUDE.md), `f47acd3` (citation remap) and `d49bc3f` (this entry), on top of a
+29-commit history rewrite that was FORCE-PUSHED to
 `origin/master`. **NO ROADMAP ITEM CLOSED.** The operator gate on the cycle 3
 phase 1 component inventory is STILL OPEN - four sessions now. That gate is the
 real next action.

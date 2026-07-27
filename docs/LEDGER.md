@@ -17,7 +17,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003e - The co-author trailer policy, enforced and backfilled (2026-07-26)
 
 Commits `0cb03a1` (hook plus tests), `bbc2a81` (CLAUDE.md hard rule), `f47acd3`
-(citation remap), plus the docs commit carrying this entry, on top of a
+(citation remap) and `d49bc3f` (this entry), on top of a
 history rewrite of 29 commits. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 has
 still not started and the operator gate on the phase 1 component inventory is
 STILL OPEN - four sessions running. Harness work that arrived from outside the

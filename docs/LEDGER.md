@@ -14,6 +14,52 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003f - The orphaned-hook guard, and the fresh-clone ceiling (2026-07-26)
+
+Commits `8f632b6` (the guard test), `9a624c3` (gc and the latent LFS risk) and
+`<pending>` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 has still
+not started and the operator gate on the phase 1 component inventory is STILL
+OPEN. Harness work, arriving from a cross-project handoff rather than the
+roadmap.
+
+State at close, one run: `python -m pytest` **335 passed in 18.73s, exit 0**
+(334 before, plus 1 new), `python tools/ascii_guard.py` exit 0.
+
+WHAT SHIPPED.
+
+1. **`test_no_orphaned_hooks_left_behind_in_git_hooks`.** Setting
+   `core.hooksPath` silently disables whatever `.git/hooks` already held. On the
+   other project on this box that cost a Git LFS `pre-push`, so pushes looked
+   clean while LFS content never reached the remote. It fails in the direction
+   that loses data AND reports success, which is why it is asserted rather than
+   noted. RM is clean today but PRE-ARMED for it: `filter.lfs.required=true` is
+   configured, and `git lfs install` writes to `.git/hooks`, which
+   `core.hooksPath` makes git ignore. The first LFS-tracked file added here
+   arrives with an inert pre-push.
+2. **The rewrite's backups were deleted and gc'd** with `--prune=now` after the
+   history was confirmed good. This is what made the ledger SHA anchor a real
+   check for the first time: the pre-rewrite objects no longer resolve, so
+   `test_every_sha_the_ledger_cites_resolves` passing now proves the 26-citation
+   remap complete rather than merely resolving off lingering objects.
+
+VERIFICATION, AND THE TWO PROBES THAT MATTERED MORE THAN THE SUITE.
+
+The guard test asserts a condition that WAS ALREADY TRUE, so it could not fail
+first and could have shipped vacuously green - a typo'd path would look
+identical. It was proven by injecting a fake `.git/hooks/pre-push`, watching it
+go red naming that file, and removing it. A guard nobody has seen red is not a
+guard.
+
+`core.hooksPath` is LOCAL config and is NOT cloned, so a tracked hooks directory
+is inert on arrival however correct it is. Verified by actually cloning: a fresh
+`git clone` of this repo has `core.hooksPath` unset and zero active hooks. RM
+covers it at `docs/OPERATIONS.md` ("Wire the commit gate, once per clone",
+marked mandatory) and by two suite failures there, one printing the remediation
+command. The orphaned-hook test correctly SKIPPED in that clone, exercising its
+skip branch for real. THE RESIDUAL GAP IS UNCLOSEABLE: between clone and first
+verification, nothing has told the operator. Git never clones hooks by design.
+The ceiling is loud-on-first-verification, not safe-on-arrival.
+
 ## 003e - The co-author trailer policy, enforced and backfilled (2026-07-26)
 
 Commits `0cb03a1` (hook plus tests), `bbc2a81` (CLAUDE.md hard rule), `f47acd3`

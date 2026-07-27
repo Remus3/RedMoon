@@ -80,6 +80,23 @@ green - it was proven by injecting a fake `.git/hooks/pre-push`, watching it go
 red naming that file, and removing it. A guard test that has never been seen red
 is not a guard.
 
+**FRESH-CLONE BOOTSTRAP, RAISED FROM THE OTHER PROJECT AND VERIFIED HERE BY
+ACTUALLY CLONING.** `core.hooksPath` is LOCAL config and is NOT cloned, so a
+tracked hooks directory is inert on arrival no matter how correct it is. Probed
+rather than reasoned: `git clone C:/RedMoon <scratch>` came back with
+`core.hooksPath` UNSET and zero active hooks. RM already covers it in two
+places - `docs/OPERATIONS.md` has "Wire the commit gate, once per clone" marked
+mandatory, and the suite fails there on
+`test_core_hooks_path_selects_the_committed_hooks_dir` plus
+`test_installer_reports_the_wiring_as_installed`, the latter printing the exact
+remediation command. The new orphaned-hook test correctly SKIPPED in that
+clone, so its skip branch is exercised for real rather than assumed.
+THE RESIDUAL GAP CANNOT BE CLOSED BY ANYONE: between clone and the first
+verification run, nothing has told the operator yet. Git never clones hooks by
+design, because that would execute arbitrary code on clone. The ceiling is
+"loud on first verification", not "safe on arrival". A local clone is cheap -
+the repo is 685K - so this probe is worth repeating whenever the wiring changes.
+
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 
 Branch `master`. Ledger 003d. Commit `d6bfdd9` (tests) plus the docs commit that
@@ -233,91 +250,3 @@ was extended with the hostname correction, the 2/0 parse numbers and the fact
 that 4c survived a revision, and `docs/memory_seed/` was re-synced in the same
 commit by copying the live file AFTER the memory system rewrote its `modified:`
 timestamp, which is the ordering last session learned the hard way.
-
-## 2026-07-26 - A PowerShell 7 migration doc, audited against this repo
-
-Branch `master`. **NO ROADMAP ITEM CLOSED, no production code changed, and no
-ledger entry was written** - see the note at the end of this section for why
-that is deliberate rather than an omission. Cycle 3 phase 2 has not started.
-
-State at close, observed in one run: `python -m pytest` exit 0 with **324 dots
-and zero of `F/E/s/x`**, `python tools/ascii_guard.py` exit 0. The working tree
-was clean at session start and stayed clean apart from these notes. The pytest
-summary line still does not print in this repo (the cause is the pytest config,
-not the invocation) so the count is from the progress block, as last session
-also recorded.
-
-**The input.** The operator pasted
-`C:\Users\Administrator\Desktop\POWERSHELL_7_MIGRATION.md`, written by ANOTHER
-PROJECT on this same machine. PowerShell 7.6.4 was installed there via the MSI
-(deliberately not the MSIX, whose real path carries the version and whose
-launcher is a per-user app-execution alias - both disqualifying for scheduled
-tasks). 5.1 is untouched and still lives at `powershell.exe`; PS7 is
-`C:\Program Files\PowerShell\7\pwsh.exe`. It is a side-by-side install and
-nothing switched automatically.
-
-**THE FINDING, and it is the whole session.** That doc's section 4c asserts that
-Claude Code's PowerShell tool invokes `powershell.exe`, so an agent on this box
-must keep writing 5.1-compatible PowerShell. **Measured in this session, it does
-not.** `$PSVersionTable` through the tool returns **7.6.4, edition Core**, and
-`(Get-Process -Id $PID).Path` returns
-**`C:\Program Files\PowerShell\7\pwsh.exe`**. So `&&`, `||`, ternary, `??`,
-`?.` and `ConvertFrom-Json -AsHashtable` all work directly in agent PowerShell
-here, with no `& pwsh -File` escape hatch needed. The doc's stated workaround is
-real but unnecessary. It was checked 2026-07-26 by that project and is wrong as
-of the same date here, so it was either inferred rather than probed, or the tool
-changed under it. Either way: **probe `$PSVersionTable` before planning around
-which PowerShell an agent gets.**
-
-**Red Moon has nothing to migrate. Section 4 of that doc is a no-op here, and
-this was verified rather than assumed:**
-
-- **Scheduled tasks (4a).** The only `RM-*` task is `RM-DataRefresh` and its
-  `Execute` is `pythonw.exe`, not `powershell.exe`. Zero candidates.
-- **Call sites (4b).** A case-insensitive grep for `powershell(\.exe)?` across
-  `*.py` and `*.json` in the repo returns four hits and NONE is an invocation:
-  `tests/test_hooks.py:131` asserts hook coverage of the tool NAME,
-  `.claude/settings.json:24` and `:33` are a permission entry and a hook matcher
-  string, and `tools/ascii_guard.py:4` is the docstring explaining the 5.1
-  parser bug. Red Moon shells out to Python, never to PowerShell.
-- **CI (4d).** Nothing to check.
-
-**The ASCII rule stands, unchanged, and the doc agrees.** Its section 5 measured
-that a no-BOM UTF-8 `.ps1` carrying an em-dash parses with 0 errors under 7.6.4,
-and then correctly declined to relax the rule. The same holds here for three
-reasons: `powershell.exe` 5.1 is still installed and still reachable, it is an
-operator style rule independent of any parser, and it is mechanically enforced
-by `tools/ascii_guard.py` plus the now-wired precommit gate. **PS7 removes one
-FAILURE MODE, not the rule.** One nuance worth carrying: `CLAUDE.md`'s stated
-*why* for the rule is now HISTORICAL rather than live, because the shell an
-agent actually gets in this session cannot exhibit that parse failure. The
-wording was left alone deliberately - it is accurate about 5.1, and 5.1 has not
-gone anywhere.
-
-**Nothing was changed in that other project's doc.** It is another project's
-territory and correcting its section 4c is the operator's call, not something to
-do unasked. If it is corrected, the measured output above is the evidence.
-
-**Why there is no ledger entry.** `docs/LEDGER.md` states its own contract in
-its header: one entry per COMPLETED ROADMAP ITEM, with an item number and a
-commit hash. This session closed no roadmap item, so minting an item number for
-it would make the ledger's numbering describe something the roadmap does not
-contain. The `/done` ritual's steps 4 and 5 were therefore skipped on purpose
-and the finding lives here instead. If a future session disagrees, the fix is to
-change the ledger's stated format first, not to backfill a number.
-
-**Two guards fired on this session's own notes, and both were right.**
-`tests/test_root_docs.py::test_no_riot_commander_references_in_root_docs` failed
-because the first draft of THIS section named the other project three times in a
-root doc. ADR-001 rules that non-root docs may name it plainly while root docs
-stay anonymous, so the notes were reworded and `docs/memory_seed/` was left
-naming it. And `test_live_memory_matches_the_committed_seed` failed because the
-memory system REWRITES the `modified:` timestamp in the live file after a write,
-so a hand-authored timestamp in the seed can never match - copy the live value
-into the seed after writing, not before.
-
-The PS7 fact was also written to the live memory namespace as
-`reference_powershell_editions_on_legion`, and seeded into `docs/memory_seed/`
-in the same commit - the suite asserts that seeding, and last session's failure
-was exactly a memory entry written live and never seeded.
-

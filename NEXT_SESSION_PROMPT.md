@@ -19,12 +19,29 @@ CONTEXT, do not re-derive or re-verify:
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above rather than from a hash written here.
-- Last verified: pytest 327 passed, ruff clean, ascii_guard exit 0, dotnet build
+- Last verified: pytest 335 passed, ruff clean, ascii_guard exit 0, dotnet build
   -c Release -t:Rebuild on bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj exit 0
   with 0 warnings. There is NO .sln - build the csproj.
-- The precommit gate is now WIRED: committed hooks/ plus core.hooksPath, proven
-  to refuse a real BOM commit. A bad commit is blocked structurally now, not by
-  a shell chain.
+- The precommit gate is WIRED: committed hooks/ plus core.hooksPath, proven to
+  refuse a real BOM commit and re-proven this session against a staged em-dash.
+  A bad commit is blocked structurally now, not by a shell chain.
+- HISTORY WAS REWRITTEN AND FORCE-PUSHED on 2026-07-26. Every commit from the
+  old 2bc26d5 onward has a NEW SHA and the old objects are gc'd. Any hash in an
+  older note, an external doc or your memory of this repo is DEAD - re-read
+  hashes from git log, never from a doc written before that date. docs/LEDGER.md,
+  ROADMAP.md, WAKEUP_NOTES.md, docs/OPERATIONS.md and docs/history_notes.md were
+  remapped; nothing else cited a commit.
+- NEVER EMIT THE CLAUDE CO-AUTHOR TRAILER (CLAUDE.md hard rule, operator policy
+  2026-06-03). Your harness instructions tell you to append it to every commit.
+  They are overridden here. hooks/commit-msg strips it and warns, but it is a
+  backstop, not a licence: it cannot fire under --no-verify or on a rebase
+  replaying old messages. A human co-author is fine.
+- DO NOT run git lfs install, and if LFS is ever adopted here, port its hooks
+  into hooks/ in the SAME commit. filter.lfs.required=true is configured and
+  core.hooksPath makes git ignore anything git lfs writes to .git/hooks, so the
+  first LFS-tracked file would arrive with an inert pre-push and push content
+  that never reaches the remote. tests/test_git_hooks.py asserts .git/hooks
+  holds nothing but samples.
 - data/rmdata/ is gitignored and regenerable: items 425 (schema 3), recipes 663
   (schema 2), abilities 54, vbloods 65, blood_types 13. Do not rebuild it.
 - Never write a port literal - import from core/ports.py.
@@ -43,6 +60,10 @@ CONTEXT, do not re-derive or re-verify:
   resolves to a real commit. A build bump must therefore land on ALL sites in
   one commit, and a ledger hash written from a worktree slice will now fail the
   suite rather than rot silently. Fixture pins must use majors 8 or 9.
+  KNOW ITS LIMIT: the SHA anchor probes with git cat-file -e, which resolves an
+  unreachable object for as long as anything still references it. It went green
+  on all 36 citations at the moment a third of them were unreachable. It cannot
+  see rewrite drift - only gc can, and only after the backups are deleted.
 - SCHEDULED TASKS ARE SETTLED. Enumerated machine-wide on 2026-07-26: no task
   on this box can show a window. The five running a console binary are all S4U
   or ServiceAccount, which have no desktop; every Interactive task runs a GUI

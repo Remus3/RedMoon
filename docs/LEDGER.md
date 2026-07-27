@@ -17,7 +17,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003f - The orphaned-hook guard, and the fresh-clone ceiling (2026-07-26)
 
 Commits `8f632b6` (the guard test), `9a624c3` (gc and the latent LFS risk) and
-`<pending>` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 has still
+`b24ce0e` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 has still
 not started and the operator gate on the phase 1 component inventory is STILL
 OPEN. Harness work, arriving from a cross-project handoff rather than the
 roadmap.

@@ -551,3 +551,177 @@ def test_sample_rows_are_json_serializable_as_the_plugin_would_emit_them():
         "unmapped": [],
     }
     assert json.loads(json.dumps(payload)) == payload
+
+
+# ---------------------------------------------------------------------------
+# the boss health recorder (falsification spec section A.4)
+#
+# The recorder is the only thing on the C# side that can falsify a computed TTK,
+# so the gates below pin the parts of it that cannot be checked without a running
+# game: the route strings a Python client is written against, the capacity rule,
+# the error codes, and the sample key set - which is read out of the anchor
+# schema rather than spelled here, so the producer and the schema cannot drift.
+# ---------------------------------------------------------------------------
+RECORDER = SRC / "HealthRecorder.cs"
+
+RECORD_ROUTES = ("/record/start", "/record/status", "/record/stop")
+
+RECORD_ERROR_CODES = ("subject_not_spawned", "already_recording", "not_recording")
+
+# 4096 samples, about 17 minutes at 4 Hz.
+RECORDER_CAP = "4096"
+
+# "ring" as a WHOLE WORD. A bare substring test is vacuous here: "String"
+# contains "ring", so StringBuilder alone would fail it.
+RING_TOKEN = re.compile(r"\bring\b", re.IGNORECASE)
+
+
+def _anchor_required() -> list[str]:
+    """The anchor schema's own required list, read rather than hardcoded."""
+    schema = json.loads(_read(REPO / "data" / "schemas" / "anchor.schema.json"))
+    required = schema["required"]
+    assert required, "the anchor schema declares no required fields"
+    return required
+
+
+def test_health_recorder_source_exists():
+    assert RECORDER.is_file(), f"no HealthRecorder.cs at {SRC}"
+
+
+def test_every_record_route_is_reachable_from_the_router():
+    """A Python client is written against these path strings. A rename here
+    fails the build's test run rather than the operator's boss fight."""
+    text = _unescaped(SRC / "BridgeServer.cs")
+    for route in RECORD_ROUTES:
+        assert f'"{route}"' in text, f"BridgeServer.cs never routes {route}"
+
+
+def test_recorder_capacity_is_stop_at_cap_and_not_an_overwriting_buffer():
+    """A.5.3 requires the FIRST sample to equal max health. An overwriting
+    wrap-around buffer silently discards the start of the fight, which turns a
+    truncated run into a plausible-looking one. A true prefix plus a nonzero
+    dropped count is unambiguous where a wrap is not."""
+    text = _read(RECORDER)
+    assert RECORDER_CAP in text, f"HealthRecorder.cs declares no {RECORDER_CAP} sample cap"
+    offenders = RING_TOKEN.findall(text)
+    assert offenders == [], (
+        f"HealthRecorder.cs names a ring buffer: {offenders} - the cap is stop-at-cap"
+    )
+    assert '"dropped"' in _unescaped(RECORDER), "the recorder never reports a dropped count"
+
+
+def test_recorder_carries_no_port_literal():
+    """CLAUDE.md hard rule, applied to the newest source file."""
+    offenders = PORT_LITERALS.findall(_read(RECORDER))
+    assert offenders == [], f"port literals in HealthRecorder.cs: {offenders}"
+
+
+def test_sample_writer_emits_every_field_the_anchor_schema_requires():
+    """The schema's required list is the contract. Reading it here rather than
+    repeating it means the C# writer and data/schemas/anchor.schema.json cannot
+    drift apart without this failing."""
+    text = _unescaped(RECORDER)
+    for field in _anchor_required():
+        assert f'"{field}"' in text, f"HealthRecorder.cs never emits the sample field {field}"
+
+
+def test_recorder_names_every_documented_error_code():
+    text = _read(RECORDER) + _read(SRC / "BridgeServer.cs")
+    for code in RECORD_ERROR_CODES:
+        assert code in text, f"the recorder never returns {code}"
+
+
+def test_recorder_reads_values_through_typed_accessors_only():
+    """A generic value reader was built twice on this build and failed twice -
+    GetComponentBoxed returned 539327184 for every Int32, and raw il2cpp field
+    offsets hard crashed the process. The recorder copies WriteStatValues.
+
+    COMMENT LINES ARE SKIPPED, the same rule _enclosing_methods already uses.
+    The ban is on what the code READS, and naming the rejected reader in a
+    comment is the point of the comment."""
+    text = _read(RECORDER)
+    code = "\n".join(line for line in text.splitlines() if not line.strip().startswith("//"))
+    assert "GetComponentBoxed" not in code, "the recorder reaches for the boxed reader"
+    assert "MaxHealth._Value" in text, "the recorder does not read max health typed"
+    assert "CarriesPrefabMarker" in text, (
+        "the recorder never restates the liveness control that caught the phase 1 reader"
+    )
+
+
+def test_sample_rate_ceiling_is_still_fifteen_frames():
+    """A DRIFT ANCHOR, not a style rule. 4 Hz is set by SampleEveryFrames and the
+    falsification spec section C tolerances were computed against it, so raising
+    it silently invalidates every recorded anchor run."""
+    text = _read(SRC / "Plugin.cs")
+    assert re.search(r"SampleEveryFrames\s*=\s*15\b", text), (
+        "SampleEveryFrames is no longer 15 - the 4 Hz sampling ceiling moved"
+    )
+
+
+def test_recorder_is_serviced_from_the_main_thread_tick():
+    """Spec decision D7: the listener thread never touches ECS. The recorder
+    samples from MainThreadTick like every other ECS read in this plugin."""
+    text = _read(SRC / "BridgeServer.cs")
+    tick = text.split("internal void MainThreadTick()", 1)
+    assert len(tick) == 2, "BridgeServer.cs no longer declares MainThreadTick"
+    assert "HealthRecorder" in tick[1].split("private void Serve()", 1)[0], (
+        "the recorder is not sampled from the main-thread tick"
+    )
+
+
+def test_the_arm_forces_a_character_scan_and_the_sample_path_does_not():
+    """A REGRESSION TEST, and the bug it pins was found on a live server.
+
+    MEASURED 2026-08-01 against the dedicated server: POST /record/start
+    answered `player_resolved: false` while the samples it then took carried a
+    full player block from index 19 onward. The arm reset the rescan counter and
+    then consulted the throttle it had just reset, so it DECLINED TO SCAN and
+    reported the decline as an absence. A caller cannot tell those two apart,
+    which is the phase 1 generic-reader shape again: a gate that stays silent
+    because nothing gave it anything to catch looks exactly like a gate that is
+    not wired.
+
+    It is not cosmetic. `player_unit_stats` at t0 is what falsification spec B.1
+    requires and it is the ENTIRE comparison basis of the power-stat experiment,
+    whose prediction is literally that the observed health delta equals
+    PhysicalPower or SpellPower. An arm that silently omits it yields a run that
+    can decide nothing.
+
+    The sample path must KEEP the throttle: it runs at the tick rate and a full
+    scan is a measured 95 ms.
+    """
+    text = _read(RECORDER)
+    assert "TryResolveCharacter(em, true, out character)" in text, (
+        "the arm no longer forces a character scan, so player_unit_stats at t0 "
+        "can be silently omitted and the power-stat experiment cannot run"
+    )
+    assert "TryResolveCharacter(em, false, out character)" in text, (
+        "the per-sample path no longer honours the rescan throttle, so a "
+        "missing character makes every tick pay a 95 ms full scan"
+    )
+
+
+def test_the_recorder_stamps_samples_at_millisecond_resolution():
+    """A DRIFT ANCHOR on the recorder's clock.
+
+    The envelope stamp Json.UtcNow() is whole seconds, which is right for
+    /health and /state. The recorder samples several times a second - MEASURED
+    1.99 Hz on the dedicated server and specified as at most 4 Hz on a 60 fps
+    host - so a whole-second stamp gives two to four samples the same
+    captured_at and destroys every timing the falsification spec derives from
+    the series: the A.5 discard on a sample gap, the C.2 two-second idle window,
+    and the bracketing that defines an isolated delta.
+    """
+    envelope = _read(SRC / "BridgeServer.cs")
+    assert "yyyy-MM-ddTHH:mm:ss.fffZ" in envelope, (
+        "Json.UtcNowMillis is gone - the recorder has no sub-second clock"
+    )
+    text = _read(RECORDER)
+    assert "Json.UtcNowMillis()" in text, (
+        "the recorder stamps samples with the whole-second envelope clock"
+    )
+    body = text.split("private static string BuildSample", 1)
+    assert len(body) == 2, "HealthRecorder.cs no longer declares BuildSample"
+    assert "Json.Str(Json.UtcNow())" not in body[1].split("\n        }", 1)[0], (
+        "a sample is still stamped with the whole-second clock"
+    )

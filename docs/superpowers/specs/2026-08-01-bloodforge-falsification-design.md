@@ -233,10 +233,50 @@ The recorder instead follows the `StateReader` idiom exactly:
 Two properties of this design are load-bearing and should be stated rather than
 discovered later:
 
-- **The sample rate is 4 Hz and that is a hard ceiling, not a tuning knob.**
-  It is set by `SampleEveryFrames = 15` (`Plugin.cs:41`). Raising it raises the
-  ECS read rate for every consumer of the tick. Section C's tolerances are
-  computed against 4 Hz.
+- **The sample rate is a hard ceiling, not a tuning knob, and it is NOT 4 Hz on
+  every host. CORRECTED 2026-08-01 BY MEASUREMENT.** It is set by
+  `SampleEveryFrames = 15` (`Plugin.cs:41`), which is a FRAME count, so the rate
+  is a function of the host's frame rate and nothing in this project had ever
+  measured one. MEASURED against a live dedicated server with a spawned Dracula,
+  two runs of 24 and 56 samples with 0 dropped:
+
+  ```
+  sample interval   min 0.500 s   median 0.502 s   max 0.503 s   (n = 55)
+  => 1.99 Hz, and 15 frames / 0.502 s = 29.9 fps
+  ```
+
+  **The dedicated server samples at 2 Hz because it runs at 30 fps under
+  `-batchMode -nographics`.** The 4 Hz written throughout this spec is an
+  inference from an assumed 60 fps client and was never a reading. A 60 fps
+  client should give about 4 Hz and that REMAINS UNMEASURED.
+
+  This is the cycle 2 lesson in a new place: a real number answering the right
+  question about the wrong host. Consequences, each of which silently corrupts a
+  run if it is missed:
+
+  - **A.5 check 5 must be relative, not absolute.** The rule is "no gap greater
+    than 3 tick intervals"; the parenthesised "about 750 ms" is a 4 Hz gloss. At
+    2 Hz three intervals is about 1506 ms, so a hardcoded 750 ms discards a run
+    for one stalled tick that the actual rule permits. The threshold is 3x the
+    OBSERVED MEDIAN INTERVAL OF THE SERIES ITSELF.
+  - **Every anchor run must RECORD the rate it was taken at**, measured from its
+    own series. Two runs taken on different hosts are not comparable series even
+    when B.2 says the subjects match.
+  - **C.2's clock term doubles on the server**, to +/- 0.5 s per endpoint and so
+    up to 1.0 s on a duration - 1.7 percent of a 60 s kill rather than 0.8. Still
+    far inside the 15 percent band, so the band does not move.
+  - **C.1 isolation gets harder, and this is the one that bites.** An isolated
+    delta needs a no-change sample on each side. At 500 ms per sample a window is
+    twice as likely to contain a second application, so a server-side run yields
+    fewer isolated deltas per cast and the n >= 30 bar costs more casts to clear.
+
+- **The recorder stamps `captured_at` at MILLISECOND resolution**, and that is a
+  deliberate departure from the envelope stamp the schema originally pointed at
+  (`BridgeServer.cs`, whole seconds). At any real sample rate a whole-second
+  stamp gives two to four samples the SAME instant, which makes the gap check,
+  the 2.0 s idle window and the bracketing of an isolated delta all
+  uncomputable. `Json.UtcNowMillis()` exists for the recorder and for nothing
+  else.
 - **A 4 Hz series cannot isolate every hit.** Abilities with `hits_per_cast` up
   to 4 exist (`docs/BRIDGE_SPIKES.md:1322`) and several can land inside one
   250 ms window. The protocol therefore does not attempt to attribute every

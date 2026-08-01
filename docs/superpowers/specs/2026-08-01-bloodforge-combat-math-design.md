@@ -401,13 +401,52 @@ Stated so the next session does not have to re-derive it.
 
 | Quantity | Status |
 |---|---|
-| `applied(G,T)` for physical, spell, corruption groups | COMPUTABLE once `P(G)` is decided by the section 3.3 experiment |
+| `applied(G,T)` for physical and spell groups | COMPUTABLE once `P(G)` is decided by the section 3.3 experiment |
+| `applied` for CORRUPTION groups | **NOT COMPUTABLE, and this line is CORRECTED 2026-08-01.** See 7.1. |
 | `applied` for holy and fire groups | **NOT COMPUTABLE.** 42 of 732 groups. Gap 8 and a proven-absent field. |
 | `ability_dps(G,T)` | COMPUTABLE with `applied`, using the 4.1 max-form cycle |
 | Weapon primary-only sustained DPS | COMPUTABLE for the 32 linked damage groups; NOT for the 15 that reach nothing |
 | Rotation DPS | NOT ATTEMPTED, no source |
 | `ehp` per damage type | COMPUTABLE from live player state, three types only |
 | `ttk_seconds` | BLOCKED on the instance-only denominator AND on rotation |
+
+### 7.1 CORRECTION - corruption is blocked on the POWER side, not the resistance side
+
+This document shipped corruption as computable-after-the-experiment. It is not,
+and the error is instructive: the withholding was reasoned about entirely on the
+`reduction` side, where corruption is the one damage type with a real, defined,
+nonzero value.
+
+COUNTED over all 1818 rows while implementing section 2:
+
+```
+corruption damage groups                              18
+  of which carry a spell_school                        0
+  of which are is_weapon_ability                       0
+  of which carry NEITHER                              18
+```
+
+All 18 are NPC abilities. **H2 has no ability kind to select on for any of them,
+and H1 is stated over `Physical` and `Spell` MainType only and so says nothing
+about a corruption MainType either.** Running the section 3.3 experiment
+therefore leaves every corruption group unpriced under EITHER outcome. The
+experiment cannot decide a question it was never posed.
+
+Two consequences:
+
+1. **60 of 732 damage groups are unpriceable after the experiment, not 42.**
+   27 holy and 15 fire on the reduction side, and 18 corruption on the power
+   side. Section 2.2's "that withholds 42 of 732" counts the reduction side only
+   and is correct as far as it goes.
+2. **`corruption` 0.5 is the only nonzero defined reduction on this build and
+   NOTHING REAL REACHES IT.** Its arithmetic is exercised in
+   `tests/test_damage.py` on a synthetic row only, with a separate test
+   asserting that no genuine row exercises it. That is the honest state: the
+   code path exists, is tested, and is dead on this data.
+
+This is the `hit_triggers` shape one level up. A term can be present, correct,
+well-typed and completely inert, and the only way to find out is to count the
+rows that reach it rather than read the field that declares it.
 
 `ENGINE_VERSION` is `0.1.0+1.1.13.0-r99712`, created in commit `6d5095e`. It
 did not exist in code while ROADMAP and `docs/BLOODFORGE.md` both described it as

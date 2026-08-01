@@ -246,6 +246,35 @@ an explicit `modification` on every entry.
     SETTLED BY reading `WeaponAbilityData` on one known primary and one known
     secondary and comparing, which distinguishes a dumper bug from game data.
 
+12. **THE SAMPLE RATE IS HOST-DEPENDENT AND 4 Hz WAS NEVER A MEASUREMENT.**
+    Added 2026-08-01 by the first live run of the anchor recorder. Both cycle 3
+    specs state 4 Hz as a hard ceiling set by `SampleEveryFrames = 15`
+    (`Plugin.cs:41`) and compute the section C tolerances against it. That
+    constant is a FRAME count, so the rate is a function of the host's frame
+    rate, and no frame rate had ever been read. MEASURED over two runs against a
+    live dedicated server, 24 and 56 samples, 0 dropped: interval min 0.500 s,
+    median 0.502 s, max 0.503 s over n=55. **1.99 Hz at 29.9 fps** under
+    `-batchMode -nographics`. The client should give about 4 Hz and that is
+    STILL UNMEASURED. Every anchor run now records the rate measured from its
+    own series, and the A.5 gap check is 3x the observed median interval rather
+    than a hardcoded 750 ms, which at 2 Hz would discard a valid run. Cycle 2's
+    lesson in a new place: the right question about the wrong host.
+    SETTLED FULLY BY one client-side run, which the power-stat experiment
+    supplies for free.
+
+13. **CORRUPTION IS BLOCKED ON THE POWER SIDE, AND THE EXPERIMENT CANNOT UNBLOCK
+    IT.** Added 2026-08-01 while implementing section 2. The combat-math spec
+    listed corruption among the types computable once `P(G)` is decided, having
+    reasoned about it entirely on the `reduction` side where corruption is the
+    one type with a real, defined, nonzero value. COUNTED: **all 18 corruption
+    damage groups carry neither a `spell_school` nor `is_weapon_ability`**, so H2
+    has no ability kind to select on, and H1 is stated over `Physical` and
+    `Spell` MainType only. Both hypotheses are SILENT on corruption. So **60 of
+    732 damage groups are unpriceable after the experiment, not 42**, and the
+    only nonzero defined reduction on this build is reached by nothing real - its
+    arithmetic is tested on a synthetic row, with a second test asserting no
+    genuine row exercises it. Corrected in the spec at section 7.1.
+
 There are TWO NON-ROADMAP tracks running in parallel. Both are infrastructure
 rather than cycles, both get their own ledger entries, and neither may fold into
 Bloodforge.

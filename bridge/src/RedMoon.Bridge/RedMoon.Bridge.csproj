@@ -47,6 +47,15 @@
     -->
     <Compile Include="ComponentDumper.cs" />
     <Compile Include="StateReader.cs" />
+    <!--
+      The anchor recorder, cycle 3. It is NOT exploratory: the falsification
+      spec's section A.1 route is a bridge-side boss health time series, and
+      this is the only thing that produces one. It samples on the same
+      MainThreadTick as StateReader rather than polling /dump/statcontrol,
+      which walks every entity per request against a measured 95 ms full scan
+      under a one-at-a-time gate.
+    -->
+    <Compile Include="HealthRecorder.cs" />
     <Compile Include="Localization.cs" />
     <!--
       CLAUDE.md hard rule: never write a port literal. This generated file is

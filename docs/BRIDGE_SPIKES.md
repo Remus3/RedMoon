@@ -1525,3 +1525,102 @@ that.
   own path-separator trust bug fixed earlier the same day.
 - Says nothing about a worktree. RM's gate resolves the repo from the `-C`
   segment carrying the commit verb, and that path was NOT exercised here.
+
+## Cycle 3, the anchor recorder: `GET /record/*` measured live
+
+2026-08-01. First run of `HealthRecorder.cs` against a live dedicated server
+loading `world1`, subject `CHAR_Vampire_Dracula_VBlood` guid `-327335305`. Three
+server boots, one plugin build per boot after the two fixes below.
+
+### The recorder is wired, and what "wired" does and does not cover
+
+```
+arm      entity 322840, carries_prefab_marker false, 8107 / 8107, level 91
+         the prefab (a separate entity) was seen and CORRECTLY REJECTED
+samples  56 in 27.6 s, dropped 0
+control  prefab_guid restated -327335305 on 56 of 56, marker false on 56 of 56
+stop     series returned, state cleared, /record/status back to armed:false
+```
+
+**NOT COVERED, and it is the thing worth saying out loud: no NONZERO health
+delta was observed.** Nothing on a headless server damages Dracula, so the
+series is flat at 8107 throughout. The delta path is not thereby unproven - the
+same typed accessor produced 0 on the prefab against 8107 on the instance in the
+phase 3 control, so it demonstrably varies - but a recorded drop has not been
+seen and the first client run is what will see one. A recorder that returned a
+flat series because it was reading nothing would look identical to this, which is
+exactly why the restated controls are on every sample.
+
+### MEASUREMENT 1 - the sample rate is 2 Hz on this host, and 4 Hz was never read
+
+```
+interval   min 0.500 s   median 0.502 s   max 0.503 s   n = 55
+           1.99 Hz, and 15 frames / 0.502 s = 29.9 fps
+```
+
+Both cycle 3 specs state 4 Hz as a hard ceiling and compute the section C
+tolerances against it. `SampleEveryFrames = 15` is a FRAME count, so the rate
+follows the host's frame rate, and no frame rate had ever been read on either
+host. The dedicated server runs at 30 fps under `-batchMode -nographics`. The
+client should give about 4 Hz and REMAINS UNMEASURED. ROADMAP gap 12.
+
+### MEASUREMENT 2 - `max_health` 8107 reproduces at n=3, across restarts
+
+```
+phase 3, earlier session   entity 322945   MaxHealth 8107
+this session, boot 1       entity 322862   MaxHealth 8107
+this session, boot 3       entity 322840   MaxHealth 8107
+prefab, every boot         (separate entity)  MaxHealth 0
+```
+
+Three distinct entity indices across three process lifetimes, same value. That
+answers half of combat-math spec open question 7: **8107 is stable across a
+reload of the same save.** It does NOT answer the other half. No
+`ServerGameSettings.json` is written anywhere under the persistent data path, so
+the difficulty is the built-in default rather than an observed setting, and a
+FRESH world has not been spawned. Recorded as still open.
+
+### DEFECT 1, found by the run - the arm reported a decline as an absence
+
+The arm answered `player_resolved: false` while the samples it went on to take
+carried a full player block from index 19 onward. `Clear()` reset the rescan
+counter and the arm then consulted the throttle it had just reset, so it
+declined to scan and reported the decline as "no character".
+
+Those are different states and no caller could tell them apart. It is the phase 1
+generic-reader shape a third time: **a gate that stays silent because nothing
+gave it anything to catch is indistinguishable from a gate that is not wired.**
+
+It is not cosmetic. `player_unit_stats` at t0 is falsification spec B.1's
+requirement and is the ENTIRE comparison basis of the power-stat experiment,
+whose prediction is literally that the observed delta equals `PhysicalPower` or
+`SpellPower`. An arm that silently omits it produces a run that decides nothing.
+Fixed by forcing the scan at arm and keeping the throttle on the sample path;
+pinned by `test_the_arm_forces_a_character_scan_and_the_sample_path_does_not`.
+
+Confirmed after the fix, first arm after plugin load:
+
+```
+player_resolved true, 15 UnitStats fields, PhysicalPower 10, SpellPower 10
+```
+
+### DEFECT 2, found by reading the code before deploying - a 1 Hz clock on a 2 Hz series
+
+Samples were stamped with the envelope's whole-second `Json.UtcNow()`. At any
+real sample rate that gives two to four samples the SAME `captured_at`, which
+makes the A.5 gap check, the C.2 two-second idle window and the bracketing that
+defines an isolated delta all uncomputable. `Json.UtcNowMillis()` was added for
+the recorder and nothing else.
+
+### THE PRECONDITION THE RUN EXPOSED, and it is the sharpest thing here
+
+The character the arm resolved reads `PhysicalPower` **10** and `SpellPower`
+**10**. On that character H1 and H2 predict the SAME number and the power-stat
+experiment is INDETERMINATE no matter how clean the deltas are.
+
+This is the section 3.2 trap wearing different clothes. That section rejected the
+default subject vector because the ABILITY could not separate the hypotheses.
+The same run can fail for a reason on the CASTER side, and nothing in either spec
+had said so. **The experiment requires a caster whose two power stats differ by
+more than the C.1 band**, which is a real prerequisite on the operator's loadout
+and is now enforced in `bloodforge/powerstat.py` rather than left to be noticed.

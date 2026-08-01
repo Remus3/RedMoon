@@ -83,6 +83,35 @@ means:
    and needs no boss, so it is the cheapest run in the whole protocol and should
    be taken first.
 
+## What is implemented, 2026-08-01
+
+The engine is no longer only its embargo. `bloodforge/damage.py` implements the
+per-application damage model (spec section 2) and `bloodforge/dps.py` the cycle
+and per-ability DPS (section 4), both behind the embargo, neither publishing
+anything. Two properties are worth carrying rather than rediscovering:
+
+- **`cycle` is a MAXIMUM over the three windows, never a sum.** They overlap - a
+  cooldown runs during the cast. Summing understates DPS on every cooldown
+  ability, and `cooldown` is 0 on 352 of 1818 rows, which is what forces the max
+  form. Mutating the implementation to a sum fails five tests, checked.
+- **An undefined term is a TYPE, not a `None` and never a number.** `reduction`
+  is undefined for fire and holy, `P(G)` is undefined until the experiment runs,
+  and the pool behind `raw_damage_percent` is unsourced. Each returns an object
+  that supports no numeric protocol at all, so `1.0 - fire` raises immediately
+  instead of quietly producing a wrong float three call frames away.
+
+**`GET /record/*` exists and has run against a live world.** It is the only
+thing in this project that can produce a falsifiable series, it samples on the
+same `MainThreadTick` as `StateReader`, and its first live run corrected two
+recorded facts and found two defects. See `docs/BRIDGE_SPIKES.md`.
+
+**60 of 732 damage groups cannot be priced after the power-stat experiment, not
+42.** 27 holy and 15 fire are blocked on the reduction side; the other 18 are
+corruption and are blocked on the POWER side, because all 18 carry neither a
+spell school nor `is_weapon_ability` and so neither hypothesis says anything
+about them. Corruption 0.5 is the only nonzero defined reduction on this build
+and nothing real reaches it.
+
 ## Versioning
 
 `ENGINE_VERSION` EXISTS as of 2026-08-01 and is `0.1.0+1.1.13.0-r99712`, defined

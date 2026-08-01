@@ -82,6 +82,27 @@ namespace RedMoon.Bridge
         {
             return DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         }
+
+        /// <summary>
+        /// The same instant at MILLISECOND resolution, for the anchor recorder
+        /// and nothing else.
+        ///
+        /// WHY A SECOND FUNCTION RATHER THAN WIDENING THE FIRST. The envelope
+        /// stamp above serves /health, /state and the dumps, where the interesting
+        /// quantity changes on the order of seconds. The recorder samples at 4 Hz
+        /// (Plugin.cs:41, SampleEveryFrames = 15), so a whole-second stamp gives
+        /// FOUR samples the same captured_at and silently destroys every timing
+        /// the falsification spec computes from the series: the A.5 discard on a
+        /// sample gap over 750 ms cannot see a 750 ms gap at 1 s resolution, the
+        /// C.2 idle window is 2.0 s, and an isolated delta is defined by its
+        /// bracketing samples. The sample index stays the ordering; this is the
+        /// clock.
+        /// </summary>
+        internal static string UtcNowMillis()
+        {
+            return DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ",
+                                            CultureInfo.InvariantCulture);
+        }
     }
 
     /// <summary>What the last main-thread tick saw. Immutable once published.</summary>
@@ -152,15 +173,39 @@ namespace RedMoon.Bridge
             Guid = guid;
         }
 
+        /// <summary>
+        /// The HEALTH RECORDER hand-off (falsification spec A.4). Arming and
+        /// stopping the recorder both touch ECS and both mutate main-thread-only
+        /// state, so they ride this same hand-off rather than getting a second
+        /// one - D7's whole point is that there is exactly one place ECS is read
+        /// from. /record/status does NOT come through here: it reads published
+        /// scalars off the listener thread and never scans.
+        /// </summary>
+        internal DumpRequest(string recordKind, int guid, string note)
+        {
+            RecordKind = recordKind;
+            Guid = guid;
+            Note = note;
+        }
+
         internal readonly string Table;
         internal readonly bool Components;
         internal readonly bool StatValues;
+        internal readonly string RecordKind;
+        internal readonly string Note;
         internal readonly int Guid;
         internal readonly string NamePrefix;
         internal readonly int Limit;
         internal readonly bool Instanced;
         internal readonly ManualResetEventSlim Done = new ManualResetEventSlim(false);
         internal string Body;
+
+        /// <summary>
+        /// The HTTP status for a body that is not a 200. Zero means "the default
+        /// for this outcome", which keeps every pre-existing request kind on
+        /// exactly the behaviour it had before the recorder existed.
+        /// </summary>
+        internal int Status;
     }
 
     internal sealed class BridgeServer
@@ -276,6 +321,22 @@ namespace RedMoon.Bridge
                 _log.LogWarning("world snapshot failed: " + ex.GetType().Name + ": " + ex.Message);
             }
 
+            // The recorder samples HERE: after the snapshot is published, before
+            // the pending dump is serviced. One sample per tick, so 4 Hz, which
+            // is a ceiling set by SampleEveryFrames = 15 in Plugin.cs and not a
+            // knob - the falsification spec's tolerances were computed against
+            // it. It runs before the dump so a caller arming a recording cannot
+            // have its own arm tick counted as a sample.
+            try
+            {
+                HealthRecorder.Sample(_log);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("health recorder sample failed: "
+                                + ex.GetType().Name + ": " + ex.Message);
+            }
+
             DumpRequest request = _pending;
             if (request == null)
             {
@@ -284,7 +345,11 @@ namespace RedMoon.Bridge
 
             try
             {
-                if (request.StatValues)
+                if (request.RecordKind != null)
+                {
+                    request.Body = HealthRecorder.Handle(_log, request, _build, _plugin, _host);
+                }
+                else if (request.StatValues)
                 {
                     request.Body = ComponentDumper.StatControl(_build, _plugin, request.Guid);
                 }
@@ -418,6 +483,47 @@ namespace RedMoon.Bridge
                 return;
             }
 
+            // The BOSS HEALTH RECORDER, falsification spec A.4. Routed on the
+            // PATH ONLY and answering both GET and POST: the spec writes POST,
+            // a curl probe is a GET, and a method mismatch that reads as "no
+            // such endpoint" is the least debuggable failure this surface could
+            // offer.
+            if (path == "/record/start")
+            {
+                int guid = QueryInt(context, "guid", 0);
+                if (guid == 0)
+                {
+                    TryRespond(context, 400, Error("bad_request", "pass a nonzero guid so "
+                                                   + "the recorder has a subject"));
+                    return;
+                }
+
+                string note = context.Request.QueryString["note"];
+                int status;
+                string body = RequestDump(
+                    new DumpRequest(HealthRecorder.KindStart, guid, note), out status);
+                TryRespond(context, status, body);
+                return;
+            }
+
+            // Served straight off published scalars. It never scans and never
+            // waits on the tick, so it stays answerable even while a fight is
+            // running the main thread hard.
+            if (path == "/record/status")
+            {
+                TryRespond(context, 200, HealthRecorder.Status());
+                return;
+            }
+
+            if (path == "/record/stop")
+            {
+                int status;
+                string body = RequestDump(
+                    new DumpRequest(HealthRecorder.KindStop, 0, null), out status);
+                TryRespond(context, status, body);
+                return;
+            }
+
             TryRespond(context, 404, Error("not_found", "no such endpoint"));
         }
 
@@ -464,14 +570,21 @@ namespace RedMoon.Bridge
                 return Error(PrefabDumper.ErrorWorldNotReady, PrefabDumper.NotReadyMessage);
             }
 
-            status = 200;
+            // A request that set its own status keeps it; everything else is a
+            // 200, which is exactly what every pre-recorder caller already got.
+            status = request.Status == 0 ? 200 : request.Status;
             return request.Body;
         }
 
         // -------------------------------------------------------------------
         // bodies
         // -------------------------------------------------------------------
-        private static string Error(string code, string message)
+        /// <summary>
+        /// The one error-body shape. Internal rather than private so
+        /// HealthRecorder builds its refusals through the same helper instead of
+        /// growing a second spelling of the envelope.
+        /// </summary>
+        internal static string Error(string code, string message)
         {
             return "{\"ok\":false,\"error\":" + Json.Str(code)
                    + ",\"message\":" + Json.Str(message) + "}";

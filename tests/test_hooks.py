@@ -70,6 +70,75 @@ def test_precommit_gate_passes_a_clean_staged_file(tmp_path):
     assert precommit_gate.check_staged(tmp_path) == []
 
 
+def test_gate_ignores_a_commit_phrase_inside_a_quoted_argument():
+    """Mentioning a commit is not performing one.
+
+    The gate matched the bare substring "git commit" anywhere in the command,
+    so a command that merely QUOTED the phrase was gated against whatever
+    happened to be staged. Measured 2026-08-01: a headless probe was denied
+    because the phrase sat inside a prompt argument, and the command was not a
+    commit at all.
+    """
+    assert not precommit_gate.is_commit_command(
+        'claude -p "run this: git commit -m x" --print'
+    )
+    assert not precommit_gate.is_commit_command('echo "remember to git commit"')
+    assert not precommit_gate.is_commit_command("grep -rn 'git commit' docs/")
+
+
+def test_gate_still_fires_on_every_real_commit_shape():
+    """False negatives are far worse than false positives here."""
+    assert precommit_gate.is_commit_command('git commit -m "x"')
+    assert precommit_gate.is_commit_command("git commit")
+    assert precommit_gate.is_commit_command("git -C C:/RedMoon commit -m x")
+    assert precommit_gate.is_commit_command("cd foo && git commit -m x")
+    assert precommit_gate.is_commit_command("git add . ; git commit -F msg.txt")
+    assert precommit_gate.is_commit_command("git --no-pager commit --amend")
+
+
+def test_gate_fails_safe_on_an_unparseable_command():
+    """An unlexable command containing the phrase must still gate.
+
+    A quoting error must not become a hole. If the command cannot be tokenized
+    the gate falls back to the old substring behaviour, which over-blocks.
+    """
+    assert precommit_gate.is_commit_command('git commit -m "unclosed')
+
+
+def test_gate_inspects_the_tree_the_commit_actually_targets(tmp_path):
+    """A worktree commit must be gated against the WORKTREE, not the main tree.
+
+    main() called check_staged() with no argument, so it always inspected the
+    hardcoded main tree no matter where the command ran. Every headless design
+    RM has been offered is worktree-based, which made the gate structurally
+    blind to exactly the runs it is there to guard.
+    """
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    bad = tmp_path / "note.md"
+    bad.write_text("a \u2014 dash\n", encoding="utf-8")
+    subprocess.run(["git", "add", "note.md"], cwd=tmp_path, check=True)
+
+    # -C names the target tree explicitly.
+    assert precommit_gate.target_repo(
+        {"tool_input": {"command": f"git -C {tmp_path} commit -m x"}}
+    ) == tmp_path
+    # Otherwise the session cwd names it.
+    assert precommit_gate.target_repo(
+        {"cwd": str(tmp_path), "tool_input": {"command": "git commit -m x"}}
+    ) == tmp_path
+    # With neither, the main tree remains the answer.
+    assert precommit_gate.target_repo({"tool_input": {"command": "git commit"}}) == REPO
+
+
+def test_gate_falls_back_to_the_main_tree_for_a_non_repo_path(tmp_path):
+    """A cwd that is not a git repo must not silently disable the gate."""
+    plain = tmp_path / "not_a_repo"
+    plain.mkdir()
+    assert precommit_gate.target_repo(
+        {"cwd": str(plain), "tool_input": {"command": "git commit -m x"}}
+    ) == REPO
+
+
 def test_settings_json_is_valid_and_wires_every_hook():
     settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
     wired = json.dumps(settings["hooks"])

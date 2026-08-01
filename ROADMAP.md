@@ -236,6 +236,28 @@ an explicit `modification` on every entry.
    ordinary. The gap stays OPEN because the value is still unread; what changed
    is what closing it takes.
 
+8a. **NO SECOND SOURCE FOR ANY COMBAT NUMBER EXISTS, and that is now measured
+    rather than assumed.** Added 2026-08-01 by the `CCR-39`/`CCR-84` dive. RM has
+    exactly one source for every number it publishes - its own dumper - and the
+    V Rising Fandom wiki was the only candidate second source in a 146-entry
+    corpus. ENUMERATED over all 64 pages in `Category:V Blood Carriers`: **no
+    `health`, no `hp` and no resistance parameter on any page**, 24 of 64 carry
+    no infobox at all, and every free-text health mention is a phase threshold
+    stated as a PERCENTAGE ("at 50% HP...") rather than a pool. No page states a
+    version, a patch or a difficulty, so gap 9's required axis is unavailable
+    there too. **The boss `max_health` that gap 1 needs is absent from the one
+    external source that might have carried it.** The falsification anchor must
+    come from a recorded run; there is no shortcut and it is no longer worth
+    looking for one.
+
+    The same dive found something usable and much narrower. The wiki infobox
+    carries `unit_id`, which IS RM's `prefab_guid`. Joined against
+    `vbloods.json`: **40 of 40 matched, and `level` agrees on 40 of 40.** That is
+    the first independent second-source confirmation of anything in
+    `data/rmdata/` - of IDENTITY and LEVEL only, never of a combat quantity, and
+    it must not be cited as though it were more. 25 of RM's 65 rows have no wiki
+    page carrying a `unit_id`, one of them `CHAR_Bandit_Leader_VBlood_UNUSED`.
+
 9. **BOSS LEVEL, POWER AND HEALTH ARE DIFFICULTY-SCALED, and `vbloods.json` is
    implicitly a NORMAL table.** Added 2026-08-01, found while adjudicating the
    cycle 4 concepts and missed by every earlier pass.
@@ -324,11 +346,13 @@ loop itself does not exist** - that is the next action on this track.
 **RM's own link ingest**, `docs/research/LINK_INGEST.md`. Stages 1 to 3 done:
 146 of 146 extracted and scored against an RM rubric, 21 survivors above a 6+
 threshold chosen from the observed distribution. The corpus is 146 entries, not
-the 119 every earlier pass reported. **Stage 4 is RUNNING: 3 of 21 dived, 16
-owed, ZERO adopted.** `CCR-146` refuted, `CCR-35` demoted 8 to 4 and `CCR-89`
-demoted 7 to 5 - the binary-RE pair, on the two checks stage 4 had named in
-advance, plus the discovery that gap 8 was never a binary-RE problem at all.
-Nothing is adopted until stage 6 names an acceptance criterion.
+the 119 every earlier pass reported. **Stage 4 is RUNNING: 5 of 21 dived, 14
+owed, ZERO adopted.** `CCR-146` refuted; `CCR-35` 8 to 4 and `CCR-89` 7 to 5
+(the binary-RE pair); `CCR-39` and `CCR-84` both 7 to 4 (the MediaWiki pair).
+Every one was demoted on a check named in advance, and **not one because the
+tool was bad** - each was scored against an RM-side premise nobody had measured.
+Two of those measurements are recorded as gaps below. Nothing is adopted until
+stage 6 names an acceptance criterion.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

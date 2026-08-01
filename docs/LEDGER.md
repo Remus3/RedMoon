@@ -14,6 +14,63 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003o - Link ingest stage 4: the wiki has no combat numbers, and 40 of 40 levels agree (2026-08-01)
+
+Commit `<pending>`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
+**544 passed, exit 0** (unchanged), `python tools/ascii_guard.py` exit 0. Probe
+payloads saved to `_scratch/rmprobe/wiki/`, gitignored.
+
+Stage 4 goes from 3 of 21 dived to **5 of 21, 14 owed, zero adopted.** `CCR-39`
+and `CCR-84`, the MediaWiki pair, both DEMOTED 7 to 4 on the two checks named in
+advance.
+
+**CHECK 1 WAS RUN FIRST BECAUSE IT IS ABOUT THE DESTINATION, AND IT FAILS.** Both
+entries were scored on the claim that the V Rising Fandom wiki carries "published
+boss health, resistances and gear numbers", making it the one independent second
+source in the corpus. ENUMERATED, not sampled: `Category:V Blood Carriers`
+returns 65 members, 64 of them boss pages. Every page fetched, every
+`{{Boss Infobox}}` parsed. **No `health`, no `hp` and no resistance parameter
+exists on any page**; the parameters are title, image, level, unit_id,
+description, location and four `unlocked_*` families. **24 of 64 carry no
+infobox at all** - a different and worse statement than a missing field. A
+free-text scan finds 5 `HP`, 1 `max health` and 15 `resistance`, and every one is
+the wrong kind: health always as a PHASE THRESHOLD in percent ("at 50% HP he
+summons two gargoyles"), resistance always player-side - a potion recipe, a
+soul-shard buff, or prose about a boss's damage type. No page states a version, a
+patch or a difficulty, so gap 9's required axis is missing there as well.
+
+**THE JOIN KEY IS REAL AND CORROBORATES SOMETHING NARROW.** The infobox carries
+`unit_id` and it IS RM's `prefab_guid`. Joined against `vbloods.json`: **40 with
+a unit_id, 40 matched, 0 unmatched, and `level` agrees on 40 of 40.** First
+independent second-source confirmation of anything in `data/rmdata/` - of
+IDENTITY and LEVEL only. 25 of RM's 65 rows have no wiki `unit_id`, including
+`CHAR_Bandit_Leader_VBlood_UNUSED`, correctly absent from a player wiki.
+
+**CHECK 2: BOTH SERVERS WORK AND BOTH ARE WRONG-SIZED.** CCR-39 is 40+ tools in
+Go; CCR-84 is 37+ tools in Node with OAuth2 write and a 50 KB content cap. Both
+MIT, both read public wikis anonymously, neither is bad. RM needs exactly two
+read calls. The decisive fact is that **this entire dive was performed with
+`urllib` against the public `api.php` with neither server installed** - Fandom
+answered anonymously at MediaWiki 1.43.9, HTTP 200 throughout. That is RM's
+ordinary ingest shape, and the rubric explicitly lowers a score for a wrapper
+around something RM already does directly.
+
+**A TRAP RECORDED FOR THE NEXT AGENT.** `WebFetch` on the rendered page returns
+**HTTP 402 Payment Required** while `api.php` on the same host returns 200. An
+agent that tries the page and not the API records a false absence, which is the
+failure shape this document keeps meeting.
+
+**THE PATTERN ACROSS ALL FIVE DIVES IS NOW UNAMBIGUOUS AND IS THE REAL RESULT.**
+Not one entry was demoted because the tool was bad. Every one was demoted because
+the RM-SIDE PREMISE it had been scored against was never checked - gap 8 was
+never a reverse-engineering problem, and the wiki never carried combat numbers.
+**Stage 2 scored tools against beliefs about Red Moon.** Measuring those beliefs
+is cheaper than reading the tools and is where the value is.
+
+ROADMAP gains gap **8a**: no second source for any combat number exists, measured
+rather than assumed, so the falsification anchor must come from a recorded run
+and it is no longer worth looking for a shortcut.
+
 ## 003n - Link ingest stage 4: the binary-RE pair dived, and both demoted (2026-08-01)
 
 Commit `f7a1bbc`. NON-ROADMAP track, per `docs/research/LINK_INGEST.md`. Docs

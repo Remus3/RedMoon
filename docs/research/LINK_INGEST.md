@@ -118,16 +118,24 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 - Stage 1 COMPLETE, 146 of 146 extracted.
 - Stage 2 COMPLETE, 146 of 146 scored.
 - Stage 3 COMPLETE: threshold 6+, 21 survivors, 125 culled.
-- Stage 4 deep-dive OPENED 2026-08-01. **3 of 21 survivors dived**, 1 attempted
+- Stage 4 deep-dive OPENED 2026-08-01. **5 of 21 survivors dived**, 1 attempted
   and unreachable (`CCR-135`, a Reddit post), 1 read at source during the cycle 4
-  concept work and corrected in three places (`CCR-120`). **16 still owed.** No
+  concept work and corrected in three places (`CCR-120`). **14 still owed.** No
   survivor may be adopted until its actual source has been read - every score is
   otherwise against a one-line summary written by someone else for someone else.
 
-  **Three dived, three verdicts, zero adoptions.** `CCR-146` REFUTED for RM's
-  setup. `CCR-35` DEMOTED 8 to 4 and `CCR-89` DEMOTED 7 to 5, both on checks
-  stage 4 had named in advance. That is the dive working as designed: the scores
-  it was testing were the ones it moved.
+  **Five dived, five verdicts, zero adoptions.** `CCR-146` REFUTED for RM's
+  setup. `CCR-35` 8 to 4, `CCR-89` 7 to 5, `CCR-39` and `CCR-84` both 7 to 4 -
+  every one on a check stage 4 had named in advance. That is the dive working as
+  designed: the scores it was testing were the ones it moved.
+
+  **The pattern across all five is one thing.** Not one was demoted because the
+  tool was bad. Every one was demoted because the RM-side PREMISE it was scored
+  against had never been checked - that gap 8 was a reverse-engineering problem
+  (it is an unwritten typed accessor), and that the V Rising wiki publishes boss
+  health and resistances (it publishes neither, on any of 64 pages). **Stage 2
+  scored tools against beliefs about Red Moon.** Stage 4's real work is
+  measuring those beliefs, and it is cheaper than reading the tools.
 
 Nothing is adopted until stage 6 names it with an acceptance criterion.
 
@@ -559,23 +567,144 @@ retroactively - stage 3's threshold was chosen from the distribution as it stood
 and rewriting it now would be exactly the unchecked-count failure this document
 exists to correct. They are recorded as DIVED AND DEMOTED.
 
+### CCR-39 and CCR-84 - the MediaWiki pair. BOTH DEMOTED 7 to 4, and the dive produced the value the entries promised WITHOUT them.
+
+Dived 2026-08-01, together, because stage 2 scored them together on one shared
+claim: the V Rising Fandom wiki carries "published boss health, resistances and
+gear numbers", making it "an INDEPENDENT second source against which RM's
+extracted tables and any computed TTK can be cross-checked", and "RM currently
+has exactly one source for every number: its own dumper."
+
+Two checks named in advance. **Check 1 is about the DESTINATION and is decisive:
+does the wiki actually publish the numbers?** Check 2 is about the tools. Check 1
+was run first deliberately, because if the wiki does not carry the data then no
+client for it can matter. Payloads saved to `_scratch/rmprobe/wiki/`.
+
+#### Check 1 FAILS. The wiki publishes no boss health and no boss resistances, measured over all 64 pages.
+
+Not sampled - enumerated. `Category:V Blood Carriers` returns **65 members, 64
+of them boss pages** plus the category page itself. Every page's wikitext was
+fetched and its `{{Boss Infobox}}` parsed. Parameter coverage:
+
+```
+title  40    unlocked_recipes    35    unlocked_structures     30
+image  40    unlocked_spells     34    unlocked_vampirepowers   4
+level  40    location            39    voice_actor              1
+unit_id 40   description         40    NO BOSS INFOBOX AT ALL  24
+```
+
+**No `health`, no `hp`, no `max_health` and no resistance parameter exists on any
+page.** And 24 of 64 carry no infobox whatever, which is a different and worse
+statement than a missing field - the same distinction ADR-007 forced on the
+damage block.
+
+A free-text scan of all 64 pages for health and resistance language finds 5 `HP`,
+1 `max health` and 15 `resistance`, and **every one of them is the wrong kind of
+number**:
+
+- Every health mention is a PHASE-TRANSITION THRESHOLD stated as a PERCENTAGE -
+  "at 50% HP he jumps into the air and summons two gargoyles", "at the 75% max
+  health threshold, she will place an Iron Maiden". A percentage of an unstated
+  pool is not a second source for the pool.
+- Every resistance mention is player-side: a Holy Resistance Potion recipe, a
+  Minor Garlic Resistance Brew, a soul-shard buff granting "+50 sun resistance",
+  or prose noting that a boss deals Holy damage. **Not one is a boss's own
+  resistance value.**
+
+No page states a game version, a patch, or a difficulty. So even a number found
+there could not be pinned to `1.1.13.0-r99712` or to Normal, and ROADMAP gap 9
+makes difficulty a required axis.
+
+**The one number RM most needs is exactly the one that is absent.** Boss
+`max_health` is instance-only, reads 0 on all 65 prefabs, and was measured at
+8107 for Dracula at n=3. The wiki does not carry it. The stage 2 claim was
+written from a plausible belief about what game wikis contain, and this project's
+rule is to count rather than to believe.
+
+#### But the join key is real, and it corroborates something.
+
+The infobox carries `unit_id`, and `unit_id` **IS** RM's `prefab_guid` - Dracula
+reads `-327335305` on the wiki and `-327335305` in `vbloods.json`. Joined:
+
+```
+wiki pages with unit_id       40
+matched into vbloods.json     40   (0 unmatched)
+level agrees                  40   (0 disagree)
+```
+
+**40 of 40 on both, which is the first independent second-source confirmation of
+anything in `data/rmdata/`.** It corroborates IDENTITY and LEVEL. It says nothing
+about health, resistances, power or any combat quantity, and must never be cited
+as though it did.
+
+Coverage stated rather than rounded: **25 of RM's 65 rows have no wiki
+`unit_id`**, among them `CHAR_Bandit_Leader_VBlood_UNUSED` - correctly absent
+from a player-facing wiki, and a small check on the wiki's editorial judgement
+rather than a hole in it - and the whole Blackfang set.
+
+#### Check 2: both servers work, both are far larger than the need, and neither was used.
+
+| | CCR-39 olgasafonova | CCR-84 professionalwiki |
+|---|---|---|
+| tools | 40+ | 37+ |
+| runtime | Go 1.24+ | Node, via `npx` |
+| access | read anonymous; edit needs a bot password | read anonymous; write needs OAuth2 or a bot password |
+| license | MIT | MIT |
+| extras | broken-link and orphan QA, stale-content checks, PDF search via `pdftotext` | multi-wiki, Semantic MediaWiki / Cargo / Bucket extension tools, 50 KB content cap |
+
+Both are honest, MIT, locally runnable and read public wikis without an account.
+Neither is wrong. **They are wrong-sized.** RM needs two read calls -
+`list=categorymembers` and `prop=revisions` - and both servers ship a
+content-management surface for people who maintain a wiki. RM maintains no wiki.
+CCR-39's headline extras - broken links, orphans, stale content - are quality
+tooling for a wiki's editors.
+
+**The decisive fact is how this dive was performed.** The category enumeration,
+64 page fetches, infobox parse and 40-row join were all done with `urllib`
+against the public `api.php`, with neither server installed and no account.
+Fandom answered anonymously, `MediaWiki 1.43.9`, HTTP 200 throughout. That is
+RM's ordinary ingest shape already - an HTTP JSON source behind a schema gate -
+and the rubric explicitly lowers a score for "a wrapper around something RM
+already does directly".
+
+Rescored **4** each, for the same reason, and kept as two rows rather than merged
+so stage 3's arithmetic still reconciles.
+
+**One trap worth recording for whoever comes next.** `WebFetch` on the rendered
+page `vrising.fandom.com/wiki/Dracula_the_Immortal_King` returns **HTTP 402
+Payment Required**, while `api.php` on the same host returns 200. An agent that
+tries the page and not the API will conclude the wiki is unreachable and record a
+false absence - the exact failure shape this document keeps meeting.
+
+#### What RM should take from this, since it is not either server
+
+The route is real and cheap: **a wiki join on `unit_id` is a working, if narrow,
+external check on RM's boss identity and level extraction.** It is worth a small
+scheduled probe rather than a 40-tool dependency, and it belongs to stage 6 to
+name with an acceptance criterion, not to this dive to adopt. What it can never
+be is the falsification anchor gap 7 needs - the numbers simply are not there,
+and the anchor still has to come from a recorded run.
+
 ### Still owed at stage 4
 
-The binary-RE pair is DONE, above, and both were demoted. Still owed, 16 of 21:
+The binary-RE pair and the MediaWiki pair are DONE, above. All four demoted.
+**Still owed, 14 of 21**, and `CCR-143` is now clearly next:
 
-The gap 7 plumbing entries `CCR-39`/`CCR-84` (MediaWiki, an independent second
-source for boss numbers) and `CCR-123` (talkthrough) - the latter partly
-overtaken, since the operator has ruled the anchor is a bridge-side health series
-rather than a narrated recording, which demotes it from plumbing-for-the-anchor
-to a cross-check route at most. `CCR-39`/`CCR-84` are now the strongest remaining
-undived entries: RM has exactly one source for every number it publishes, its own
-dumper, and the run that would falsify a computed figure has still not been
-taken.
+`CCR-143` (red-handed, **9**, the highest-scored entry in the corpus and still
+undived) - a local read-only CLI auditing session transcripts in
+`~/.claude/projects` against git to check "tests pass" claims. It is the one
+survivor that acts on RM's most-repeated discipline rather than on a cycle.
 
-Then `CCR-143` (red-handed, 9, the highest-scored entry in the corpus and still
-undived), `CCR-74`/`CCR-50`/`CCR-80` (the drift-validation family), `CCR-81`,
-`CCR-110`, `CCR-127`, `CCR-55`, `CCR-121`, `CCR-129`, `CCR-120`, `CCR-75`,
-`CCR-76` and `CCR-144`.
+`CCR-123` (talkthrough) is partly overtaken: the operator has ruled the anchor is
+a bridge-side health series rather than a narrated recording, which demotes it
+from plumbing-for-the-anchor to a cross-check route at most. With the MediaWiki
+pair now dived and found empty of combat numbers, **nothing left in the corpus
+supplies a ground-truth anchor** - which stage 2 already said in prose and which
+is now measured on the only two entries that claimed otherwise.
+
+Then `CCR-74`/`CCR-50`/`CCR-80` (the drift-validation family, the strongest
+remaining cluster), `CCR-81`, `CCR-110`, `CCR-127`, `CCR-55`, `CCR-121`,
+`CCR-129`, `CCR-120`, `CCR-75`, `CCR-76` and `CCR-144`.
 
 `CCR-135` (Codeman) could NOT be read at source - it is a Reddit post. Its
 information design fed the cycle 4 concepts through its one-line summary only,

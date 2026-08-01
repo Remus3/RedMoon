@@ -18,6 +18,21 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+"""Applied to the spawn below even though it is MEASURED not to flash today.
+
+Under `pythonw.exe` `sys.executable` IS `pythonw.exe`, and `pytest -m` does its
+work in-process rather than re-execing a binary, so this site allocates no
+console. It carries the flag anyway, and the reason is worth stating: the sibling
+site in `tools/precommit_gate.py` had the same shape, was exempted on the same
+reasoning, and was WRONG - `ruff/__main__.py` re-execs `ruff.exe`, which
+allocated a console and swallowed the gate's stdout for the life of the file.
+
+The flag is inert on a windowless child, so the cost is zero and the benefit is
+that `tests/test_hook_consoles.py` can enforce the rule with NO EXEMPTION. An
+exemption is a place to be wrong, and this project has now been wrong there
+twice."""
+
 
 def main() -> int:
     try:
@@ -44,6 +59,7 @@ def main() -> int:
                     cwd=str(REPO),
                     capture_output=True,
                     text=True,
+                    creationflags=NO_WINDOW,
                     # Deliberately set BELOW this hook's 900s PostToolUse
                     # timeout in .claude/settings.json, so this script's own
                     # except below fires first and kills the child pytest

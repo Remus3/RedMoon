@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +26,65 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.ascii_guard import is_authored, scan_text  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
+
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+"""Suppress the console a spawned CONSOLE exe would otherwise allocate.
+
+This gate is launched with `pythonw.exe`, which has no console. That makes the
+gate itself windowless and does NOT make its children windowless: on Windows a
+console-subsystem executable started from a process with no console gets a BRAND
+NEW one, seen as a window flashing open and shut. `git` below is such an
+executable, and this hook runs on EVERY Bash and PowerShell call, so it is the
+highest-frequency source of the flash in the project - two spawns per shell
+command rather than one per session.
+
+`getattr` with a 0 default because CREATE_NO_WINDOW does not exist off Windows
+and 0 is a valid `creationflags`. MEASURED before adopting: it does not affect
+`capture_output`. See the same constant in `tools/rm_facts.py`.
+
+AN EARLIER VERSION OF THIS COMMENT SAID THE FLAG WAS "not needed on the
+sys.executable call site further down, because under pythonw.exe that IS
+pythonw.exe, which is already windowless". **That was false and it hid a live
+defect** - see `_ruff_argv` below. The first clause is true and the conclusion
+does not follow, which is the same error the 2026-07-26 investigation made about
+these hooks."""
+
+
+def _ruff_argv() -> list[str]:
+    """The ruff command, resolved to its BINARY rather than run through `-m`.
+
+    THIS IS NOT A COSMETIC CHANGE. `[sys.executable, "-m", "ruff"]` looks
+    windowless because under `pythonw.exe` `sys.executable` IS `pythonw.exe`.
+    But `ruff/__main__.py` on Windows does not do the work: it locates the
+    bundled `ruff.exe` and re-execs it. That GRANDCHILD is a console binary, and
+    because the `pythonw.exe` in the middle has no console, `ruff.exe` allocates
+    one - so the window appears anyway, AND its standard handles bind to that new
+    console instead of the pipe this function is trying to read.
+
+    MEASURED under a real `pythonw.exe` parent, on a file with one F401:
+
+        [sys.executable, -m, ruff, check, f]  ->  rc 1, stdout LENGTH 0
+        [ruff.exe,          check, f]         ->  rc 1, stdout 278 chars
+
+    The caller only collects reasons when the return code is 1, by iterating
+    `result.stdout`. Over an empty string that appends NOTHING, so **the ruff
+    half of this gate reported clean on every commit while ruff was actually
+    failing.** It passed its own tests because pytest's parent owns a console.
+    A gate that looks exactly like a working gate - the failure mode this
+    project names most often - already present, and found only by measuring a
+    grandchild.
+
+    Falls back to the old argv if the binary cannot be resolved: a flash and a
+    silent ruff are both worse than nothing, but SKIPPING the gate is worse
+    still, so the degraded path keeps running rather than returning no reasons.
+    """
+    try:
+        from ruff.__main__ import find_ruff_bin
+
+        return [str(find_ruff_bin())]
+    except Exception:
+        found = shutil.which("ruff")
+        return [found] if found else [sys.executable, "-m", "ruff"]
 
 
 # Shell operators that end one command and begin another. A commit hiding after
@@ -112,6 +172,7 @@ def _repo_root(path: Path) -> Path | None:
             capture_output=True,
             text=True,
             timeout=10,  # comfortably under the 60s PreToolUse hook timeout
+            creationflags=NO_WINDOW,
         )
     except (subprocess.TimeoutExpired, OSError):
         return None
@@ -168,6 +229,7 @@ def staged_files(repo: Path | None = None) -> list[str]:
             capture_output=True,
             text=True,
             timeout=10,  # comfortably under the 60s PreToolUse hook timeout
+            creationflags=NO_WINDOW,
         )
     except subprocess.TimeoutExpired:
         return []
@@ -201,11 +263,12 @@ def check_staged(repo: Path | None = None) -> list[str]:
     if python_files:
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "ruff", "check", *python_files],
+                [*_ruff_argv(), "check", *python_files],
                 cwd=str(root),
                 capture_output=True,
                 text=True,
                 timeout=30,  # comfortably under the 60s PreToolUse hook timeout
+                creationflags=NO_WINDOW,
             )
         except subprocess.TimeoutExpired:
             return reasons

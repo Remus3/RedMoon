@@ -23,6 +23,27 @@ from tools.rmdata_extract import DEFAULT_INSTALL, parse_build_id  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+"""Suppress the console a spawned CONSOLE exe would otherwise allocate.
+
+This hook is launched with `pythonw.exe`, which has no console. That makes the
+hook itself windowless and does NOT make its children windowless: on Windows a
+console-subsystem executable started from a process with no console gets a BRAND
+NEW one, which the operator sees as a window flashing open and shut. `schtasks`
+below is such an executable.
+
+`getattr` with a 0 default because CREATE_NO_WINDOW does not exist off Windows
+and 0 is a valid `creationflags`, so this stays importable everywhere.
+
+MEASURED before adopting: the flag does NOT affect `capture_output`. The same
+`schtasks` and `git` calls return the same returncode and the same captured
+output with and without it under a `pythonw.exe` parent. (Not byte-identical for
+`schtasks` - its output carries a volatile Next Run Time - so the claim is that
+capture WORKS, not that the bytes match.) That mattered because a flag which
+detached the child instead of only hiding its window would leave every gate here
+reading nothing while still exiting 0 - a gate that looks exactly like a working
+one. Pinned by `tests/test_hook_consoles.py`."""
+
 PORT_LABELS = {
     ports.BRIDGE: "bridge",
     ports.DASHBOARD: "dashboard",
@@ -61,6 +82,7 @@ def scheduled_tasks() -> list[str]:
             capture_output=True,
             text=True,
             timeout=5,  # comfortably under the 10s SessionStart hook timeout
+            creationflags=NO_WINDOW,
         )
     except subprocess.TimeoutExpired:
         return []

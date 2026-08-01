@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003r - The console flash, and the ruff gate it had been silencing since it was written (2026-08-01)
 
-Commit `379f6c6`. Suite **551 passed in 22.61s, exit 0** (544 before, +7), ruff
+Commits `379f6c6` (the fix) and `9d056b4` (the living docs and this entry). Suite **551 passed in 22.61s, exit 0** (544 before, +7), ruff
 clean, `ascii_guard` exit 0. **Three FROZEN files edited with explicit operator
 approval:** `tools/rm_facts.py`, `tools/precommit_gate.py`,
 `tools/pytest_guard.py`.

@@ -1,6 +1,100 @@
 # Red Moon History Notes
 
 
+## 2026-07-26 - The co-author trailer: a policy nothing enforced, and a test that lied
+
+Branch `master`. Ledger 003e. Commits `0cb03a1` (hook plus tests), `bbc2a81`
+(CLAUDE.md), `f47acd3` (citation remap) and `d49bc3f` (this entry), on top of a
+29-commit history rewrite that was FORCE-PUSHED to
+`origin/master`. **NO ROADMAP ITEM CLOSED.** The operator gate on the cycle 3
+phase 1 component inventory is STILL OPEN - four sessions now. That gate is the
+real next action.
+
+State at close, one run: `python -m pytest` **334 passed in 18.77s, exit 0**
+(327 before, plus 7 new), `python tools/ascii_guard.py` exit 0.
+
+**THE ASK WAS A VERIFICATION, AND IT CAME BACK NEGATIVE.** "Be sure the active
+commit-msg hook enforces the policy and strips the trailer - the tracked one
+doesn't." There was no commit-msg hook at all, tracked or active. `core.hooksPath`
+selects `hooks/`, which held only the pre-commit pair; `.git/hooks` holds only
+samples; the string `Co-Authored-By` appeared NOWHERE in the repo. The premise
+that a weaker tracked hook existed was itself wrong, and 16 commits carried the
+trailer including both of that day's earlier doc commits.
+
+**WHY AN UNWRITTEN POLICY LOSES.** The agent harness instructs the model to
+append the trailer to every commit message. A policy that lives only in the
+operator's head is a coin flip against a default that fires every single time.
+`CLAUDE.md` now carries it as a hard rule AND says the hook is a backstop, not a
+licence to emit the line - the hook cannot fire on `--no-verify` or on a rebase
+replaying old messages.
+
+**STRIP, DO NOT BLOCK.** Deliberately unlike the ASCII gate. A check that did
+not run did not pass, but a strip that did not run leaves one line the operator
+can still delete by hand; refusing the commit would trade a cosmetic defect for
+a blocked repo. Same reasoning makes a missing interpreter exit 0 in
+`hooks/commit-msg` and 1 in `hooks/pre-commit`.
+
+**THE TEST THAT WOULD HAVE LIED, AND THIS IS THE PART WORTH REMEMBERING.**
+`test_every_sha_the_ledger_cites_resolves` probes with `git cat-file -e`. Old
+objects survive a rewrite in the object database while `refs/original` and a
+backup branch still reference them, so the test went GREEN on all 36 cited SHAs
+at the exact moment a third of them named commits unreachable from master. It
+would have failed days later, after gc, with no connection to its cause. The
+remap was proven instead by grepping every tracked doc for every pre-rewrite SHA
+prefix - empty. 26 citations across five files, four of which that test does not
+even look at. **A resolving SHA is not a reachable SHA.**
+
+**BLAST RADIUS WAS MEASURED BEFORE ASKING, NOT AFTER.** Stripping 16 commits
+rewrites 29, because every descendant takes a new SHA, and all 29 were already
+on GitHub. The approval was given against that number, not against "14 commits".
+
+**THE OTHER PROJECT'S TWO TRAPS DO NOT APPLY HERE - RE-PROBED, NOT REASONED.**
+Trap 1, hooks in `.git/hooks` while `core.hooksPath` points elsewhere: RM has no
+non-sample files there. Trap 2, `precommit_gate.py` invoked with no args
+self-gating to a silent no-op: the one-liner DOES reproduce
+(`python tools/precommit_gate.py < /dev/null` exits 0) but RM never uses that
+path - `hooks/precommit_hook.py` imports `check_staged` directly. Settled by
+staging an em-dash and running a real commit: BLOCKED, `U+2014`, HEAD unmoved.
+
+**BACKUP, NOW GONE.** Branch `backup-pre-trailer-rewrite` and
+`refs/original/refs/heads/master` were deleted and gc'd with `--prune=now` after
+the rewritten history was confirmed good. The pre-rewrite objects no longer
+resolve, which is what makes the ledger SHA anchor a real check again - it
+passes against a purged object database, so the 26-citation remap is proven
+complete rather than merely resolving off lingering objects.
+
+**ORPHANED-HOOK CLASS, CHECKED AND CLEAR - BUT RM IS PRE-ARMED FOR IT.**
+`.git/hooks` holds only `.sample` files, there is no `.gitattributes`, and
+`git lfs ls-files` is empty, so nothing was silently disabled when
+`core.hooksPath` was set. LATENT RISK: `filter.lfs.required=true` IS configured.
+`git lfs install` writes its hooks to `.git/hooks`, which `core.hooksPath`
+makes git ignore. So the first LFS-tracked file added to this repo gets an inert
+`pre-push`, pushes look clean, and the LFS content never reaches the remote.
+If LFS is ever adopted here, port the LFS hooks into `hooks/` in the same
+commit. GUARDED as of this session by
+`test_no_orphaned_hooks_left_behind_in_git_hooks`. It asserts a condition that
+was ALREADY TRUE, so it could not fail first and could have shipped vacuously
+green - it was proven by injecting a fake `.git/hooks/pre-push`, watching it go
+red naming that file, and removing it. A guard test that has never been seen red
+is not a guard.
+
+**FRESH-CLONE BOOTSTRAP, RAISED FROM THE OTHER PROJECT AND VERIFIED HERE BY
+ACTUALLY CLONING.** `core.hooksPath` is LOCAL config and is NOT cloned, so a
+tracked hooks directory is inert on arrival no matter how correct it is. Probed
+rather than reasoned: `git clone C:/RedMoon <scratch>` came back with
+`core.hooksPath` UNSET and zero active hooks. RM already covers it in two
+places - `docs/OPERATIONS.md` has "Wire the commit gate, once per clone" marked
+mandatory, and the suite fails there on
+`test_core_hooks_path_selects_the_committed_hooks_dir` plus
+`test_installer_reports_the_wiring_as_installed`, the latter printing the exact
+remediation command. The new orphaned-hook test correctly SKIPPED in that
+clone, so its skip branch is exercised for real rather than assumed.
+THE RESIDUAL GAP CANNOT BE CLOSED BY ANYONE: between clone and the first
+verification run, nothing has told the operator yet. Git never clones hooks by
+design, because that would execute arbitrary code on clone. The ceiling is
+"loud on first verification", not "safe on arrival". A local clone is cheap -
+the repo is 685K - so this probe is worth repeating whenever the wiring changes.
+
 ## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
 
 Branch `master`. Ledger 003d. Commit `d6bfdd9` (tests) plus the docs commit that

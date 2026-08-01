@@ -3,6 +3,115 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (third stretch) - The slot round, a corpus that was 146 not 119, and two probes that lied before they told the truth
+
+Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` plus the
+docs commit carrying this entry. **NO ROADMAP ITEM CLOSED** - this is the
+non-roadmap track, run after 003h closed the Bloodforge input spike earlier the
+same day. Operator-directed order: ingest, headless, dashboard.
+
+State at close, one run each: `python -m pytest` **382 passed in 19.50s, exit
+0**, `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0.
+
+**THE SLOT ROUND CLOSED AND RM WAS NOT THE ONE CARRYING THE RED.** LW cleared
+its GPU blocker, corrected its own reasoning unprompted - the bucket models
+ANTHROPIC ACCOUNT concurrency and never modelled the GPU, so lane count and card
+contention are orthogonal - flipped to N=3 first and sat red waiting. RM applied
+RC's bytes VERBATIM, re-hashed from its own disk (`5297f2d0...`, 7154 bytes),
+and moved `AGREED_SHA256` in the same commit. All three trees now hash equal and
+declare 3. **RM's suite stayed green through the flip, and that is luck of
+design rather than virtue:** RC and LW both guard by reading a sibling's tree
+LIVE, so whoever moves first is red until the others follow and there is no
+ordering in which nobody is red. RM guards against self-contained constants. If
+RM ever builds a live cross-tree guard it inherits their bug, so the three
+transition options RC weighed are recorded rather than rediscovered.
+
+**A COUNT READ OFF A HEADER IS NOT A MEASUREMENT OF THE DOCUMENT - AGAIN, IN THE
+OPPOSITE DIRECTION.** This morning `ability_stats` was predicted at 1474 and
+measured 1818. This afternoon the link corpus was reported as 119 and measured
+**146**. The source's header, its score-ranked index and its distribution
+(`n=119`) all stop at CCR-119 while full entries run to CCR-146; a later batch
+was scored in place and never indexed. **27 entries, 18% of the corpus, had
+never been triaged for RM at all**, so last session's "119/119 reviewed, zero
+above 5, nothing adopted" was 119 of 146. Both errors are the same shape from
+opposite ends: trusting a stated count instead of counting.
+
+**RC'S FRAME HID RM'S SHARPEST NEED.** Rescoring against an RM rubric whose top
+weight is gap 7 moved six entries up, and the decisive pair is binary
+reverse-engineering: `CCR-35` pyghidra-lite (8) and `CCR-89` x64dbg (7), both
+scored 2 for a League dashboard. **A coaching dashboard has no binary to
+reverse; RM's hardest problem class is nothing else** - 169 interop assemblies
+scanned to prove `items.tier` had no source, a generic value reader that
+hard-crashed the dedicated server twice with the diagnosis stopping at a guess,
+and a BACKLOG item rejected on per-patch RE cost that these directly reduce.
+This is what "make your own decisions, do not copy RC's claims" was actually
+worth.
+
+**A HISTOGRAM THAT DID NOT RECONCILE WITH ITS OWN TABLE, CAUGHT BEFORE COMMIT.**
+The stage 3 draft claimed 24 survivors and enumerated 21, because the low bands
+were grouped rather than counted. Withdrawn rather than tidied, and the
+withdrawal written INTO the document - an unchecked count is the exact defect
+that document exists to correct, so quietly fixing it would have been the worse
+outcome. Threshold 6+, 21 survivors, 125 culled, every survivor named by id.
+
+**TWO PROBES LIED BEFORE THEY TOLD THE TRUTH, AND BOTH LIES LOOKED LIKE
+RESULTS.**
+
+The headless blocker was recorded as "not authenticated, workspace not trusted".
+**Both halves wrong.** There is no login error. The trust failure is a
+PATH-SEPARATOR MISMATCH: `.claude.json` holds `C:\RedMoon` = True and
+`C:/RedMoon` = False, and headless reads the forward-slash key, so it discards
+all 13 `permissions.allow` entries. The workspace HAD been trusted. LW
+independently hit the same bug with THREE keys for one directory. The second
+blocker was `"model": "rc-main"` set MACHINE-WIDE by a sibling; RM did not touch
+it and asked instead, and RC deleted it on finding the alias resolved for
+nobody.
+
+Then the hook probe. **The first run staged U+2014 under `_scratch/`, the commit
+SUCCEEDED, and that reads exactly like "no gate fired".** It is an artifact:
+`_scratch` is on `ascii_guard.py`'s own skip list, so both gates inspected the
+diff, found nothing they own, and allowed it CORRECTLY. **A gate that stays
+silent because the probe gave it nothing to catch is indistinguishable from a
+gate that is not wired** - the mirror image of the two false NEGATIVES LW
+reported the same day. What made the retry trustworthy was calling
+`check_staged()` directly FIRST and confirming it returned a reason, so the gate
+demonstrably had something to catch before anything was measured.
+
+Even then the plain `git commit` result was not readable: both gates block and
+the wording pointed at git, meaning the Bash tool had RUN. The discriminator is
+`--no-verify`, which bypasses the git hook so anything still blocking must be
+the agent layer. It returned `precommit_gate.py`'s own `"Commit blocked:"`
+string with HEAD unmoved. **RM's PreToolUse gate fires headless under
+`bypassPermissions` on 2.1.220 and covers `--no-verify`.**
+
+DOCTRINE CORRECTED: RM has repeatedly described the Claude-side gate as unable
+to fire under `--no-verify`. True of the `commit-msg` hook, which strips the
+trailer through git. FALSE of the PreToolUse ASCII gate, which sits ABOVE git
+and is the only cover for that channel. Complementary, not redundant.
+
+**RM DID NOT DUPLICATE LW'S PROBE.** The operator assigned the mechanism
+question to LW, LW answered it, and RC deliberately abstained on the rule that
+one measurement gets one owner because "two of us agree" is not evidence. RM
+asked a narrower question about its own repo and labelled it as such.
+
+**THE TRAILER AUDIT CAME BACK CLEAN ON EVERY SURFACE**: 0 of 106 commits on
+`origin/master`, project `.claude/` (three commands plus the verifier agent),
+user-level commands and plugins, and there is no `.github/` at all, so no PR
+template or workflow can inject it. Every hit in the repo is the enforcement
+itself.
+
+**`RM-NEXT-SESSION.txt` NOW EXISTS ON THE DESKTOP.** The operator was right that
+it was missing - `LW-NEXT-SESSION.txt` and `RC-NEXT-SESSION.txt` both existed
+and RM had a stale `RM continue.txt` from 2026-07-26 instead. Overwritten each
+`/done`, never appended.
+
+**ONE SURVIVOR IS A CORRECTNESS QUESTION ABOUT RM ITSELF, NOT A FEATURE.**
+`CCR-146` reports that custom subagents do NOT inherit the main agent's system
+prompt - theirs is the agent file body alone. RM runs a `verifier` subagent and
+keeps its hard rules (7-bit ASCII, no co-author trailer, frozen files) in
+`CLAUDE.md`. If those never reach a subagent, RM's subagents have been running
+without them. UNVERIFIED, and it belongs at the top of stage 4.
+
 ## 2026-08-01 (second session) - The input spike closes: a count that was wrong by 344, and a boss health that is not on the prefab
 
 Branch `master`. Ledger 003h. Commits `863c16f` (the spike) and `a9d5428` (the
@@ -234,97 +343,3 @@ TTK** - Red Moon has no ground-truth anchor for any computed number. And no
 default subject vector is declared, so the first TTK silently ranks every build
 for anyone who does not override. Neither blocks phase 2; the first must be
 settled before the combat-math spec opens.
-
-## 2026-07-26 - The co-author trailer: a policy nothing enforced, and a test that lied
-
-Branch `master`. Ledger 003e. Commits `0cb03a1` (hook plus tests), `bbc2a81`
-(CLAUDE.md), `f47acd3` (citation remap) and `d49bc3f` (this entry), on top of a
-29-commit history rewrite that was FORCE-PUSHED to
-`origin/master`. **NO ROADMAP ITEM CLOSED.** The operator gate on the cycle 3
-phase 1 component inventory is STILL OPEN - four sessions now. That gate is the
-real next action.
-
-State at close, one run: `python -m pytest` **334 passed in 18.77s, exit 0**
-(327 before, plus 7 new), `python tools/ascii_guard.py` exit 0.
-
-**THE ASK WAS A VERIFICATION, AND IT CAME BACK NEGATIVE.** "Be sure the active
-commit-msg hook enforces the policy and strips the trailer - the tracked one
-doesn't." There was no commit-msg hook at all, tracked or active. `core.hooksPath`
-selects `hooks/`, which held only the pre-commit pair; `.git/hooks` holds only
-samples; the string `Co-Authored-By` appeared NOWHERE in the repo. The premise
-that a weaker tracked hook existed was itself wrong, and 16 commits carried the
-trailer including both of that day's earlier doc commits.
-
-**WHY AN UNWRITTEN POLICY LOSES.** The agent harness instructs the model to
-append the trailer to every commit message. A policy that lives only in the
-operator's head is a coin flip against a default that fires every single time.
-`CLAUDE.md` now carries it as a hard rule AND says the hook is a backstop, not a
-licence to emit the line - the hook cannot fire on `--no-verify` or on a rebase
-replaying old messages.
-
-**STRIP, DO NOT BLOCK.** Deliberately unlike the ASCII gate. A check that did
-not run did not pass, but a strip that did not run leaves one line the operator
-can still delete by hand; refusing the commit would trade a cosmetic defect for
-a blocked repo. Same reasoning makes a missing interpreter exit 0 in
-`hooks/commit-msg` and 1 in `hooks/pre-commit`.
-
-**THE TEST THAT WOULD HAVE LIED, AND THIS IS THE PART WORTH REMEMBERING.**
-`test_every_sha_the_ledger_cites_resolves` probes with `git cat-file -e`. Old
-objects survive a rewrite in the object database while `refs/original` and a
-backup branch still reference them, so the test went GREEN on all 36 cited SHAs
-at the exact moment a third of them named commits unreachable from master. It
-would have failed days later, after gc, with no connection to its cause. The
-remap was proven instead by grepping every tracked doc for every pre-rewrite SHA
-prefix - empty. 26 citations across five files, four of which that test does not
-even look at. **A resolving SHA is not a reachable SHA.**
-
-**BLAST RADIUS WAS MEASURED BEFORE ASKING, NOT AFTER.** Stripping 16 commits
-rewrites 29, because every descendant takes a new SHA, and all 29 were already
-on GitHub. The approval was given against that number, not against "14 commits".
-
-**THE OTHER PROJECT'S TWO TRAPS DO NOT APPLY HERE - RE-PROBED, NOT REASONED.**
-Trap 1, hooks in `.git/hooks` while `core.hooksPath` points elsewhere: RM has no
-non-sample files there. Trap 2, `precommit_gate.py` invoked with no args
-self-gating to a silent no-op: the one-liner DOES reproduce
-(`python tools/precommit_gate.py < /dev/null` exits 0) but RM never uses that
-path - `hooks/precommit_hook.py` imports `check_staged` directly. Settled by
-staging an em-dash and running a real commit: BLOCKED, `U+2014`, HEAD unmoved.
-
-**BACKUP, NOW GONE.** Branch `backup-pre-trailer-rewrite` and
-`refs/original/refs/heads/master` were deleted and gc'd with `--prune=now` after
-the rewritten history was confirmed good. The pre-rewrite objects no longer
-resolve, which is what makes the ledger SHA anchor a real check again - it
-passes against a purged object database, so the 26-citation remap is proven
-complete rather than merely resolving off lingering objects.
-
-**ORPHANED-HOOK CLASS, CHECKED AND CLEAR - BUT RM IS PRE-ARMED FOR IT.**
-`.git/hooks` holds only `.sample` files, there is no `.gitattributes`, and
-`git lfs ls-files` is empty, so nothing was silently disabled when
-`core.hooksPath` was set. LATENT RISK: `filter.lfs.required=true` IS configured.
-`git lfs install` writes its hooks to `.git/hooks`, which `core.hooksPath`
-makes git ignore. So the first LFS-tracked file added to this repo gets an inert
-`pre-push`, pushes look clean, and the LFS content never reaches the remote.
-If LFS is ever adopted here, port the LFS hooks into `hooks/` in the same
-commit. GUARDED as of this session by
-`test_no_orphaned_hooks_left_behind_in_git_hooks`. It asserts a condition that
-was ALREADY TRUE, so it could not fail first and could have shipped vacuously
-green - it was proven by injecting a fake `.git/hooks/pre-push`, watching it go
-red naming that file, and removing it. A guard test that has never been seen red
-is not a guard.
-
-**FRESH-CLONE BOOTSTRAP, RAISED FROM THE OTHER PROJECT AND VERIFIED HERE BY
-ACTUALLY CLONING.** `core.hooksPath` is LOCAL config and is NOT cloned, so a
-tracked hooks directory is inert on arrival no matter how correct it is. Probed
-rather than reasoned: `git clone C:/RedMoon <scratch>` came back with
-`core.hooksPath` UNSET and zero active hooks. RM already covers it in two
-places - `docs/OPERATIONS.md` has "Wire the commit gate, once per clone" marked
-mandatory, and the suite fails there on
-`test_core_hooks_path_selects_the_committed_hooks_dir` plus
-`test_installer_reports_the_wiring_as_installed`, the latter printing the exact
-remediation command. The new orphaned-hook test correctly SKIPPED in that
-clone, so its skip branch is exercised for real rather than assumed.
-THE RESIDUAL GAP CANNOT BE CLOSED BY ANYONE: between clone and the first
-verification run, nothing has told the operator yet. Git never clones hooks by
-design, because that would execute arbitrary code on clone. The ceiling is
-"loud on first verification", not "safe on arrival". A local clone is cheap -
-the repo is 685K - so this probe is worth repeating whenever the wiring changes.

@@ -173,11 +173,26 @@ an explicit `modification` on every entry.
    alongside a second gap: no default subject vector is declared, so the first
    TTK published silently ranks every build for anyone who does not override it.
 
-There is also a NON-ROADMAP track now running in parallel: a headless
-orchestrator and control plane on port 8770, specced by a sibling project on
-this machine. It is infrastructure rather than a cycle, gets its own ledger
-entries, and must not fold into Bloodforge. Its phase 0 is BLOCKED - see
-`WAKEUP_NOTES.md`.
+There are TWO NON-ROADMAP tracks running in parallel. Both are infrastructure
+rather than cycles, both get their own ledger entries, and neither may fold into
+Bloodforge.
+
+**The headless orchestrator and control plane on port 8770.** Phase 0a
+(preflight) now PASSES, ledger 003i. Both previously recorded blockers were
+wrong: there was no authentication failure, and the trust failure was a
+PATH-SEPARATOR MISMATCH in `.claude.json` - `C:\RedMoon` read True while
+`C:/RedMoon`, which headless actually reads, read False. Fixed. The second
+blocker was a machine-wide `"model": "rc-main"` belonging to a sibling, since
+removed by its owner. RM's own PreToolUse gate is MEASURED to fire headless
+under `bypassPermissions` on CLI 2.1.220, and to cover `--no-verify`, which the
+git hook cannot. **Nothing in RM calls the shared slot governor yet, and the
+loop itself does not exist** - that is the next action on this track.
+
+**RM's own link ingest**, `docs/research/LINK_INGEST.md`. Stages 1 to 3 done:
+146 of 146 extracted and scored against an RM rubric, 21 survivors above a 6+
+threshold chosen from the observed distribution. The corpus is 146 entries, not
+the 119 every earlier pass reported. Stage 4 deep-dive has NOT run and nothing
+is adopted until stage 6 names an acceptance criterion.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

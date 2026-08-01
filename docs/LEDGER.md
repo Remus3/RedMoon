@@ -14,6 +14,114 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003i - The slot round, the link corpus that was 146 not 119, and two gates probed (2026-08-01)
+
+Commits `5609509` (slot flip and re-pin), `5665b1a` (link ingest opened),
+`f50881e` (sweep completed and hook probe) plus the docs commit carrying this
+entry. **NO ROADMAP ITEM CLOSED** - all of this is the non-roadmap track, run
+after ledger 003h closed the Bloodforge input spike earlier the same session.
+
+State at close, one run each: `python -m pytest` **382 passed in 19.50s, exit
+0**, `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0.
+
+WHAT SHIPPED.
+
+1. **RM followed LW to N=3 and applied the three-repo re-pin.** LW flipped first
+   and was carrying a red suite waiting on RC and RM. RC's bytes were copied
+   VERBATIM from `moon_sync_inbox/slots.py.proposed-3repo` and re-hashed from
+   RM's own disk rather than taken on either sibling's word: `5297f2d0...`, 7154
+   bytes, LF only, zero non-ASCII, docstring-only diff. `AGREED_SHA256` moved in
+   the SAME commit, because a pin that lags its file guards nothing.
+
+2. **RM's own link ingest opened at `docs/research/LINK_INGEST.md`**, stages 1
+   to 3 complete, using RC's stage structure as scaffolding and none of its
+   judgements.
+
+3. **The headless preflight passes**, and both recorded blockers were wrong.
+
+4. **RM's PreToolUse gate probed headless** and a doctrine correction recorded.
+
+THE FINDINGS.
+
+**THE LINK CORPUS IS 146 ENTRIES, NOT 119, AND EVERY PRIOR PASS CALLED 119
+COMPLETE.** The source's header, its score-ranked index and its score
+distribution (`n=119`) all stop at CCR-119; full entries run to CCR-146. A later
+batch was scored in place and never indexed or counted, and it includes GitHub
+and Reddit sources rather than only marketplace MCP servers, so the header is
+stale in two ways. **27 entries - 18% of the corpus - had never been triaged for
+Red Moon at all.** Last session's "119/119 reviewed, zero above 5, nothing
+adopted" was 119 of 146. A count read off a document's header is not a
+measurement of the document, which is the same lesson the `ability_stats` pin
+taught in the other direction hours earlier.
+
+**RC'S FRAME HID RM'S SHARPEST NEED, AND THE OVERTURN IS A CLUSTER.** Scoring
+against an RM rubric whose top weight is ROADMAP gap 7 - nothing can falsify a
+computed TTK - moved six entries upward. The decisive pair is `CCR-35`
+pyghidra-lite (8) and `CCR-89` x64dbg (7), binary reverse-engineering tooling
+scored 2 for a League dashboard. **A coaching dashboard has no binary to
+reverse; Red Moon's hardest problem class is nothing else** - 169 interop
+assemblies scanned to prove `items.tier` had no source, a generic value reader
+that hard-crashed the dedicated server twice with the diagnosis stopping at a
+guess, and a `BACKLOG.md` item rejected on per-patch RE cost that these directly
+reduce. Also raised: `CCR-50` schema-drift monitoring (7), and `CCR-75` (6)
+change-watch on the build pin, which RM asserts across about 97 tracked sites
+and currently learns has moved by noticing.
+
+**A DRAFT OF THE CULL CARRIED A HISTOGRAM THAT DID NOT RECONCILE WITH ITS OWN
+TABLE** - 24 survivors claimed against 21 enumerated, because the low bands were
+grouped rather than counted. Withdrawn rather than quietly corrected, and the
+withdrawal recorded in the document, since an unchecked count is the precise
+defect the document exists to correct. Threshold 6+, **21 survivors, 125
+culled**, every survivor named by id. Stage 4 has NOT run: every score so far is
+against a one-line summary written by someone else for someone else.
+
+**THE HEADLESS BLOCKER WAS A PATH-SEPARATOR MISMATCH, NOT AN UNACCEPTED
+DIALOG.** `.claude.json` held TWO keys for one directory - `C:\RedMoon` True and
+`C:/RedMoon` False - and headless reads the forward-slash form, so it discarded
+all 13 `permissions.allow` entries. The workspace HAD been trusted. Fixed, RM's
+key only, atomic, backed up. LW independently found the same bug with THREE keys
+for one directory. RM's earlier "headless is NOT AUTHENTICATED" claim is
+RETRACTED: there was no login error, and the second failure was `"model":
+"rc-main"` set MACHINE-WIDE in the user-level settings. RM did not touch it -
+it was RC's and machine-wide - and asked instead; RC deleted it on the finding
+that the alias resolved for nobody.
+
+**THE FIRST HOOK PROBE WAS INVALID AND ITS RESULT WAS A LIE.** Staged U+2014
+under `_scratch/`, ran a headless commit, and it SUCCEEDED - which reads exactly
+like "no gate fired". `_scratch` is on `ascii_guard.py`'s own skip list, so both
+gates inspected the diff, found nothing they own and allowed it CORRECTLY.
+Commit reset, HEAD restored. **A gate that stays silent because the probe gave
+it nothing to catch is indistinguishable from a gate that is not wired** - the
+mirror image of the two false NEGATIVES LW reported the same day. The fix that
+made the retry trustworthy was to call `check_staged()` directly first and
+confirm it returned a reason.
+
+**AND THE VALID PROBE NEEDED A DISCRIMINATOR TO BE READABLE.** A plain
+`git commit` was blocked, and that proved nothing: both the git hook and the
+PreToolUse gate block, and the wording pointed at git, meaning the Bash tool had
+run and git refused. `--no-verify` bypasses the git hook, so anything still
+blocking must be the agent layer. It returned `precommit_gate.py`'s own
+`"Commit blocked:"` string with HEAD unmoved. **RM's PreToolUse gate fires
+headless under `bypassPermissions` on CLI 2.1.220 and covers `--no-verify`.**
+
+DOCTRINE CORRECTED: RM has described the Claude-side gate as a backstop that
+cannot fire under `--no-verify`. That is true of the `commit-msg` hook, which
+strips the trailer through git, and FALSE of the PreToolUse ASCII gate, which
+sits above git and is therefore the only cover for that channel. The two are
+complementary, not redundant. Git hooks remain the floor because they survive a
+human typing `git` in a terminal.
+
+**RM DID NOT DUPLICATE LW'S PROBE.** The operator assigned the mechanism
+question to LW; LW answered it (hooks DO fire on 2.1.220) and RC deliberately
+abstained on the rule that one measurement gets one owner, because "two of us
+agree" is not evidence. RM asked a different question about its own repo and
+said so.
+
+ALSO: a trailer audit across every surface came back clean - 0 of 106 commits on
+`origin/master`, project `.claude/`, user-level commands and plugins, and there
+is no `.github/` at all. And `RM-NEXT-SESSION.txt` now exists on the desktop,
+matching the `LW-` and `RC-` convention it had been missing.
+
 ## 003h - Cycle 3 phases 2 and 3: the schema'd dump, and the boss health that is not on the prefab (2026-08-01)
 
 Commits `863c16f` (the spike) and `a9d5428` (the living docs and this entry). **THE BLOODFORGE

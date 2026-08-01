@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003n - Link ingest stage 4: the binary-RE pair dived, and both demoted (2026-08-01)
 
-Commit `<pending>`. NON-ROADMAP track, per `docs/research/LINK_INGEST.md`. Docs
+Commit `f7a1bbc`. NON-ROADMAP track, per `docs/research/LINK_INGEST.md`. Docs
 only - no code change, Tier 0. `python -m pytest` **544 passed, exit 0**
 (unchanged, as a doc change should leave it), `python tools/ascii_guard.py`
 exit 0.

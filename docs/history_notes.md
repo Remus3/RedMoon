@@ -1,6 +1,75 @@
 # Red Moon History Notes
 
 
+## 2026-08-01 (sixth stretch) - The recorder runs, and its first run corrects four things
+
+Commit `23d40bf`. Suite **526 passed in 20.16s exit 0** (405 before), ruff clean,
+ascii_guard exit 0, `dotnet build` 0/0, deployed to both hosts with matching
+SHA256. NO ROADMAP ITEM CLOSED. Gaps 12 and 13 opened.
+
+**THE HEADLINE IS WHAT DID NOT HAPPEN.** The power-stat experiment was not run.
+It needs the V Rising CLIENT with a live character casting
+`AB_Unholy_WardOfTheDamned_AbilityGroup`; the dedicated server runs
+`-batchMode -nographics` and has no player. Everything around it is built,
+deployed and verified live. The run is one operator session away and
+`docs/ANCHOR_RUNS.md` is the procedure.
+
+### What landed
+
+`GET /record/{start,status,stop}` (`HealthRecorder.cs`), the damage model and
+DPS cycle (`bloodforge/damage.py`, `dps.py`), the anchor writer
+(`tools/anchor_record.py`) and the H1-versus-H2 evaluator
+(`bloodforge/powerstat.py`). Built by three subagents on disjoint files; I
+re-ran every claimed count and every claimed test myself.
+
+VERIFIED LIVE against a dedicated server with a spawned Dracula: 56 samples in
+27.6 s, 0 dropped, `prefab_guid` and the liveness marker restated on 56 of 56,
+the prefab correctly rejected. **No NONZERO delta was observed** - nothing
+headless damages a boss - and that limit is recorded rather than glossed.
+
+### The four corrections, all from running it
+
+1. **2 Hz, not 4 Hz.** `SampleEveryFrames = 15` is a FRAME count and no frame
+   rate had ever been read. Interval median 0.502 s over n=55: 1.99 Hz at
+   29.9 fps. Both specs computed the section C tolerances against an assumed
+   60 fps. The A.5 gap check is now 3x the OBSERVED median, not 750 ms. Gap 12.
+2. **A whole-second clock on a sub-second series.** Caught by reading before
+   deploying. `Json.UtcNowMillis` now exists for the recorder alone.
+3. **The arm reported a DECLINE as an ABSENCE.** `player_resolved` false while
+   samples carried a player block: `Clear()` reset the rescan counter and the arm
+   consulted the throttle it had just reset. Third time on this build that a
+   silent gate looked exactly like an unwired one.
+4. **Corruption cannot be priced under EITHER hypothesis.** All 18 groups carry
+   neither a `spell_school` nor `is_weapon_ability`. 60 of 732 unpriceable after
+   the experiment, not 42. Gap 13.
+
+### Two things to carry into the next session
+
+- **`max_health` 8107 at n=3**, three boots, three entity indices, 0 on the
+  prefab every time. Half of open question 7 answered. The other half - under
+  what difficulty, and across a FRESH world - is still open, and no
+  `ServerGameSettings.json` is written anywhere so the difficulty is a default
+  rather than an observation.
+- **THE EXPERIMENT HAS A CASTER-SIDE PRECONDITION.** The character armed against
+  reads `PhysicalPower` 10 and `SpellPower` 10, on which both hypotheses predict
+  the same number and the run is indeterminate however clean the deltas.
+  Section 3.2 rejected the default subject because the ABILITY could not separate
+  them; the same run fails on the CASTER side, which neither spec had said.
+
+### Process notes
+
+- **Independent smoke tests found what the suite did not.** `evaluate` raised on
+  `statistics.median([])` for a series with zero isolated deltas - which is my
+  own flat recording, and which is what a prefab-latched recorder produces. 526
+  green tests did not catch it; feeding it one real recorded file did.
+- **A stale `.pyc` nearly cost an hour.** Mutating `max(` to `sum(` and back
+  gives the same file size, and if it lands inside the same mtime second Python
+  reuses the mutated bytecode. Five tests kept failing against correct source.
+  Clear `__pycache__` before believing a mutation-test revert.
+- All three subagents reported honestly and all their counts reproduced. One
+  (`RedMoon.Bridge.csproj` has `EnableDefaultCompileItems=false`) correctly
+  flagged a blocker it declined to fix because the file was outside its list.
+
 ## 2026-08-01 (fifth stretch) - The embargo lands before the math, and the default subject turns out to prove nothing
 
 Branch `master`. Ledger 003k. Commits `6d5095e` (the embargo gate), `6056b45`

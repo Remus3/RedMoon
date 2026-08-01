@@ -14,6 +14,108 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003s - Link ingest stage 7, and the whole track closes at zero adoptions (2026-08-01)
+
+Commit `8684aa0`. Suite **588 passed in 26.29s, exit 0** (551 before, +37), ruff
+clean, `ascii_guard` exit 0. No C# change, no rebuild, no redeploy.
+`ENGINE_VERSION` unchanged - none of the four items touches section 2, 3 or 4
+math. **NO ROADMAP ITEM CLOSED**, and the power-stat experiment was not run.
+
+**THE MAIN TRACK WAS NOT ATTEMPTED AND THE REASON IS RECORDED RATHER THAN
+GLOSSED.** The session opened scoped to the cycle 3 power-stat run at the
+CLIENT. Probed live at open: no `VRising*` process, no Steam process, and zero
+listeners across the whole 8770-8790 block. The operator was asked directly and
+chose to defer the run and take stage 7 instead. `P(G)` remains undefined and
+every damage number in the engine is still absent. **This is the third
+consecutive session to open on a run that needs a human in-world and find the
+client down.**
+
+### What shipped, in build order
+
+**S7.2** `tests/test_commit_history.py`, 14 tests. The co-author policy asserted
+over the OUTCOME. `hooks/commitmsg_hook.py` strips and warns rather than
+blocking, `--no-verify` bypasses git hooks entirely, and nothing scanned
+afterward. **`CLAUDE_TRAILER` is IMPORTED from the hook** rather than restated,
+so the friendly path and the backstop cannot disagree about what the policy
+forbids. MEASURED: **0 offenders over 135 commits.**
+
+Two controls, because a walk over 135 EMPTY bodies would also report zero - the
+recorded "null from an instrument that cannot produce a positive". The first
+asserts the walk saw exactly as many commits as `git rev-list --all --count`.
+The second asserts HEAD's record actually contains HEAD's subject, read through
+a second independent git format. PROBED before pinning: 134 non-empty bodies,
+110,818 characters of real message text.
+
+**S7.5** `tests/test_build_pin_crosscheck.py`, 3 tests, no production code.
+`tests/test_drift_anchors.py` holds 120 authored sites to `CLAUDE.md`'s pin and
+**structurally cannot reach `data/rmdata/current.txt`**, because it iterates
+`git ls-files` and that tree is gitignored. Also asserts
+`rm_facts.game_build()` agrees with `data_build()` - two lines that frozen module
+has printed side by side at every session start since cycle 1 and never
+compared. The three sentinels are rejected BEFORE the comparison, or it is a
+gate with nothing to catch on any machine but Legion. Both read
+`1.1.13.0-r99712` and neither test skipped.
+
+**S7.3** `tests/test_value_diff.py`, 15 tests, plus the diff in
+`tools/rmdata_ingest.py` and the flag documented in `docs/OPERATIONS.md` in the
+same commit. **The highest-value item in the batch, and the only one closing a
+failure that actually occurred.** RM's five ingest gates each catch a wrong
+COUNT, TYPE, SHAPE or KEY. None catches a row that stayed valid, stayed unique
+and stayed counted while one of its numbers changed, and git cannot see it
+either. `docs/LEDGER.md:740-745` records a cycle 2 dedupe fix that "silently made
+the row whichever of two DISAGREEING entities the world walk reached first. The
+count looked right afterwards, which is why it survived a cycle."
+
+Placed immediately before `if problems:` so a validate-only run surfaces drift
+before anyone types `--accept`, and refusal reuses the existing `EXIT_INVALID`
+path. Escape hatch `--accept-value-changes`, required IN ADDITION to `--accept`,
+because cycle 3 is where the dumper is under active development and a hard
+refusal with no way through would gate cycle 3 from a non-roadmap batch.
+
+**S7.1** `tests/test_collected_counts.py`, 5 tests. A per-module map over 33
+modules, asserting BOTH the key set and the total. A single total pin cannot see
+a deleted 5-test module offset by five additions elsewhere. The parse check is
+load-bearing rather than decorative: a regex that matches nothing returns `{}`,
+and `if observed and observed != PIN` then passes silently over a suite that
+cannot import at all.
+
+### The two things building it taught that planning it had not
+
+**The S7.2 self-check could not be written as a text scan.** A test asserting
+"this module states no predicate of its own" searched its own source for the
+name of the thing it forbids, matched its own assertion string, and failed on a
+clean file. It is an AST walk now, which does not see inside string literals.
+Small, and exactly the shape of every other finding on this track: the
+instrument was measuring itself.
+
+**An EMPTY baseline had to be defined as NO baseline, and the criterion had not
+said so.** `tools/rmdata_extract.seed_tables` writes an empty envelope for every
+table name, so a baseline FILE exists on any seeded tree from the first extract.
+Comparing against zero rows reports all 425 items as additions on the first real
+ingest. That is noise, and noise on a refusing gate trains the operator to pass
+`--accept-value-changes` reflexively - which would have retired the gate on the
+day it shipped.
+
+### And one the gate caught on its own author, immediately
+
+The first commit message for this work QUOTED a real trailer form as prose, to
+explain what the narrower draft predicate would have missed. It passed the new
+gate only because the line happened to wrap so that the quoted text did not
+start a line. A reflow, a rebase or a different terminal width would have made
+this commit trip the gate it adds. Amended to describe the form in words
+instead, with a note in the message saying why. **The gate's first finding was
+in the commit that introduced it.**
+
+### The whole track, as an arithmetic identity
+
+**146 extracted, 146 scored, 21 dived, 0 at 7 or above, 0 tools adopted, 4 work
+items shipped.** Not one entry was demoted because the tool was bad; every
+demotion came from an RM-side premise nobody had measured. The track's product
+was never a dependency - it was the corrections those measurements forced, and
+now four gates that came out of them.
+
+---
+
 ## 003r - The console flash, and the ruff gate it had been silencing since it was written (2026-08-01)
 
 Commits `379f6c6` (the fix) and `9d056b4` (the living docs and this entry). Suite **551 passed in 22.61s, exit 0** (544 before, +7), ruff

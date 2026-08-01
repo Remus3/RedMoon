@@ -380,7 +380,7 @@ with it off). Stage 2 scored good tools against beliefs about Red Moon. The
 track's real product is the corrections those measurements forced, several of
 which are recorded as gaps below.
 
-**STAGES 4, 5 AND 6 ARE ALL COMPLETE, and STAGE 7 is the only open one.**
+**EVERY STAGE IS NOW COMPLETE. THE TRACK IS CLOSED, 2026-08-01.**
 
 **STAGE 6 IS ALSO COMPLETE.** Eight candidates, **four adopted with acceptance
 criteria, one DROPPED, one deferred, one blocked, one discharged, and zero tools
@@ -388,9 +388,23 @@ adopted.** The plan was put through the same adversarial pass as the tools and
 did no better: one item died because its mechanism could not reach the subject
 its criterion named (the ingest census covers 4 of 6 tables and cannot see the
 1,818-row combat table at all), and three criteria were rewritten because they
-described the feature rather than a failure the test must produce. **Stage 7 is
-the only open stage:** implement S7.2, S7.5, S7.1 and S7.3 in that order, TDD.
-None is cycle 3 work and none may gate the power-stat experiment.
+described the feature rather than a failure the test must produce.
+
+**STAGE 7 IS COMPLETE, 2026-08-01, commit `8684aa0`.** All four items shipped
+TDD: S7.2 the co-author trailer scan over `git log` (0 offenders over 135
+commits, predicate imported from the hook so the friendly path and the backstop
+cannot diverge), S7.5 the build-pin cross-check that `test_drift_anchors`
+structurally cannot reach because `data/rmdata/` is gitignored, S7.1 a
+per-module collected-count map, and S7.3 a dump-to-dump VALUE diff keyed on
+`prefab_guid` inside `tools/rmdata_ingest.py` with an `--accept-value-changes`
+escape hatch. Suite 551 to **588**. `ENGINE_VERSION` did not move and no cycle 3
+work was touched.
+
+**The one gate that closes a failure this project actually suffered is S7.3.**
+The five existing ingest gates each catch a wrong count, type, shape or key;
+none catches a row that stayed valid, stayed unique and stayed counted while one
+of its numbers changed, and git cannot see it either. `docs/LEDGER.md:740-745`
+records exactly that happening in cycle 2 and surviving a whole cycle.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

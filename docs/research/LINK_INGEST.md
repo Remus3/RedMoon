@@ -144,9 +144,32 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
   outright and rewrote three criteria. See the self-inflicted findings there:
   the draft committed this track's own signature failure inside the document
   diagnosing it.
-- **Stage 7 (implement) is OPEN.** Four items, build order S7.2, S7.5, S7.1,
-  S7.3, TDD per `CLAUDE.md`. None is cycle 3 work and none may gate the
-  power-stat experiment.
+- **Stage 7 COMPLETE 2026-08-01, and with it the whole track.** All four items
+  shipped, TDD, commit `8684aa0`. Suite **551 to 588**, ruff clean,
+  `ascii_guard` exit 0. `ENGINE_VERSION` did not move: none of the four touches
+  section 2, 3 or 4 math. None was cycle 3 work and none gated the power-stat
+  experiment.
+  - **S7.2** `tests/test_commit_history.py`, 14 tests. 0 offenders over 135
+    commits. Predicate IMPORTED from `hooks/commitmsg_hook`.
+  - **S7.5** `tests/test_build_pin_crosscheck.py`, 3 tests. Both build lines
+    read `1.1.13.0-r99712` and neither comparison skipped.
+  - **S7.1** `tests/test_collected_counts.py`, 5 tests. Per-module map over 33
+    modules totalling 588.
+  - **S7.3** `tests/test_value_diff.py`, 15 tests, plus the diff itself in
+    `tools/rmdata_ingest.py` and `--accept-value-changes` documented in
+    `docs/OPERATIONS.md`.
+
+  **Two things were learned by building it rather than by planning it**, and
+  both are the same shape as everything else this track turned up:
+  - **The S7.2 self-check could not be written as a text scan.** A test
+    asserting "this module compiles no pattern of its own" matched its own
+    assertion string and failed on a clean file. It is an AST walk now, which
+    does not see inside string literals.
+  - **An EMPTY baseline had to be defined as NO baseline in S7.3**, which the
+    criterion did not say. `seed_tables` writes an empty envelope per table, so
+    comparing against zero rows reports all 425 items as additions on the first
+    real ingest - noise that would train the operator to pass the escape hatch
+    reflexively and retire the gate on the day it shipped.
 
 **THE RESULT OF THE WHOLE TRACK, stated as an arithmetic identity: 146
 extracted, 146 scored, 21 dived, 0 at 7 or above, 0 adopted.** Stage 3's
@@ -1090,7 +1113,17 @@ Moon** - four corrections to recorded facts, one new ROADMAP gap, and four work
 items. One of those measured facts has now retired one of the five items the
 corpus produced, which is the process working rather than failing.
 
-## What stage 7 owes
+## What stage 7 owed - DISCHARGED 2026-08-01, commit `8684aa0`
+
+Kept below as written, because the point of an acceptance criterion is that it
+was set before the work. Every clause was met, with two deviations recorded in
+Status above: the S7.2 self-check moved from a text scan to an AST walk, and
+S7.3 gained an explicit empty-baseline-is-no-baseline rule the criterion had not
+anticipated. **Build order was S7.2, S7.5, S7.3, S7.1** rather than the stated
+S7.2, S7.5, S7.1, S7.3 - S7.1 pins a per-module count map and S7.3 adds a test
+module, so building the pin first would only have meant writing it twice. The
+plan itself says the order is convenience and there is no dependency between
+them.
 
 Implement S7.2, S7.5, S7.1 and S7.3 in that order, TDD per `CLAUDE.md`: the
 failing test first, then the implementation, then verification at the tier the

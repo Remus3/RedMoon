@@ -3,6 +3,78 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (ninth stretch) - Stage 7 ships and the link ingest track closes, with the run deferred a third time
+
+Ledger 003s. Commit `8684aa0`. Suite **588 passed in 26.29s exit 0** (551 at
+open, +37), ruff clean, `ascii_guard` exit 0. No C# change, so the deployed DLLs
+still match. `ENGINE_VERSION` unchanged. **NO ROADMAP ITEM CLOSED** - but the
+link-ingest track is now closed entirely.
+
+**THE POWER-STAT EXPERIMENT DID NOT RUN, FOR THE THIRD SESSION RUNNING.** Probed
+at open rather than assumed: no `VRising*` process, no Steam process, zero
+listeners across 8770-8790. The operator was asked and chose to defer the run
+and take stage 7. `P(G)` is still undefined and every damage number is still
+absent. **Put "launch the client first" at the top of the next prompt** - three
+sessions have now opened scoped to work that needs a human in-world and found
+nothing listening.
+
+The two free wins stay attached to that run rather than becoming their own item:
+the client sample rate (gap 12, still unmeasured) and the 425-row
+`localization_guid` backfill. Both cost roughly nothing once the client answers.
+
+### Stage 7, all four items, and the track closes at zero tools adopted
+
+**146 extracted, 146 scored, 21 dived, 0 adopted, 4 work items shipped.** The
+track's product was never a dependency; it was the corrections its measurements
+forced, and now four gates built from them.
+
+- **S7.2** the co-author scan. 0 offenders over 135 commits. The predicate is
+  IMPORTED from `hooks/commitmsg_hook`, not restated.
+- **S7.5** the build-pin cross-check `test_drift_anchors` cannot reach, because
+  it iterates `git ls-files` and `data/rmdata/` is gitignored.
+- **S7.3** the value diff. **The only one of the four closing a failure that
+  actually occurred** (`docs/LEDGER.md:740-745`).
+- **S7.1** the per-module collected-count map, 33 modules, 588 total.
+
+Built S7.3 BEFORE S7.1, against the stated order. S7.1 pins a per-module count
+map and S7.3 adds a test module, so the stated order guarantees writing the pin
+twice. The plan says the order is convenience with no dependency, so this is
+within it - but it is a deviation and it is written down.
+
+### Three findings, all the same shape
+
+**The S7.2 self-check measured itself.** A test asserting "this module states no
+predicate of its own" scanned its own source for the name of the thing it
+forbids, matched its own assertion string, and failed on a clean file. It is an
+AST walk now, which cannot see inside string literals.
+
+**An EMPTY baseline had to be defined as NO baseline**, which S7.3's criterion
+did not anticipate. `seed_tables` writes an empty envelope per table, so a
+baseline file exists on any seeded tree and comparing against zero rows reports
+all 425 items as additions on the first real ingest. Noise on a REFUSING gate
+trains the operator to pass the escape hatch reflexively, which would have
+retired the gate on the day it shipped.
+
+**The gate's first finding was in the commit that introduced it.** The first
+commit message quoted a real trailer form as prose and passed only because the
+line happened to wrap so the quoted text did not start a line. A reflow or a
+rebase would have made that commit trip its own new gate. Amended to describe
+the form in words.
+
+### Process note
+
+Worked inline, no subagents - R9 (nothing under about three files) and the four
+items touch six files between them with no parallel slices. Every count in this
+note and in the ledger was re-run rather than carried: the 135-commit history,
+the 588-test suite, the 134 non-empty commit bodies and 110,818 characters of
+message text, and both build values.
+
+**A bash `grep -ci` for the trailer returned 1 and the real gate returned 0.**
+The grep was unanchored where the predicate anchors at line start. The lesson is
+the recorded one in a new place - the ad-hoc instrument and the real one
+disagreed, and the real one was right. Do not audit a gate with a different
+predicate than the gate uses.
+
 ## 2026-08-01 (eighth stretch) - The link corpus closes at zero adoptions, and a gate turns out to have been dead
 
 Ledger 003m, 003n, 003o, 003p, 003q, 003r. Suite **551 passed in 22.61s exit 0**
@@ -112,72 +184,3 @@ the old name; they are history.
 
 Inbox clean at open: all 14 `moon_sync_inbox/` files timestamped 10:19 or
 earlier against a 13:00 HEAD.
-
-## 2026-08-01 (sixth stretch) - The recorder runs, and its first run corrects four things
-
-Commit `23d40bf`. Suite **526 passed in 20.16s exit 0** (405 before), ruff clean,
-ascii_guard exit 0, `dotnet build` 0/0, deployed to both hosts with matching
-SHA256. NO ROADMAP ITEM CLOSED. Gaps 12 and 13 opened.
-
-**THE HEADLINE IS WHAT DID NOT HAPPEN.** The power-stat experiment was not run.
-It needs the V Rising CLIENT with a live character casting
-`AB_Unholy_WardOfTheDamned_AbilityGroup`; the dedicated server runs
-`-batchMode -nographics` and has no player. Everything around it is built,
-deployed and verified live. The run is one operator session away and
-`docs/ANCHOR_RUNS.md` is the procedure.
-
-### What landed
-
-`GET /record/{start,status,stop}` (`HealthRecorder.cs`), the damage model and
-DPS cycle (`bloodforge/damage.py`, `dps.py`), the anchor writer
-(`tools/anchor_record.py`) and the H1-versus-H2 evaluator
-(`bloodforge/powerstat.py`). Built by three subagents on disjoint files; I
-re-ran every claimed count and every claimed test myself.
-
-VERIFIED LIVE against a dedicated server with a spawned Dracula: 56 samples in
-27.6 s, 0 dropped, `prefab_guid` and the liveness marker restated on 56 of 56,
-the prefab correctly rejected. **No NONZERO delta was observed** - nothing
-headless damages a boss - and that limit is recorded rather than glossed.
-
-### The four corrections, all from running it
-
-1. **2 Hz, not 4 Hz.** `SampleEveryFrames = 15` is a FRAME count and no frame
-   rate had ever been read. Interval median 0.502 s over n=55: 1.99 Hz at
-   29.9 fps. Both specs computed the section C tolerances against an assumed
-   60 fps. The A.5 gap check is now 3x the OBSERVED median, not 750 ms. Gap 12.
-2. **A whole-second clock on a sub-second series.** Caught by reading before
-   deploying. `Json.UtcNowMillis` now exists for the recorder alone.
-3. **The arm reported a DECLINE as an ABSENCE.** `player_resolved` false while
-   samples carried a player block: `Clear()` reset the rescan counter and the arm
-   consulted the throttle it had just reset. Third time on this build that a
-   silent gate looked exactly like an unwired one.
-4. **Corruption cannot be priced under EITHER hypothesis.** All 18 groups carry
-   neither a `spell_school` nor `is_weapon_ability`. 60 of 732 unpriceable after
-   the experiment, not 42. Gap 13.
-
-### Two things to carry into the next session
-
-- **`max_health` 8107 at n=3**, three boots, three entity indices, 0 on the
-  prefab every time. Half of open question 7 answered. The other half - under
-  what difficulty, and across a FRESH world - is still open, and no
-  `ServerGameSettings.json` is written anywhere so the difficulty is a default
-  rather than an observation.
-- **THE EXPERIMENT HAS A CASTER-SIDE PRECONDITION.** The character armed against
-  reads `PhysicalPower` 10 and `SpellPower` 10, on which both hypotheses predict
-  the same number and the run is indeterminate however clean the deltas.
-  Section 3.2 rejected the default subject because the ABILITY could not separate
-  them; the same run fails on the CASTER side, which neither spec had said.
-
-### Process notes
-
-- **Independent smoke tests found what the suite did not.** `evaluate` raised on
-  `statistics.median([])` for a series with zero isolated deltas - which is my
-  own flat recording, and which is what a prefab-latched recorder produces. 526
-  green tests did not catch it; feeding it one real recorded file did.
-- **A stale `.pyc` nearly cost an hour.** Mutating `max(` to `sum(` and back
-  gives the same file size, and if it lands inside the same mtime second Python
-  reuses the mutated bytecode. Five tests kept failing against correct source.
-  Clear `__pycache__` before believing a mutation-test revert.
-- All three subagents reported honestly and all their counts reproduced. One
-  (`RedMoon.Bridge.csproj` has `EnableDefaultCompileItems=false`) correctly
-  flagged a blocker it declined to fix because the file was outside its list.

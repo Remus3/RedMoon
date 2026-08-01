@@ -118,6 +118,15 @@ settled first, and the embargo it mandated is CODE before the math rather than
 after it - `bloodforge/embargo.py` and `ENGINE_VERSION` landed one commit ahead
 of the spec, so nothing the spec describes can publish a wrong number.
 
+**THE COMBAT MATH IS IMPLEMENTED AND NOT DISCHARGED, 2026-08-01.** Sections 2
+and 4 are code (`bloodforge/damage.py`, `bloodforge/dps.py`), the anchor recorder
+exists and has run against a live world (`GET /record/*`), and the writer and the
+H1-versus-H2 evaluator are built (`tools/anchor_record.py`,
+`bloodforge/powerstat.py`). **The section 3.3 power-stat experiment has NOT been
+run**, so `P(G)` is undefined, every damage number is absent, and discharge is
+blocked on exactly one operator session at the CLIENT.
+Procedure: `docs/ANCHOR_RUNS.md`.
+
 Known input gaps the spec must scope rather than assume away. The first two are
 the large ones and were found by reading the promoted rows rather than the
 schema, at cycle 2 close:

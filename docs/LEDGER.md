@@ -14,6 +14,123 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003l - The anchor recorder runs, and its first run corrects four things (2026-08-01)
+
+Commit `23d40bf` (the recorder, the damage model, the DPS cycle, the anchor
+writer, the power-stat evaluator, and every doc correction below), plus a
+follow-up docs commit carrying this entry.
+**NO ROADMAP ITEM CLOSED.** The combat math spec is IMPLEMENTED but not
+DISCHARGED: sections 2 and 4 are code, the section 3.3 experiment has NOT been
+run, and discharge requires it. Two new gaps opened: 12 and 13.
+
+State at close, one run each: `python -m pytest` **526 passed in 20.16s, exit 0**
+(405 before, +121), `python -m ruff check .` clean, `python tools/ascii_guard.py`
+exit 0, `dotnet build` 0 warnings 0 errors, deployed to both hosts with matching
+SHA256.
+
+WHAT SHIPPED.
+
+1. **`GET /record/{start,status,stop}` EXISTS AND HAS RUN AGAINST A LIVE WORLD.**
+   `bridge/src/RedMoon.Bridge/HealthRecorder.cs`. It is the only thing in this
+   project that can produce a falsifiable series. It samples on the same
+   `MainThreadTick` as `StateReader` rather than polling `/dump/statcontrol`,
+   which walks every entity per request against a measured 95 ms full scan under
+   a one-at-a-time gate; the subject is resolved once and re-validated in O(1).
+   The arm REQUIRES `carries_prefab_marker` false, so the phase 3 timing trap is
+   a precondition rather than a comment. Capacity is STOP-AT-CAP at 4096 rather
+   than an overwriting ring, because A.5.3 needs the FIRST sample to equal max
+   health and a ring silently discards the start of a fight.
+
+   MEASURED against a dedicated server with a spawned Dracula: 56 samples in
+   27.6 s, 0 dropped, `prefab_guid` and the liveness marker restated on 56 of 56,
+   the prefab seen as a separate entity and correctly rejected.
+   **NOT COVERED, and said out loud: no NONZERO health delta was observed.**
+   Nothing headless damages a boss, so the series is flat at 8107. A recorder
+   reading nothing would look identical, which is exactly why the controls are on
+   every sample.
+
+2. **The combat math, sections 2 and 4, behind the embargo.**
+   `bloodforge/damage.py` and `bloodforge/dps.py`. `cycle` is a MAXIMUM over the
+   three windows and never a sum - they overlap, and `cooldown` is 0 on 352 of
+   1818 rows which is what forces the max form. Mutation-tested independently:
+   changing `max` to `sum` fails five tests. An undefined term is a TYPE that
+   supports no numeric protocol, so `1.0 - fire` raises at the site instead of
+   producing a wrong float three frames away.
+
+3. **The writer and the evaluator.** `tools/anchor_record.py` builds the B.1
+   manifest, runs the A.5 checklist and writes atomically;
+   `bloodforge/powerstat.py` evaluates H1 against H2 and refuses to name an
+   unearned winner. `docs/ANCHOR_RUNS.md` is the operator procedure.
+
+FOUR CORRECTIONS, every one from running the thing rather than reading about it.
+
+1. **THE SAMPLE RATE IS 2 Hz ON THIS HOST, AND 4 Hz WAS NEVER A MEASUREMENT.**
+   Both specs state 4 Hz as a hard ceiling and computed the section C tolerances
+   against it. `SampleEveryFrames = 15` is a FRAME count, so the rate follows the
+   host's frame rate, and no frame rate had ever been read on either host.
+   MEASURED: interval min 0.500 s, median 0.502 s, max 0.503 s over n=55, so
+   **1.99 Hz at 29.9 fps** under `-batchMode -nographics`. The A.5 gap check is
+   now 3x the OBSERVED median interval rather than a hardcoded 750 ms, which at
+   2 Hz would discard a valid run, and every manifest records the rate measured
+   from its own series. The client should give about 4 Hz and REMAINS UNMEASURED.
+   ROADMAP gap 12.
+
+2. **THE RECORDER STAMPED A SUB-SECOND SERIES WITH A WHOLE-SECOND CLOCK.** Found
+   by reading the code before deploying it. Two to four samples shared a
+   `captured_at`, which makes the gap check, the 2.0 s idle window and the
+   bracketing of an isolated delta all uncomputable. `Json.UtcNowMillis` now
+   exists for the recorder and for nothing else.
+
+3. **THE ARM REPORTED A DECLINE AS AN ABSENCE.** `player_resolved` read false
+   while the samples it went on to take carried a full player block from index 19
+   onward: `Clear()` reset the rescan counter and the arm then consulted the
+   throttle it had just reset. **A silent gate is indistinguishable from an
+   unwired one**, for the third time on this build. Not cosmetic:
+   `player_unit_stats` at t0 is the ENTIRE comparison basis of the power-stat
+   experiment, so an arm that omits it produces a run that decides nothing.
+
+4. **CORRUPTION IS BLOCKED ON THE POWER SIDE AND THE EXPERIMENT CANNOT UNBLOCK
+   IT.** The spec listed corruption as computable-after-the-experiment, having
+   reasoned about it entirely on the `reduction` side where it is the one type
+   with a real nonzero value. COUNTED: **all 18 corruption damage groups carry
+   neither a `spell_school` nor `is_weapon_ability`**, so H2 has no kind to
+   select on and H1 is stated over Physical and Spell only. Both hypotheses are
+   silent. So **60 of 732 damage groups are unpriceable after the experiment,
+   not 42**, and the only nonzero defined reduction on this build is reached by
+   nothing real. ROADMAP gap 13.
+
+TWO MORE MEASUREMENTS WORTH CARRYING.
+
+- **`max_health` 8107 reproduces at n=3**, across three process lifetimes and
+  three distinct entity indices (322945 earlier, 322862, 322840), against 0 on
+  the prefab every time. That answers half of combat-math open question 7: the
+  value is stable across a reload of the same save. It does NOT answer the other
+  half - no `ServerGameSettings.json` is written anywhere, so the difficulty is
+  a default rather than an observation, and a FRESH world has not been spawned.
+- **The experiment has a CASTER-side precondition nobody had written down.** The
+  character armed against reads `PhysicalPower` 10 and `SpellPower` 10, on which
+  H1 and H2 predict the same number and the run is indeterminate however clean
+  the deltas are. Section 3.2 rejected the default subject because the ABILITY
+  could not separate the hypotheses; the same run fails on the CASTER side.
+  Enforced in `powerstat.evaluate`, which checks separability before it counts
+  deltas, and stated first in `docs/ANCHOR_RUNS.md`.
+
+AND ONE BUG FOUND BY AN INDEPENDENT SMOKE TEST rather than by the suite:
+`evaluate` reached `statistics.median([])` and raised on a series with zero
+isolated deltas - which is exactly what my own flat 56-sample recording is, and
+exactly what a recorder LATCHED ONTO THE PREFAB produces, since the prefab reads
+`Health.Value` 0. A traceback there is strictly worse than the naive reading the
+controls exist to prevent, because it invites a re-run instead of an inspection.
+Fixed and pinned.
+
+WHAT DID NOT HAPPEN, and it is the headline. **The power-stat experiment was NOT
+run.** It needs the V Rising CLIENT with a live character casting
+`AB_Unholy_WardOfTheDamned_AbilityGroup`; the dedicated server runs
+`-batchMode -nographics` and has no player. Everything around it is built,
+deployed and verified, and the run is one operator session away.
+
+---
+
 ## 003k - The embargo lands before the math, and the default subject proves nothing (2026-08-01)
 
 Commits `6d5095e` (the embargo gate, the first `bloodforge/` code),

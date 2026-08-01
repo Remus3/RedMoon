@@ -3,6 +3,75 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (sixth stretch) - The recorder runs, and its first run corrects four things
+
+Commit `23d40bf`. Suite **526 passed in 20.16s exit 0** (405 before), ruff clean,
+ascii_guard exit 0, `dotnet build` 0/0, deployed to both hosts with matching
+SHA256. NO ROADMAP ITEM CLOSED. Gaps 12 and 13 opened.
+
+**THE HEADLINE IS WHAT DID NOT HAPPEN.** The power-stat experiment was not run.
+It needs the V Rising CLIENT with a live character casting
+`AB_Unholy_WardOfTheDamned_AbilityGroup`; the dedicated server runs
+`-batchMode -nographics` and has no player. Everything around it is built,
+deployed and verified live. The run is one operator session away and
+`docs/ANCHOR_RUNS.md` is the procedure.
+
+### What landed
+
+`GET /record/{start,status,stop}` (`HealthRecorder.cs`), the damage model and
+DPS cycle (`bloodforge/damage.py`, `dps.py`), the anchor writer
+(`tools/anchor_record.py`) and the H1-versus-H2 evaluator
+(`bloodforge/powerstat.py`). Built by three subagents on disjoint files; I
+re-ran every claimed count and every claimed test myself.
+
+VERIFIED LIVE against a dedicated server with a spawned Dracula: 56 samples in
+27.6 s, 0 dropped, `prefab_guid` and the liveness marker restated on 56 of 56,
+the prefab correctly rejected. **No NONZERO delta was observed** - nothing
+headless damages a boss - and that limit is recorded rather than glossed.
+
+### The four corrections, all from running it
+
+1. **2 Hz, not 4 Hz.** `SampleEveryFrames = 15` is a FRAME count and no frame
+   rate had ever been read. Interval median 0.502 s over n=55: 1.99 Hz at
+   29.9 fps. Both specs computed the section C tolerances against an assumed
+   60 fps. The A.5 gap check is now 3x the OBSERVED median, not 750 ms. Gap 12.
+2. **A whole-second clock on a sub-second series.** Caught by reading before
+   deploying. `Json.UtcNowMillis` now exists for the recorder alone.
+3. **The arm reported a DECLINE as an ABSENCE.** `player_resolved` false while
+   samples carried a player block: `Clear()` reset the rescan counter and the arm
+   consulted the throttle it had just reset. Third time on this build that a
+   silent gate looked exactly like an unwired one.
+4. **Corruption cannot be priced under EITHER hypothesis.** All 18 groups carry
+   neither a `spell_school` nor `is_weapon_ability`. 60 of 732 unpriceable after
+   the experiment, not 42. Gap 13.
+
+### Two things to carry into the next session
+
+- **`max_health` 8107 at n=3**, three boots, three entity indices, 0 on the
+  prefab every time. Half of open question 7 answered. The other half - under
+  what difficulty, and across a FRESH world - is still open, and no
+  `ServerGameSettings.json` is written anywhere so the difficulty is a default
+  rather than an observation.
+- **THE EXPERIMENT HAS A CASTER-SIDE PRECONDITION.** The character armed against
+  reads `PhysicalPower` 10 and `SpellPower` 10, on which both hypotheses predict
+  the same number and the run is indeterminate however clean the deltas.
+  Section 3.2 rejected the default subject because the ABILITY could not separate
+  them; the same run fails on the CASTER side, which neither spec had said.
+
+### Process notes
+
+- **Independent smoke tests found what the suite did not.** `evaluate` raised on
+  `statistics.median([])` for a series with zero isolated deltas - which is my
+  own flat recording, and which is what a prefab-latched recorder produces. 526
+  green tests did not catch it; feeding it one real recorded file did.
+- **A stale `.pyc` nearly cost an hour.** Mutating `max(` to `sum(` and back
+  gives the same file size, and if it lands inside the same mtime second Python
+  reuses the mutated bytecode. Five tests kept failing against correct source.
+  Clear `__pycache__` before believing a mutation-test revert.
+- All three subagents reported honestly and all their counts reproduced. One
+  (`RedMoon.Bridge.csproj` has `EnableDefaultCompileItems=false`) correctly
+  flagged a blocker it declined to fix because the file was outside its list.
+
 ## 2026-08-01 (fifth stretch) - The embargo lands before the math, and the default subject turns out to prove nothing
 
 Branch `master`. Ledger 003k. Commits `6d5095e` (the embargo gate), `6056b45`
@@ -217,112 +286,3 @@ traced it to RC's `budget_saver` and a live job state. RM probed its own: no
 `model` key anywhere, all THREE `.claude.json` path variants now trusted, and
 `claude -p` with no `--model` returns exit 0. RM is unaffected, which makes the
 source per-project rather than machine-wide and supports LW's own lead.
-
-## 2026-08-01 (third stretch) - The slot round, a corpus that was 146 not 119, and two probes that lied before they told the truth
-
-Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` and
-`bb59300` (the living docs and this entry). **NO ROADMAP ITEM CLOSED** - this is the
-non-roadmap track, run after 003h closed the Bloodforge input spike earlier the
-same day. Operator-directed order: ingest, headless, dashboard.
-
-State at close, one run each: `python -m pytest` **382 passed in 19.50s, exit
-0**, `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0.
-
-**THE SLOT ROUND CLOSED AND RM WAS NOT THE ONE CARRYING THE RED.** LW cleared
-its GPU blocker, corrected its own reasoning unprompted - the bucket models
-ANTHROPIC ACCOUNT concurrency and never modelled the GPU, so lane count and card
-contention are orthogonal - flipped to N=3 first and sat red waiting. RM applied
-RC's bytes VERBATIM, re-hashed from its own disk (`5297f2d0...`, 7154 bytes),
-and moved `AGREED_SHA256` in the same commit. All three trees now hash equal and
-declare 3. **RM's suite stayed green through the flip, and that is luck of
-design rather than virtue:** RC and LW both guard by reading a sibling's tree
-LIVE, so whoever moves first is red until the others follow and there is no
-ordering in which nobody is red. RM guards against self-contained constants. If
-RM ever builds a live cross-tree guard it inherits their bug, so the three
-transition options RC weighed are recorded rather than rediscovered.
-
-**A COUNT READ OFF A HEADER IS NOT A MEASUREMENT OF THE DOCUMENT - AGAIN, IN THE
-OPPOSITE DIRECTION.** This morning `ability_stats` was predicted at 1474 and
-measured 1818. This afternoon the link corpus was reported as 119 and measured
-**146**. The source's header, its score-ranked index and its distribution
-(`n=119`) all stop at CCR-119 while full entries run to CCR-146; a later batch
-was scored in place and never indexed. **27 entries, 18% of the corpus, had
-never been triaged for RM at all**, so last session's "119/119 reviewed, zero
-above 5, nothing adopted" was 119 of 146. Both errors are the same shape from
-opposite ends: trusting a stated count instead of counting.
-
-**RC'S FRAME HID RM'S SHARPEST NEED.** Rescoring against an RM rubric whose top
-weight is gap 7 moved six entries up, and the decisive pair is binary
-reverse-engineering: `CCR-35` pyghidra-lite (8) and `CCR-89` x64dbg (7), both
-scored 2 for a League dashboard. **A coaching dashboard has no binary to
-reverse; RM's hardest problem class is nothing else** - 169 interop assemblies
-scanned to prove `items.tier` had no source, a generic value reader that
-hard-crashed the dedicated server twice with the diagnosis stopping at a guess,
-and a BACKLOG item rejected on per-patch RE cost that these directly reduce.
-This is what "make your own decisions, do not copy RC's claims" was actually
-worth.
-
-**A HISTOGRAM THAT DID NOT RECONCILE WITH ITS OWN TABLE, CAUGHT BEFORE COMMIT.**
-The stage 3 draft claimed 24 survivors and enumerated 21, because the low bands
-were grouped rather than counted. Withdrawn rather than tidied, and the
-withdrawal written INTO the document - an unchecked count is the exact defect
-that document exists to correct, so quietly fixing it would have been the worse
-outcome. Threshold 6+, 21 survivors, 125 culled, every survivor named by id.
-
-**TWO PROBES LIED BEFORE THEY TOLD THE TRUTH, AND BOTH LIES LOOKED LIKE
-RESULTS.**
-
-The headless blocker was recorded as "not authenticated, workspace not trusted".
-**Both halves wrong.** There is no login error. The trust failure is a
-PATH-SEPARATOR MISMATCH: `.claude.json` holds `C:\RedMoon` = True and
-`C:/RedMoon` = False, and headless reads the forward-slash key, so it discards
-all 13 `permissions.allow` entries. The workspace HAD been trusted. LW
-independently hit the same bug with THREE keys for one directory. The second
-blocker was `"model": "rc-main"` set MACHINE-WIDE by a sibling; RM did not touch
-it and asked instead, and RC deleted it on finding the alias resolved for
-nobody.
-
-Then the hook probe. **The first run staged U+2014 under `_scratch/`, the commit
-SUCCEEDED, and that reads exactly like "no gate fired".** It is an artifact:
-`_scratch` is on `ascii_guard.py`'s own skip list, so both gates inspected the
-diff, found nothing they own, and allowed it CORRECTLY. **A gate that stays
-silent because the probe gave it nothing to catch is indistinguishable from a
-gate that is not wired** - the mirror image of the two false NEGATIVES LW
-reported the same day. What made the retry trustworthy was calling
-`check_staged()` directly FIRST and confirming it returned a reason, so the gate
-demonstrably had something to catch before anything was measured.
-
-Even then the plain `git commit` result was not readable: both gates block and
-the wording pointed at git, meaning the Bash tool had RUN. The discriminator is
-`--no-verify`, which bypasses the git hook so anything still blocking must be
-the agent layer. It returned `precommit_gate.py`'s own `"Commit blocked:"`
-string with HEAD unmoved. **RM's PreToolUse gate fires headless under
-`bypassPermissions` on 2.1.220 and covers `--no-verify`.**
-
-DOCTRINE CORRECTED: RM has repeatedly described the Claude-side gate as unable
-to fire under `--no-verify`. True of the `commit-msg` hook, which strips the
-trailer through git. FALSE of the PreToolUse ASCII gate, which sits ABOVE git
-and is the only cover for that channel. Complementary, not redundant.
-
-**RM DID NOT DUPLICATE LW'S PROBE.** The operator assigned the mechanism
-question to LW, LW answered it, and RC deliberately abstained on the rule that
-one measurement gets one owner because "two of us agree" is not evidence. RM
-asked a narrower question about its own repo and labelled it as such.
-
-**THE TRAILER AUDIT CAME BACK CLEAN ON EVERY SURFACE**: 0 of 106 commits on
-`origin/master`, project `.claude/` (three commands plus the verifier agent),
-user-level commands and plugins, and there is no `.github/` at all, so no PR
-template or workflow can inject it. Every hit in the repo is the enforcement
-itself.
-
-**`RM-NEXT-SESSION.txt` NOW EXISTS ON THE DESKTOP.** The operator was right that
-it was missing - `LW-NEXT-SESSION.txt` and `RC-NEXT-SESSION.txt` both existed
-and RM had a stale `RM continue.txt` from 2026-07-26 instead. Overwritten each
-`/done`, never appended.
-
-**ONE SURVIVOR IS A CORRECTNESS QUESTION ABOUT RM ITSELF, NOT A FEATURE.**
-`CCR-146` reports that custom subagents do NOT inherit the main agent's system
-prompt - theirs is the agent file body alone. RM runs a `verifier` subagent and
-keeps its hard rules (7-bit ASCII, no co-author trailer, frozen files) in
-`CLAUDE.md`. If those never reach a subagent, RM's subagents have been running
-without them. UNVERIFIED, and it belongs at the top of stage 4.

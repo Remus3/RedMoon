@@ -1,6 +1,115 @@
 # Red Moon History Notes
 
 
+## 2026-08-01 (third stretch) - The slot round, a corpus that was 146 not 119, and two probes that lied before they told the truth
+
+Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` and
+`bb59300` (the living docs and this entry). **NO ROADMAP ITEM CLOSED** - this is the
+non-roadmap track, run after 003h closed the Bloodforge input spike earlier the
+same day. Operator-directed order: ingest, headless, dashboard.
+
+State at close, one run each: `python -m pytest` **382 passed in 19.50s, exit
+0**, `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0.
+
+**THE SLOT ROUND CLOSED AND RM WAS NOT THE ONE CARRYING THE RED.** LW cleared
+its GPU blocker, corrected its own reasoning unprompted - the bucket models
+ANTHROPIC ACCOUNT concurrency and never modelled the GPU, so lane count and card
+contention are orthogonal - flipped to N=3 first and sat red waiting. RM applied
+RC's bytes VERBATIM, re-hashed from its own disk (`5297f2d0...`, 7154 bytes),
+and moved `AGREED_SHA256` in the same commit. All three trees now hash equal and
+declare 3. **RM's suite stayed green through the flip, and that is luck of
+design rather than virtue:** RC and LW both guard by reading a sibling's tree
+LIVE, so whoever moves first is red until the others follow and there is no
+ordering in which nobody is red. RM guards against self-contained constants. If
+RM ever builds a live cross-tree guard it inherits their bug, so the three
+transition options RC weighed are recorded rather than rediscovered.
+
+**A COUNT READ OFF A HEADER IS NOT A MEASUREMENT OF THE DOCUMENT - AGAIN, IN THE
+OPPOSITE DIRECTION.** This morning `ability_stats` was predicted at 1474 and
+measured 1818. This afternoon the link corpus was reported as 119 and measured
+**146**. The source's header, its score-ranked index and its distribution
+(`n=119`) all stop at CCR-119 while full entries run to CCR-146; a later batch
+was scored in place and never indexed. **27 entries, 18% of the corpus, had
+never been triaged for RM at all**, so last session's "119/119 reviewed, zero
+above 5, nothing adopted" was 119 of 146. Both errors are the same shape from
+opposite ends: trusting a stated count instead of counting.
+
+**RC'S FRAME HID RM'S SHARPEST NEED.** Rescoring against an RM rubric whose top
+weight is gap 7 moved six entries up, and the decisive pair is binary
+reverse-engineering: `CCR-35` pyghidra-lite (8) and `CCR-89` x64dbg (7), both
+scored 2 for a League dashboard. **A coaching dashboard has no binary to
+reverse; RM's hardest problem class is nothing else** - 169 interop assemblies
+scanned to prove `items.tier` had no source, a generic value reader that
+hard-crashed the dedicated server twice with the diagnosis stopping at a guess,
+and a BACKLOG item rejected on per-patch RE cost that these directly reduce.
+This is what "make your own decisions, do not copy RC's claims" was actually
+worth.
+
+**A HISTOGRAM THAT DID NOT RECONCILE WITH ITS OWN TABLE, CAUGHT BEFORE COMMIT.**
+The stage 3 draft claimed 24 survivors and enumerated 21, because the low bands
+were grouped rather than counted. Withdrawn rather than tidied, and the
+withdrawal written INTO the document - an unchecked count is the exact defect
+that document exists to correct, so quietly fixing it would have been the worse
+outcome. Threshold 6+, 21 survivors, 125 culled, every survivor named by id.
+
+**TWO PROBES LIED BEFORE THEY TOLD THE TRUTH, AND BOTH LIES LOOKED LIKE
+RESULTS.**
+
+The headless blocker was recorded as "not authenticated, workspace not trusted".
+**Both halves wrong.** There is no login error. The trust failure is a
+PATH-SEPARATOR MISMATCH: `.claude.json` holds `C:\RedMoon` = True and
+`C:/RedMoon` = False, and headless reads the forward-slash key, so it discards
+all 13 `permissions.allow` entries. The workspace HAD been trusted. LW
+independently hit the same bug with THREE keys for one directory. The second
+blocker was `"model": "rc-main"` set MACHINE-WIDE by a sibling; RM did not touch
+it and asked instead, and RC deleted it on finding the alias resolved for
+nobody.
+
+Then the hook probe. **The first run staged U+2014 under `_scratch/`, the commit
+SUCCEEDED, and that reads exactly like "no gate fired".** It is an artifact:
+`_scratch` is on `ascii_guard.py`'s own skip list, so both gates inspected the
+diff, found nothing they own, and allowed it CORRECTLY. **A gate that stays
+silent because the probe gave it nothing to catch is indistinguishable from a
+gate that is not wired** - the mirror image of the two false NEGATIVES LW
+reported the same day. What made the retry trustworthy was calling
+`check_staged()` directly FIRST and confirming it returned a reason, so the gate
+demonstrably had something to catch before anything was measured.
+
+Even then the plain `git commit` result was not readable: both gates block and
+the wording pointed at git, meaning the Bash tool had RUN. The discriminator is
+`--no-verify`, which bypasses the git hook so anything still blocking must be
+the agent layer. It returned `precommit_gate.py`'s own `"Commit blocked:"`
+string with HEAD unmoved. **RM's PreToolUse gate fires headless under
+`bypassPermissions` on 2.1.220 and covers `--no-verify`.**
+
+DOCTRINE CORRECTED: RM has repeatedly described the Claude-side gate as unable
+to fire under `--no-verify`. True of the `commit-msg` hook, which strips the
+trailer through git. FALSE of the PreToolUse ASCII gate, which sits ABOVE git
+and is the only cover for that channel. Complementary, not redundant.
+
+**RM DID NOT DUPLICATE LW'S PROBE.** The operator assigned the mechanism
+question to LW, LW answered it, and RC deliberately abstained on the rule that
+one measurement gets one owner because "two of us agree" is not evidence. RM
+asked a narrower question about its own repo and labelled it as such.
+
+**THE TRAILER AUDIT CAME BACK CLEAN ON EVERY SURFACE**: 0 of 106 commits on
+`origin/master`, project `.claude/` (three commands plus the verifier agent),
+user-level commands and plugins, and there is no `.github/` at all, so no PR
+template or workflow can inject it. Every hit in the repo is the enforcement
+itself.
+
+**`RM-NEXT-SESSION.txt` NOW EXISTS ON THE DESKTOP.** The operator was right that
+it was missing - `LW-NEXT-SESSION.txt` and `RC-NEXT-SESSION.txt` both existed
+and RM had a stale `RM continue.txt` from 2026-07-26 instead. Overwritten each
+`/done`, never appended.
+
+**ONE SURVIVOR IS A CORRECTNESS QUESTION ABOUT RM ITSELF, NOT A FEATURE.**
+`CCR-146` reports that custom subagents do NOT inherit the main agent's system
+prompt - theirs is the agent file body alone. RM runs a `verifier` subagent and
+keeps its hard rules (7-bit ASCII, no co-author trailer, frozen files) in
+`CLAUDE.md`. If those never reach a subagent, RM's subagents have been running
+without them. UNVERIFIED, and it belongs at the top of stage 4.
+
 ## 2026-08-01 (second session) - The input spike closes: a count that was wrong by 344, and a boss health that is not on the prefab
 
 Branch `master`. Ledger 003h. Commits `863c16f` (the spike) and `a9d5428` (the

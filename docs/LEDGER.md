@@ -14,6 +14,87 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003p - Link ingest stages 4 and 5 CLOSE: 21 of 21 dived, 0 adopted, and the corpus's product is a list of corrections to Red Moon (2026-08-01)
+
+Commit `<pending>`. NON-ROADMAP track. `python -m pytest` **544 passed, exit 0**,
+`python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0. One test
+file touched, docstring only.
+
+**THE TRACK CLOSES ON AN ARITHMETIC IDENTITY: 146 extracted, 146 scored, 21
+dived, 0 at 7 or above, 0 adopted.** Stage 3's survivors held one 9, three 8s and
+nine 7s. After every dive the highest surviving score in the whole corpus is 6.
+
+**Run under the operator's standing execution mode** - headlessly orchestrated,
+multi-agent, parallel, self-adjudicated, adversarial. Six dive clusters covering
+the final 15 entries, a refuter per cluster attacking its own cluster's verdict,
+and one adjudicator whose FIRST task was the coverage check. 13 agents, 0 errors,
+15 of 15 entries returning a real verdict, 1+3+2+3+3+3 reconciling. Two refuters
+caught and withdrew their OWN measurement errors mid-pass. **Stage 5 is therefore
+discharged in the same pass rather than owed** - the adversarial challenge with
+its coverage check IS what stage 5 specifies.
+
+**I RE-RAN 13 OF THE ADJUDICATION'S LOAD-BEARING COUNTS MYSELF. ALL 13
+REPRODUCED EXACTLY.** 127 commits and 0 banned trailers; 0 tracked files under
+`data/rmdata/`; no test pinning the collected count; 120 pin occurrences against
+a docstring claiming ~97; the invented date rule returning exactly one hit;
+hook events `PreToolUse`/`PostToolUse`/`SessionStart` with no `Stop`; CLAUDE.md
+9,466 bytes against a 60,000 budget; 3,038 rows and 0 nulls; Codeman live at
+`github.com/Ark0N/Codeman`, MIT, 508 stars.
+
+**THE FINDING IS NOT THE SCORES. Across all 21 dives, not one entry was demoted
+because the tool was bad.** Five of the fifteen read BETTER at source than their
+corpus lines. Every demotion came from an RM-side premise nobody had measured:
+RM suffers unverified "tests pass" claims (**0 of 9** sessions with a claim had
+no test run); RM cannot test without launching V Rising (**544 of 544** pass with
+it off); RM's data floor needs external drift validation (**0 nulls in 3,038
+rows**); RM's gate "blocks but does not teach" (it emits file, line, column,
+codepoint and rule per violation). **Stage 2 scored good tools against beliefs
+about Red Moon, and the beliefs were the defect.**
+
+**A NEW SUB-SHAPE, NAMED.** Four entries were scored by reading a rule in
+`CLAUDE.md` and treating the WRITTEN DISCIPLINE as an UNMET NEED. A rule written
+down is evidence the project already solved something. "RM's most-repeated
+discipline is X" is not the statement "RM suffers X".
+
+**AND THE SHAPE BIT THE FAN-OUT ITSELF**, which is the most useful thing it did.
+The CCR-135 dive asserted "RM has no many-session problem" without probing
+`ops/loop/`, which exists for exactly that - the bug the fan-out was built to
+catch, committed by the fan-out, caught by its own refuter. Recorded as method:
+an adjudicator must check the DIVE's unstated premises, not only stage 2's.
+
+**FOUR CORRECTIONS TO RED MOON'S OWN RECORDED FACTS, each re-verified here.**
+
+1. **`CCR-135` was never a Reddit post and was never unreachable.**
+   `github.com/Ark0N/Codeman`, MIT, 508 stars. The recorded stage 4 GAP was a
+   false absence, and it is the SECOND in that document from trying one access
+   route and stopping. **New method rule, now in the stage list: a source is
+   unreachable only after two different routes fail.**
+2. **`tests/test_drift_anchors.py:6` said the build pin lives in "~97 tracked
+   sites". It is 120**, recounted by three parties independently. Sixth instance
+   of the count-the-rows shape and the first inside a test's own docstring.
+   Corrected.
+3. **The drift anchor is a CLOSED LOOP** - it compares `CLAUDE.md` against
+   tracked files with no tie to the install's `VERSION` or to `current.txt`, so
+   it stays green while every authored file cites a build no longer on disk.
+   `rm_facts.py` prints both build lines adjacently and never compares them.
+4. **Do NOT retire the "no commit while an agent is live" rule.** A dive
+   recommended it once worktrees run. The spec line records that a
+   worktree-isolated agent **twice wrote into the MAIN tree while
+   `git worktree list` showed no second tree** - declared isolation that was
+   fictitious, which `git worktree add` does not address.
+
+ROADMAP gains gap **8b**: nothing attributes a recorded health delta to an
+ability. RUN 1 dodges it by constraining the operator to one ability; RUN 2, a
+real V Blood fight, has no mechanism. The honest instrument is a bridge-side
+ability-application read on the same tick, not a video - a narrated recording was
+evaluated and rejected because keyframes cannot tighten a 0.5 s sample interval.
+
+Stage 6 is next and short: eight measured candidates, most of them not tools.
+Highest-value is a dump-to-dump VALUE diff keyed on `prefab_guid` - RM's five
+gates catch a wrong count, type, shape and duplicate key, and nothing catches a
+value that changed in place, which git cannot see either because
+`data/rmdata/` is gitignored.
+
 ## 003o - Link ingest stage 4: the wiki has no combat numbers, and 40 of 40 levels agree (2026-08-01)
 
 Commit `0f24c44`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`

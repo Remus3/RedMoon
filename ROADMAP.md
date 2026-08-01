@@ -258,6 +258,20 @@ an explicit `modification` on every entry.
     it must not be cited as though it were more. 25 of RM's 65 rows have no wiki
     page carrying a `unit_id`, one of them `CHAR_Bandit_Leader_VBlood_UNUSED`.
 
+8b. **NOTHING ATTRIBUTES A RECORDED HEALTH DELTA TO AN ABILITY.** Added
+    2026-08-01 by the stage 4 fan-out, and it is the one genuinely new hole the
+    link corpus surfaced. `GET /record/*` samples a boss `Health.Value` series and
+    the writer extracts ISOLATED deltas, but nothing in the pipeline says WHICH
+    ability produced a given drop. RUN 1 dodges this by constraining the operator
+    to cast exactly one ability with pauses - the isolation rule is a proxy for
+    attribution, not attribution. **RUN 2 is a real V Blood fight and has no
+    mechanism at all**, so a TTK anchor recorded from a live fight cannot
+    apportion its deltas across the abilities that caused them. The honest
+    instrument is a bridge-side ability-application read on the same
+    `MainThreadTick`, not a video: a narrated recording was evaluated and rejected
+    (`CCR-123`, demoted 7 to 3) because keyframes cannot tighten a 0.5 s sample
+    interval. Does not block RUN 1.
+
 9. **BOSS LEVEL, POWER AND HEALTH ARE DIFFICULTY-SCALED, and `vbloods.json` is
    implicitly a NORMAL table.** Added 2026-08-01, found while adjudicating the
    cycle 4 concepts and missed by every earlier pass.
@@ -346,13 +360,27 @@ loop itself does not exist** - that is the next action on this track.
 **RM's own link ingest**, `docs/research/LINK_INGEST.md`. Stages 1 to 3 done:
 146 of 146 extracted and scored against an RM rubric, 21 survivors above a 6+
 threshold chosen from the observed distribution. The corpus is 146 entries, not
-the 119 every earlier pass reported. **Stage 4 is RUNNING: 5 of 21 dived, 14
-owed, ZERO adopted.** `CCR-146` refuted; `CCR-35` 8 to 4 and `CCR-89` 7 to 5
-(the binary-RE pair); `CCR-39` and `CCR-84` both 7 to 4 (the MediaWiki pair).
-Every one was demoted on a check named in advance, and **not one because the
-tool was bad** - each was scored against an RM-side premise nobody had measured.
-Two of those measurements are recorded as gaps below. Nothing is adopted until
-stage 6 names an acceptance criterion.
+the 119 every earlier pass reported.
+
+**STAGES 4 AND 5 ARE COMPLETE, 2026-08-01. 21 of 21 survivors dived, ZERO
+adopted.** The final 15 went through an adversarial six-cluster fan-out - a
+refuter per cluster and an adjudicator whose first task was the coverage check -
+and the orchestrator independently re-ran 13 of its load-bearing counts, all 13
+reproducing exactly.
+
+**The whole track as an arithmetic identity: 146 extracted, 146 scored, 21 dived,
+0 at 7 or above, 0 adopted.** Stage 3's survivors held one 9, three 8s and nine
+7s; the highest surviving score in the corpus is now 6.
+
+**Not one entry was demoted because the tool was bad.** Every demotion came from
+an RM-side premise nobody had measured - that gap 8 needed reverse engineering,
+that the wiki publishes boss health, that RM suffers unverified "tests pass"
+claims (0 of 9 sessions), that RM cannot test without the game (544 of 544 pass
+with it off). Stage 2 scored good tools against beliefs about Red Moon. The
+track's real product is the corrections those measurements forced, several of
+which are recorded as gaps below. Stage 6 (plan) is next and has eight measured
+candidates, most of which are not tools; nothing is adopted until it names an
+acceptance criterion.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

@@ -3,7 +3,9 @@
 Both checks here exist because the drift they catch is silent: nothing fails,
 nothing looks wrong, and the cost lands sessions later.
 
-1. The game build pin lives in ~97 tracked sites. A bump that updates CLAUDE.md
+1. The game build pin lives in 120 tracked sites (RECOUNTED 2026-08-01; this
+   docstring said "~97", which no counting rule reproduces, and three
+   independent recounts all returned 120). A bump that updates CLAUDE.md
    and misses a doc leaves a reader citing a build that is no longer installed.
 2. The ledger cites commit hashes by its own stated format. A hash written from
    a worktree slice does not survive cherry-pick, so the citation silently

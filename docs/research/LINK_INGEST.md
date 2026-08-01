@@ -101,15 +101,23 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 
 1. **Extract** - id, name, url, what, license, operator note. RC verdicts
    excluded by construction. DONE: 146 of 146.
-2. **Score** - all 146 against the rubric above. IN PROGRESS.
+2. **Score** - all 146 against the rubric above. DONE: 146 of 146.
 3. **Cull** - threshold chosen AFTER scoring, from the observed distribution,
    never before.
 4. **Deep-dive** - survivors only, and every claim about a survivor verified
-   against its actual source rather than against the one-line summary.
+   against its actual source rather than against the one-line summary. **AMENDED
+   2026-08-01, twice, and both amendments came from being wrong:** a dive has a
+   SECOND half, measuring the RM-side premise the score rested on, because that
+   is where every demotion came from; and **a source is UNREACHABLE only after
+   two different access routes fail**, because this document twice recorded a
+   false absence from trying one and stopping (HTTP 402 on a rendered page whose
+   `api.php` answered 200, and "a Reddit post" for a GitHub repository).
 5. **Adversarial pass** - challenge every survivor. CHECK THE CHALLENGE'S OWN
    COVERAGE FIRST: a previous fan-out silently truncated its input at 12,000
    chars and left 33 entries unchallenged, and every apparent survivor was an
-   artifact of that gap.
+   artifact of that gap. DONE 2026-08-01, and the coverage check is the reason it
+   can be believed - 15 of 15, arithmetic shown, two refuters withdrawing their
+   own errors mid-pass.
 6. **Plan** - what RM actually builds, in what cycle, with what acceptance.
 7. **Implement** - against the plan, TDD per CLAUDE.md.
 
@@ -118,26 +126,32 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 - Stage 1 COMPLETE, 146 of 146 extracted.
 - Stage 2 COMPLETE, 146 of 146 scored.
 - Stage 3 COMPLETE: threshold 6+, 21 survivors, 125 culled.
-- Stage 4 deep-dive OPENED 2026-08-01. **5 of 21 survivors dived**, 1 attempted
-  and unreachable (`CCR-135`, a Reddit post), 1 read at source during the cycle 4
-  concept work and corrected in three places (`CCR-120`). **14 still owed.** No
-  survivor may be adopted until its actual source has been read - every score is
-  otherwise against a one-line summary written by someone else for someone else.
+- **Stage 4 COMPLETE 2026-08-01: 21 of 21 survivors dived, ZERO adopted.** Six
+  by hand (`CCR-146`, `CCR-35`, `CCR-89`, `CCR-39`, `CCR-84`, `CCR-120`) and the
+  final 15 by an adversarial six-cluster fan-out, all 15 returning a verdict.
+- **Stage 5 DISCHARGED IN THE SAME PASS.** The adversarial challenge was not a
+  later stage over stage 4's output, it was a refuter per cluster plus an
+  adjudicator whose FIRST task was the coverage check. That is what stage 5
+  exists to do, and it reported 15 of 15 covered with the arithmetic shown.
+- Stage 6 (plan) and stage 7 (implement) are OPEN. Nothing is adopted until
+  stage 6 names it with an acceptance criterion, and stage 4 produced eight
+  candidates, most of which are not tools.
 
-  **Five dived, five verdicts, zero adoptions.** `CCR-146` REFUTED for RM's
-  setup. `CCR-35` 8 to 4, `CCR-89` 7 to 5, `CCR-39` and `CCR-84` both 7 to 4 -
-  every one on a check stage 4 had named in advance. That is the dive working as
-  designed: the scores it was testing were the ones it moved.
+**THE RESULT OF THE WHOLE TRACK, stated as an arithmetic identity: 146
+extracted, 146 scored, 21 dived, 0 at 7 or above, 0 adopted.** Stage 3's
+survivors held one 9, three 8s and nine 7s; after every dive the highest
+surviving score in the corpus is 6.
 
-  **The pattern across all five is one thing.** Not one was demoted because the
-  tool was bad. Every one was demoted because the RM-side PREMISE it was scored
-  against had never been checked - that gap 8 was a reverse-engineering problem
-  (it is an unwritten typed accessor), and that the V Rising wiki publishes boss
-  health and resistances (it publishes neither, on any of 64 pages). **Stage 2
-  scored tools against beliefs about Red Moon.** Stage 4's real work is
-  measuring those beliefs, and it is cheaper than reading the tools.
-
-Nothing is adopted until stage 6 names it with an acceptance criterion.
+**And the reason is the finding, not the scores.** Across all 21 dives, **not one
+entry was demoted because the tool was bad.** Every demotion came from an
+RM-SIDE PREMISE that had never been checked - that gap 8 needed reverse
+engineering (it needs a typed accessor), that the V Rising wiki publishes boss
+health (it publishes none, on any of 64 pages), that RM suffers unverified
+"tests pass" claims (0 of 9 sessions), that RM cannot test without the game
+running (544 of 544 pass with it off). **Stage 2 scored good tools against
+beliefs about Red Moon, and the beliefs were the defect.** Measuring them turned
+out to be cheaper than reading the tools, and it is where every correction to
+RM's own recorded facts came from.
 
 ## Stage 2 - RM scores, the operator's 60-entry deep-review set
 
@@ -169,7 +183,7 @@ recording a real kill.
 | CCR-143 | **red-handed** - a local read-only CLI auditing session transcripts in `~/.claude/projects` against git to check "tests pass" claims. RM's single most-repeated discipline is exactly this: CLAUDE.md has a Verification section, a `verifier` subagent exists, and every session prompt says re-run any agent's claimed counts yourself. MIT, local, no account. | 9 |
 | CCR-146 | **Subagent system-prompt inheritance.** Custom subagents do NOT inherit the main agent's system prompt - theirs is the agent file body alone. RM runs a `verifier` subagent and carries hard rules (7-bit ASCII, no co-author trailer, frozen files) in CLAUDE.md. If those do not reach a subagent, RM's subagents have been running WITHOUT its hard rules. This is a correctness question about RM's existing setup, not a feature. | 8 |
 | CCR-81 | **skylos** - local static analysis including AI-hallucination checks for fake helpers and invented APIs. CLAUDE.md's Testing Discipline rule is literally "grep to confirm every method, field and data shape exists; never scaffold against an assumed API surface". | 7 |
-| CCR-127 | **PreToolUse deny + feed the reason back into context** so the model self-corrects. RM already runs `precommit_gate.py` as PreToolUse; it blocks but does not teach. Also directly relevant to the headless track. | 7 |
+| CCR-127 | **PreToolUse deny + feed the reason back into context** so the model self-corrects. ~~RM already runs `precommit_gate.py` as PreToolUse; it blocks but does not teach.~~ **CORRECTED 2026-08-01 by stage 4: FALSE.** `precommit_gate.py:195-199` emits a per-violation reason carrying file, line, column, codepoint and the rule it broke, and `BRIDGE_SPIKES.md:1494-1506` MEASURED it reaching the model headless. The PreToolUse half is already done and is richer than the source's. What is real is the other half - `.claude/settings.json` wires exactly `PreToolUse`, `PostToolUse` and `SessionStart`, and no `Stop` hook. | 7 -> 5 |
 
 ### Cycle 4 dashboard references
 
@@ -183,7 +197,7 @@ recording a real kill.
 
 | id | note | score |
 |---|---|---|
-| CCR-55 | Kagan - agent kanban with MANDATORY human gates and isolated worktrees. Maps onto RM's worktree concern and its "no commit while an agent is live" rule. | 6 |
+| CCR-55 | Kagan - agent kanban with MANDATORY human gates and isolated worktrees. Maps onto RM's worktree concern and its "no commit while an agent is live" rule. **This line omitted that Kagan is an OpenCode plugin and OpenCode is not installed, which is what made a 6 look reasonable.** 6 -> 3, stage 4. | 6 |
 | CCR-121 | Graph Skill - node-level cached retry, so a failed slice re-runs one node rather than the cycle. RM has no loop yet; this is a design input for when it has one. | 6 |
 | CCR-109 | task-orchestrator - server-enforced workflow gates, persistent work-item graph, actor attribution. | 5 |
 | CCR-28 | mcp-funnel - filters and renames which MCP tools are exposed. RM's session loads a very large deferred tool surface; narrowing it is real. | 5 |
@@ -300,8 +314,8 @@ But scoring them 2 because a League dashboard cannot use them was the error.
 
 | id | license | note | score |
 |---|---|---|---|
-| CCR-75 | MIT | **rendex-mcp** - scheduled URL change-watch with visual and text diff. RM pins the game build in about 97 tracked sites behind a drift-anchor test, and finds out a patch landed by noticing. Watching the patch notes and the wiki is the missing trigger. | 6 |
-| CCR-76 | MIT | **temporal-mcp** - elapsed time between turns, day rollover, resumed-session detection. RM lost a run today to a control taken at 5 s of server uptime when the subject appears at 20 s, and its session notes rule requires converting relative dates to absolute. | 6 |
+| CCR-75 | MIT | **rendex-mcp** - scheduled URL change-watch with visual and text diff. RM pins the game build in ~~about 97~~ **120** tracked sites (RECOUNTED 2026-08-01; `tests/test_drift_anchors.py:6` carries the same wrong figure) behind a drift-anchor test, and finds out a patch landed by noticing. **Stage 4: rendex is a hosted SaaS needing an API key, and `RM-DataRefresh` is installed and Ready - detection exists, it just emits no operator-visible signal.** | 6 -> 2 |
+| CCR-76 | MIT | **temporal-mcp** - elapsed time between turns, day rollover, resumed-session detection. ~~RM lost a run today to a control taken at 5 s of server uptime when the subject appears at 20 s, and its session notes rule requires converting relative dates to absolute.~~ **BOTH CLAUSES CORRECTED 2026-08-01 by stage 4.** The uptime case is a READINESS problem, not a time one - RM's own rule is "poll for the SUBJECT, never for `ready:true`". And **the date rule does not exist**: grepped repo-wide, case-insensitively, with no include filter, "relative dates to absolute" returns exactly ONE hit - this line, asserting it. An invented citation inside RM's own review document. | 6 -> 2 |
 | CCR-144 | prose | **Eliciting critical feedback** - three follow-up prompts that break uncritical agreement ("argue against me", "what are you least confident about"). RM's single most repeated failure mode across sessions is an agent's unverified claim being believed, which is why CLAUDE.md carries a Verification section and a `verifier` subagent. | 6 |
 
 ### The rest of the 84, confirmed closed
@@ -685,36 +699,166 @@ name with an acceptance criterion, not to this dive to adopt. What it can never
 be is the falsification anchor gap 7 needs - the numbers simply are not there,
 and the anchor still has to come from a recorded run.
 
-### Still owed at stage 4
+### Stage 4 is COMPLETE - 21 of 21 survivors dived
 
-The binary-RE pair and the MediaWiki pair are DONE, above. All four demoted.
-**Still owed, 14 of 21**, and `CCR-143` is now clearly next:
+The final 15 were dived on 2026-08-01 by a six-cluster fan-out, every cluster
+adversarially challenged by an independent refuter and the whole set adjudicated
+with a coverage check taken BEFORE any verdict. 13 agents, 0 errors, 15 of 15
+entries returning a real verdict. The orchestrator then independently re-ran 13
+of the adjudication's load-bearing counts; **all 13 reproduced exactly.**
 
-`CCR-143` (red-handed, **9**, the highest-scored entry in the corpus and still
-undived) - a local read-only CLI auditing session transcripts in
-`~/.claude/projects` against git to check "tests pass" claims. It is the one
-survivor that acts on RM's most-repeated discipline rather than on a cycle.
+Two refuters caught and withdrew their OWN measurement errors mid-pass. That is
+the opposite of the truncation event stage 5's standing warning exists for, and
+the coverage arithmetic reconciles: 1 + 3 + 2 + 3 + 3 + 3 = 15.
 
-`CCR-123` (talkthrough) is partly overtaken: the operator has ruled the anchor is
-a bridge-side health series rather than a narrated recording, which demotes it
-from plumbing-for-the-anchor to a cross-check route at most. With the MediaWiki
-pair now dived and found empty of combat numbers, **nothing left in the corpus
-supplies a ground-truth anchor** - which stage 2 already said in prose and which
-is now measured on the only two entries that claimed otherwise.
+#### The scores
 
-Then `CCR-74`/`CCR-50`/`CCR-80` (the drift-validation family, the strongest
-remaining cluster), `CCR-81`, `CCR-110`, `CCR-127`, `CCR-55`, `CCR-121`,
-`CCR-129`, `CCR-120`, `CCR-75`, `CCR-76` and `CCR-144`.
+| id | old | new | why |
+|---|---|---|---|
+| CCR-143 red-handed | 9 | **5** | Reads BETTER at source than its corpus line (9 checks, not 8), but `claim-no-run` measures **0 of 9** RM sessions carrying a pass-claim, and 0 of 127 commits carry the banned trailer |
+| CCR-74 goldencheck | 8 | **4** | Scored for drift RM had just pinned; RM's pin is volumetric, goldencheck's drift is distributional |
+| CCR-50 AnomalyArmor | 7 | **2** | Mandatory vendor account, warehouse-targeted, and both headline detections have no subject: **0 nulls in 3038 rows** |
+| CCR-80 goldenflow | 6 | **3** | 0 of ~6500 strings match any transform shape |
+| CCR-81 skylos | 7 | **3** | ruff is already a BLOCKING PreToolUse gate and RM has zero third-party deps, so the headline check has no target |
+| CCR-110 mockd | 7 | **3** | **544 of 544 tests pass with the game off**; RM already wrote the mock |
+| CCR-127 PreToolUse deny | 7 | **5** | PreToolUse half already done and richer; the `Stop`-hook half is a real gap. **Refuter overturned the dive's 3 and won** |
+| CCR-121 Graph Skill | 6 | **6** | The ONLY confirmed premise in the fan-out. Orthogonal to `slots.py`, which has no retry, cache, node or dependency concept |
+| CCR-55 Kagan | 6 | **3** | An OpenCode plugin, and OpenCode is not installed. Adopting means a second agent harness |
+| CCR-123 talkthrough | 7 | **3** | Anchor is operator-ruled to the shipped bridge-side health series; keyframes cannot tighten a 0.5 s sample interval |
+| CCR-75 rendex | 6 | **2** | Hosted SaaS with an API key, and `RM-DataRefresh` is already installed and Ready |
+| CCR-76 temporal | 6 | **2** | Both premise clauses fail, and one cites an RM rule that does not exist |
+| CCR-129 CLAUDE.md trimming | 6 | **2** | **CLAUDE.md is 9,466 bytes against a 60,000 budget - 84 percent headroom** |
+| CCR-144 critical feedback | 6 | **3** | Corroborates a discipline RM already runs, aimed at credulity RM does not exhibit |
+| CCR-135 Codeman | 7 | **5** | NOT unreachable and never a Reddit post. Weak as cycle 4 UX under ADR-008; real as an ops-layer reference. **Refuter overturned the dive's 4 and won** |
 
-`CCR-135` (Codeman) could NOT be read at source - it is a Reddit post. Its
-information design fed the cycle 4 concepts through its one-line summary only,
-and that is recorded as a stage 4 GAP rather than a completed dive.
+**101 to 51. Fifteen dived, thirteen demoted, one held, zero adopted.** Both
+refuter overturns went UPWARD, and both for the same reason: the dive scored one
+axis and left a second unscored.
 
-## What stages 5 to 7 still owe
+#### The result that matters: the top band is empty
 
-Stage 4 deep-dive has NOT run. Every score above is against a one-line summary
-written by someone else for someone else, which is exactly the kind of secondhand
-claim this project refuses elsewhere. **No survivor may be adopted until its
-actual source has been read.** Stage 5's adversarial pass must check its own
-input coverage before reporting, and stage 6 names an acceptance criterion per
-adopted item or nothing is adopted.
+Stage 3's survivors held one 9, three 8s and nine 7s. After all 21 dives the
+highest surviving score in the entire 146-entry corpus is **6** - `CCR-121`, a
+design input for a loop that does not exist yet.
+
+**146 extracted, 146 scored, 21 dived, 0 at 7 or above, 0 adopted.** No entry in
+this corpus acts on a named Red Moon cycle. Gap 7 is untouched: nothing here
+supplies a ground-truth anchor for combat math, which stage 2 said in prose and
+stage 4 has now MEASURED on every entry that claimed otherwise.
+
+#### The pattern held six for six, fifteen for fifteen
+
+Thirteen demotions, thirteen unchecked RM-side premises. **Not one entry was
+demoted because the tool was bad** - CCR-143, CCR-121, CCR-81, CCR-110 and
+CCR-135 all read better at source than their corpus lines. Stage 2 scored good
+tools against beliefs about Red Moon, and the beliefs were the defect.
+
+Only ONE premise survived measurement: CCR-121's, that RM has no orchestration
+loop and the shared governor supplies no retry concept. Verified independently -
+`ops/loop/__init__.py` states "NOTHING IN RED MOON CALLS THIS YET", and a grep of
+`slots.py` for retry, cache, depend, graph, node or failure returns exactly one
+line, a comment about retrying a lock acquisition.
+
+**A new sub-shape, and it is worth naming.** CCR-81, CCR-127, CCR-143 and CCR-144
+were each scored by reading a rule in `CLAUDE.md` and treating the WRITTEN
+DISCIPLINE as an UNMET NEED. A rule written down is evidence the project already
+solved something. "RM's most-repeated discipline is X" is not the statement "RM
+suffers X".
+
+**And the shape bit the fan-out itself.** The CCR-135 dive asserted "RM has no
+many-session problem" without probing `ops/loop/`, which exists for exactly that
+problem - the bug the fan-out was built to catch, committed by the fan-out, and
+caught by its refuter. Recorded as method: an adjudicator must check the dive's
+own unstated premises, not only stage 2's.
+
+#### Corrections to Red Moon's own recorded facts
+
+Every one re-verified by the orchestrator, not taken from an agent.
+
+- **`CCR-135` was never a Reddit post and was never unreachable.** It is
+  `github.com/Ark0N/Codeman`, HTTP 200, **MIT, 508 stars**, "Self-hosted mission
+  control for AI coding agents". The stage 4 GAP recorded for it was a false
+  absence. **That is the second false absence in this document from trying one
+  access route and stopping** - the first was WebFetch returning HTTP 402 on
+  Fandom while `api.php` on the same host returned 200. **New method rule: a
+  source is unreachable only after two different routes fail.**
+- **`tests/test_drift_anchors.py:6` carries an unreproducible count.** It says
+  the build pin lives in "~97 tracked sites". Recounted by three parties
+  independently: **120**. Sixth instance of the count-the-rows shape, after
+  ability_stats 1474/1818, the corpus 119/146, `vblood_damage_modifier`, the
+  sample rate, and gap 8 - and the first one inside a test's own docstring.
+- **The drift anchor is a CLOSED LOOP.** It compares `CLAUDE.md` only against
+  tracked files, with no tie to the install's `VERSION` or to
+  `data/rmdata/current.txt`. It stays green while every authored file cites a
+  build that is no longer on disk. `tools/rm_facts.py` prints the game build and
+  the extracted-data build on adjacent lines and never compares them.
+- **Do NOT retire the "no commit while an agent is live" rule.** The CCR-55 dive
+  recommended retiring it once `git worktree add` runs. The spec line it rests on
+  says something else:
+  `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md:312-314`
+  records that a worktree-isolated agent **twice wrote into the MAIN tree while
+  `git worktree list` showed no second tree.** That is declared isolation that
+  was fictitious, not absent isolation. Running `git worktree add` does not
+  address it.
+
+Two evidentiary overstatements from inside the dives, recorded so stage 6 does
+not inherit them: `precommit_gate.py`'s deny JSON is **not** test-pinned
+(`tests/test_hooks.py:32-33` pins `text_first_guard`'s, not the commit gate's);
+and "the drift cluster collapses on a format" is weaker than presented, because
+`abilities` and `ability_stats` are flat scalar rows - 1,872 of 3,038 rows,
+including the 1,818-row combat table.
+
+#### Candidates for stage 6, none adopted here
+
+Named because each is traceable to a measurement, and most are not a tool.
+
+1. **Pin the collected test count.** `pytest --collect-only` reports 544 and a
+   grep of `tests/` for that number returns nothing. A shrinking suite is
+   invisible today. Same drift-anchor idiom RM already uses.
+2. **Assert `git log` carries no banned co-author trailer.** `hooks/commit-msg`
+   strips and warns rather than blocking, `--no-verify` bypasses it, and nothing
+   scans afterward. Currently 0 of 127, so it lands green and stays green.
+3. **A dump-to-dump VALUE diff keyed on `prefab_guid`.** The highest-value item.
+   RM's five gates catch a wrong count, type, shape and duplicate key; nothing
+   catches a value that changed in place between two dumps of the same build,
+   and git cannot see it either - `data/rmdata/` is gitignored and
+   `git ls-files data/rmdata/` returns 0. The seam already exists in the
+   promote-from-quarantine step.
+4. **Promote the census min/max from print to pin.** `rmdata_ingest` already
+   computes per-key min and max and only prints them.
+5. **Close the build-pin blind spot.** Assert `current.txt` equals CLAUDE.md's
+   canonical pin, and make `rm_facts.py` COMPARE its two build lines.
+6. **Consider a `Stop` hook once**, gated on the source's own caution that one
+   which always blocks loops forever.
+7. **Run the headless loop's slices in real worktrees**, as a DAG of scoped nodes
+   with per-node result caching and retry INSIDE the slot. CCR-121's pattern and
+   Kagan's branch namespace, taken as ideas rather than dependencies.
+8. **Name the ability-attribution hole on ROADMAP.** The health series records a
+   delta; nothing attributes it to an ability. RUN 1 dodges this by constraining
+   the operator to one ability. RUN 2, a real V Blood fight, has no mechanism.
+
+**Do not:** install `red-handed` - never `install-hook`, which rewrites the
+`settings.json` that `tests/test_hooks.py` pins, and never `stats`, which caches
+excerpts from all 644 machine-wide sessions including Riot Commander's into one
+shared `~/.red-handed/cache.json`, a second standing exception to CLAUDE.md's
+standalone rule. Do not npm-install `graph-skill`. Do not install OpenCode.
+
+## What stages 6 and 7 still owe
+
+Stages 4 and 5 are DONE. Every survivor has been read at its actual source and
+adversarially challenged, and the coverage of that challenge was checked before
+its verdicts were, which is the one property that makes the pass believable.
+
+**Stage 6 (plan) is next and it is a short one, because nothing scored 7 or
+above.** Its job is not to choose among survivors - none earned adoption - but to
+take the eight measured CANDIDATES stage 4 produced and decide which become work
+items with acceptance criteria. Most are not tools: pin the collected test count,
+assert `git log` carries no banned trailer, add a dump-to-dump value diff keyed on
+`prefab_guid`, promote the census min/max from print to pin, close the build-pin
+blind spot, consider a `Stop` hook, run the headless loop's slices in real
+worktrees as a cached DAG, and name the ability-attribution hole on ROADMAP.
+
+**Stage 7 implements against that plan, TDD per `CLAUDE.md`.** Nothing is adopted
+until stage 6 names it with an acceptance criterion, and that remains true after
+21 dives: the corpus's contribution to Red Moon is a list of measured facts about
+Red Moon, not a dependency.

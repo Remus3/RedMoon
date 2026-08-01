@@ -118,8 +118,12 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
    artifact of that gap. DONE 2026-08-01, and the coverage check is the reason it
    can be believed - 15 of 15, arithmetic shown, two refuters withdrawing their
    own errors mid-pass.
-6. **Plan** - what RM actually builds, in what cycle, with what acceptance.
-7. **Implement** - against the plan, TDD per CLAUDE.md.
+6. **Plan** - what RM actually builds, in what cycle, with what acceptance. DONE
+   2026-08-01. **AMENDED by its own adversarial pass: an acceptance criterion
+   must describe a FAILURE THE TEST MUST PRODUCE, never the feature.** Every
+   clause phrased as an absence of output ("stands down", "is silent", "sources
+   from the right file") is satisfied by a no-op and is not a criterion.
+7. **Implement** - against the plan, TDD per CLAUDE.md. OPEN.
 
 ## Status
 
@@ -133,9 +137,16 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
   later stage over stage 4's output, it was a refuter per cluster plus an
   adjudicator whose FIRST task was the coverage check. That is what stage 5
   exists to do, and it reported 15 of 15 covered with the arithmetic shown.
-- Stage 6 (plan) and stage 7 (implement) are OPEN. Nothing is adopted until
-  stage 6 names it with an acceptance criterion, and stage 4 produced eight
-  candidates, most of which are not tools.
+- **Stage 6 COMPLETE 2026-08-01.** Eight candidates: **four adopted with
+  acceptance criteria, one DROPPED, one deferred, one blocked on another owner,
+  one already discharged.** Zero tools adopted. The plan was itself put through
+  an adversarial pass - three lenses plus an adjudicator - which killed one item
+  outright and rewrote three criteria. See the self-inflicted findings there:
+  the draft committed this track's own signature failure inside the document
+  diagnosing it.
+- **Stage 7 (implement) is OPEN.** Four items, build order S7.2, S7.5, S7.1,
+  S7.3, TDD per `CLAUDE.md`. None is cycle 3 work and none may gate the
+  power-stat experiment.
 
 **THE RESULT OF THE WHOLE TRACK, stated as an arithmetic identity: 146
 extracted, 146 scored, 21 dived, 0 at 7 or above, 0 adopted.** Stage 3's
@@ -843,22 +854,249 @@ excerpts from all 644 machine-wide sessions including Riot Commander's into one
 shared `~/.red-handed/cache.json`, a second standing exception to CLAUDE.md's
 standalone rule. Do not npm-install `graph-skill`. Do not install OpenCode.
 
-## What stages 6 and 7 still owe
+## Stage 6 - the plan. DONE 2026-08-01.
 
-Stages 4 and 5 are DONE. Every survivor has been read at its actual source and
-adversarially challenged, and the coverage of that challenge was checked before
-its verdicts were, which is the one property that makes the pass believable.
+Stage 6's only job is the rule this track has repeated since it opened: **nothing
+is adopted until it is named here with an acceptance criterion.** Eight
+candidates came out of stage 4. **Four are adopted, one is DROPPED, one is
+deferred, one is blocked on another owner, and one is already discharged.**
 
-**Stage 6 (plan) is next and it is a short one, because nothing scored 7 or
-above.** Its job is not to choose among survivors - none earned adoption - but to
-take the eight measured CANDIDATES stage 4 produced and decide which become work
-items with acceptance criteria. Most are not tools: pin the collected test count,
-assert `git log` carries no banned trailer, add a dump-to-dump value diff keyed on
-`prefab_guid`, promote the census min/max from print to pin, close the build-pin
-blind spot, consider a `Stop` hook, run the headless loop's slices in real
-worktrees as a cached DAG, and name the ability-attribution hole on ROADMAP.
+**None of them is a tool.** That is the honest summary of a 146-entry tool
+corpus: after 21 dives it contributed no dependency and eight measurements, and
+the work below is what the measurements imply.
 
-**Stage 7 implements against that plan, TDD per `CLAUDE.md`.** Nothing is adopted
-until stage 6 names it with an acceptance criterion, and that remains true after
-21 dives: the corpus's contribution to Red Moon is a list of measured facts about
-Red Moon, not a dependency.
+### The plan was put through the same adversarial pass the tools were, and it failed the same way
+
+A first draft of this section was challenged by three independent lenses -
+falsifiability of every acceptance criterion, re-measurement of every premise,
+and redundancy against gates that already exist - then adjudicated. **Three items
+changed and one died.** The orchestrator independently re-ran every load-bearing
+claim below; all reproduced.
+
+This is worth recording rather than quietly fixing, because the draft committed
+**the exact failure this track spent 21 dives diagnosing**, inside the document
+diagnosing it:
+
+- **The draft's S7.4 named a subject its mechanism cannot reach.** It proposed
+  promoting the ingest census's per-key min/max "for the six promoted tables".
+  MEASURED by importing `shape_census` and running it over the real tree: it
+  returns entries for **four** - `blood_types`, `items`, `recipes`, `vbloods`.
+  `abilities` and `ability_stats` produce nothing, because `_observe` only fires
+  on a `dict` or `list` value and a table with no nested container is dropped.
+  **The 1,818-row combat table Bloodforge consumes is structurally invisible to
+  it**, and its `cast_time`, `cooldown` and `post_cast_time` are top-level
+  scalars the census cannot see. Nine numeric slots exist in total, two of them
+  guid identity fields and three degenerate. A test iterating the census and
+  pinning what it finds would have covered nine numbers, been labelled "the six
+  promoted tables", and read exactly like a passing gate. A real measurement
+  answering the right question about the wrong subject - the cycle 2 lesson,
+  committed afresh.
+- **Four criteria were written as descriptions of the FEATURE rather than of a
+  FAILURE THE TEST MUST PRODUCE.** "Stands down on a build change", "silent on
+  identical dumps", "sources from the right file". Every clause phrased as an
+  absence of output is satisfied by a no-op: `def diff(old, new): return []`
+  passed two of S7.3's three clauses.
+- **One premise was simply wrong.** The draft called
+  `tests/test_bridge_probe.py:31` "structurally incapable of failing". It is not:
+  `bridge_probe.py:107-108` reads `current.txt` itself, so the test sources the
+  SUT's real input, and `test_health_fails_on_a_build_mismatch` at `:183` is a
+  working negative control. That bullet is deleted rather than repaired.
+- **A frozen-file block did not survive contact with the frozen file's public
+  API.** `tools/rm_facts.py:40` and `:50` expose `game_build()` and
+  `data_build()` as importable functions, so a test can assert they AGREE without
+  editing the frozen file. Only making `rm_facts` PRINT the comparison needs
+  operator approval. The draft applied "assert the outcome, not the mechanism" to
+  S7.2 and then failed to apply it here.
+- **And the draft applied its own standard inconsistently.** It refused S7.6
+  because the failure has never occurred, then adopted S7.1 against a failure
+  that has also never occurred: across 16 recorded suite counts in
+  `docs/LEDGER.md` the collected total is monotonically non-decreasing - 241,
+  284, 324, 327, 334, 335, 348, 382, 382, 382, 405, 526, 544, 544, 544, 544. S7.1
+  survives, but it owed an argument it had not made. See its entry.
+
+### ADOPTED - four items, in build order
+
+There is **no dependency between any two of them** once S7.4 is dropped, so the
+order is convenience: smallest diff first, the only production-code change last.
+
+**S7.2 - assert `git log` carries no banned co-author trailer. BUILD FIRST.**
+`hooks/commitmsg_hook.py` STRIPS AND WARNS rather than blocking, `--no-verify`
+bypasses git hooks entirely, and nothing scans afterward. Asserting the OUTCOME
+rather than the mechanism is what makes it survive `--no-verify`.
+*Acceptance:* the test imports `CLAUDE_TRAILER` from `hooks/commitmsg_hook` and
+uses it as the single predicate, so the friendly path and the backstop cannot
+diverge - the draft named a case-sensitive literal `Co-Authored-By: Claude`,
+narrower than the hook's own
+`^[ \t]*co-authored-by[ \t]*:.*(?:claude|anthropic)` with `IGNORECASE`, and a
+commit reading `Co-authored-by: Fable <noreply@anthropic.com>` would have
+violated policy, matched the hook and missed the plan. It scans full message
+BODIES (`git log --all --format=%B`) and asserts the number of commits walked
+equals `git rev-list --all --count`, so a format that silently drops merge or
+empty-body commits fails rather than reporting a clean zero over a partial
+history.
+*Negative control:* a table of real trailer forms each asserted DETECTED,
+including the lowercase and leading-tab variants and the `Fable`/`anthropic`
+form - plus `Co-Authored-By: Moonbeam <close.benham@gmail.com>` asserted NOT
+detected, which is the clause that stops an over-broad predicate. A string built
+to match predicate P and checked by predicate P is a tautology and is not the
+control.
+*Measured:* **0 trailers over the full history at 129 commits.** Never let a
+commit COUNT into an assertion; it moves every session.
+
+**S7.5 - close the build-pin cross-file blind spot. BUILD SECOND.**
+Two tests, no production code.
+- Nothing asserts `data/rmdata/current.txt` agrees with `CLAUDE.md`'s canonical
+  pin, and the existing drift anchor **structurally cannot** cover it:
+  `tests/test_drift_anchors.py:56` iterates `git ls-files` and `data/rmdata/` is
+  gitignored. The new test must reuse that file's `CANONICAL_PIN` / `_canonical_pin()`
+  rather than re-parsing the prose, so a reword of `CLAUDE.md:45` surfaces as one
+  distinct failure instead of a phantom build mismatch.
+- `tools/rm_facts.py` never compares its two build lines. **The ASSERTION is
+  unblocked** - import `game_build` and `data_build` and assert they agree.
+  *The criterion must close its own hole:* those functions return the sentinels
+  `"not installed"`, `"unparseable"` and `"none extracted"` on failure, so the
+  test asserts neither value is any of the three BEFORE comparing. Otherwise it
+  is a gate with nothing to catch on any machine but Legion.
+- **Still blocked, operator approval required:** making `rm_facts` PRINT the
+  comparison. That is operator UX, not the gate. Raise it in the same session so
+  it is not forgotten.
+
+**S7.1 - pin the collected test count. BUILD THIRD.**
+*The argument the draft owed:* a shrinking suite has never happened here, and
+that alone would make this the S7.6 mistake. What distinguishes it: the ledger
+count is transcribed by hand at session end **by the same agent that would be
+hiding the shrink**, and it is prose that nothing reads back. S7.6's cost is a
+live regression risk (a Stop hook that always blocks loops forever); S7.1's cost
+is only maintenance churn. That asymmetry is the reason, and it is now stated.
+*Acceptance, criterion replaced:* pin a per-module map of `{module path ->
+collected count}` and assert BOTH the key set and the total. A single total pin
+does not satisfy this - delete a 5-test module in the same commit that adds five
+tests elsewhere and a total of 544 still reads 544, while a missing KEY cannot be
+masked and names the file. Collection runs in a subprocess; the test asserts its
+exit code is 0 and that the count was actually PARSED rather than defaulted,
+because a regex over stdout finds no match on a collection error and
+`if observed and observed != PIN` passes silently over a suite that cannot
+import.
+*Negative control:* copy `tests/` to a temp directory, delete one module,
+re-collect THERE, and assert the comparison fails naming that module. A unit test
+of the comparator with `(543, 544)` is not the control.
+
+**S7.3 - a dump-to-dump VALUE diff keyed on `prefab_guid`. BUILD LAST. The
+highest-value item in the batch.**
+RM's five gates - shallow schema, deep nested, duplicate key, count pin, build
+cross-check - each catch a wrong COUNT, TYPE, SHAPE or KEY. **None catches a
+value that changed in place** under a fixed build, and git cannot see it either
+(`data/rmdata/` is gitignored, `git ls-files data/rmdata/` returns 0).
+*And it has happened.* `docs/LEDGER.md:740-745`: a cycle 2 dedupe fix "silently
+made the row whichever of two DISAGREEING entities the world walk reached first.
+The count looked right afterwards, which is why it survived a cycle." That is
+this item's entire justification, and it is the only class of evidence this track
+accepts - a failure that occurred, not one that could.
+*Placement, corrected:* insert the diff immediately before `if problems:` in
+`tools/rmdata_ingest.py`, extending `problems`, so a validate-only run surfaces
+drift before anyone types `--accept` and refusal reuses the existing
+`EXIT_INVALID` path. The draft's rationale was wrong in its cause though right in
+its conclusion: a post-promotion diff fails because **the promotion loop
+overwrites `tables_dir/<name>.json` in place**, destroying the baseline eleven
+lines before `_clear_incoming` runs.
+*The escape hatch, and it is not optional.* Cycle 3 is where the dumper is under
+active development, so a same-build value change is a normal event there, not an
+anomaly. A hard refusal with no path through would gate cycle 3 from a
+non-roadmap batch, contradicting this track's own founding rule. So: `--accept`
+promotes as today, and a second explicit `--accept-value-changes` is required
+when the diff is non-empty, printing the full old/new list first. Loud and
+default-on, with one documented line through it. Document the flag in
+`docs/OPERATIONS.md` in the same commit.
+*Acceptance, six cases each asserted by name:* (1) a mutated NESTED scalar,
+reported with table, `prefab_guid`, field path, old and new value; (2) a mutated
+TOP-LEVEL scalar, same reporting; (3) a row ADDED; (4) a row REMOVED; (5) the
+diff reports the COUNT of differing rows, so an implementation that stops at the
+first difference is distinguishable from one that does not; (6) **no baseline on
+disk** - the diff stands down and SAYS SO in the census output, in the same voice
+as the count gate's stand-down, so an absent baseline is never mistaken for a
+clean diff. That case is the DEFAULT state of any fresh clone and the draft
+omitted it.
+*How it is exercised:* the OLD side is the real promoted table read from disk at
+module scope, the idiom `tests/test_damage.py:52-57` and `tests/test_dps.py:43-49`
+already use - a missing tree is a collection error and **no `pytest.skip` guard**,
+because a skip is how this gate would quietly stop running. The NEW side is that
+same file with exactly one nested field mutated. Assert the diff names that guid
+and field **AND NO OTHER** - that clause is the one with teeth, because it fails a
+diff reporting spurious differences from key ordering, float repr or dict
+iteration order. Assert the specific exit constant, not merely nonzero.
+*Deleted from the draft:* "given a build CHANGE it stands down entirely" cannot
+fail. `tables_dir` is build-scoped off `read_expected_build`, so a build change
+means a directory with no baseline by construction - the clause tests the
+directory layout, not the feature.
+
+### DROPPED - one item
+
+**S7.4 - promote the census min/max from print to pin. DROPPED, not deferred.**
+Its mechanism cannot reach the subject its criterion named (above), and the four
+informative pins it could have produced **would not have caught the one value
+drift this project actually suffered**: the `vbloods` row swap at
+`docs/LEDGER.md:740` moves `level`, `physical_power` and `spell_power`, all
+top-level scalars with zero census coverage. Rebuilding it honestly means
+building top-level range coverage that does not exist - new code, not a promotion
+from print to pin - and it would have to be re-costed and re-argued from scratch.
+The residual gap it gestured at, a fresh machine with no baseline, is closed by
+S7.3's case (6) stand-down.
+
+A replacement was proposed during the challenge - a committed per-table row-digest
+fingerprint - and is REFUSED on stage 6's own standard: no fresh-machine ingest
+has ever gone wrong, so it guards an unmeasured need. Recorded as a candidate,
+not adopted.
+
+### DEFERRED, BLOCKED, DISCHARGED - three items
+
+**S7.6 - a `Stop` hook. NOT ADOPTED.** MEASURED and true: `.claude/settings.json`
+wires exactly `PreToolUse`, `PostToolUse` and `SessionStart`, and
+`tools/pytest_guard.py` "never raises and never blocks", so nothing stops an
+agent declaring done over a red suite. **But the need is unmeasured** and
+adopting against a failure that has never occurred is the bug this track spent 21
+dives naming. *Revisit when* an actual instance is recorded, or S7.1 or S7.2 fires
+once. *Cost to carry into that decision:* `tests/test_hooks.py:142` pins the
+settings wiring and `:156` constrains matcher shape, and a Stop hook that always
+blocks loops forever.
+
+**S7.7 - worktree-isolated slices and a cached node DAG.** CCR-121's pattern (the
+one premise in the whole fan-out that survived measurement) plus Kagan's branch
+namespace, as IDEAS - do not npm-install `graph-skill`, do not install OpenCode.
+Blocked: RM's headless command structure is being drafted by another party for
+RM-side review, and RM does not scaffold one speculatively. Two constraints to
+hand that plan: retry belongs INSIDE the slot, because `ops/loop/slots.py` holds
+the slot only around the executor call; and **declared worktree isolation has
+failed here twice** - an agent wrote into the MAIN tree while `git worktree list`
+showed no second tree. Checking that `git worktree add` returned 0 is exactly the
+check that failed both times, so the assertion must instead be that
+`git -C <slice> rev-parse --show-toplevel` resolves to the slice and NOT the main
+tree, and that the slice appears in `git worktree list`.
+
+**S7.8 - the ability-attribution hole.** Discharged as `ROADMAP.md` gap 8b in the
+session it was found. Cycle 3 concern; this track must not fold into cycle 3.
+
+### What stage 6 refuses to adopt
+
+Every tool in the corpus. **146 extracted, 146 scored, 21 dived, 0 at 7 or above,
+0 adopted.** No `red-handed` install - specifically never `install-hook`, which
+rewrites the `settings.json` that `tests/test_hooks.py` pins, and never `stats`,
+which caches excerpts from all 644 machine-wide sessions including a sibling
+project's into one shared `~/.red-handed/cache.json`, a second standing exception
+to `CLAUDE.md`'s standalone rule. No `graph-skill`. No OpenCode. No prompt
+library. No "argue against me" added to `CLAUDE.md`.
+
+**The corpus's contribution to Red Moon is a list of measured facts about Red
+Moon** - four corrections to recorded facts, one new ROADMAP gap, and four work
+items. One of those measured facts has now retired one of the five items the
+corpus produced, which is the process working rather than failing.
+
+## What stage 7 owes
+
+Implement S7.2, S7.5, S7.1 and S7.3 in that order, TDD per `CLAUDE.md`: the
+failing test first, then the implementation, then verification at the tier the
+change earns. S7.2, S7.5 and S7.1 are test-only and Tier 1. S7.3 changes
+`tools/rmdata_ingest.py` and adds an operator flag, so it is Tier 2 - full suite,
+and `docs/OPERATIONS.md` updated in the same commit.
+
+`ENGINE_VERSION` does not move for any of them: none touches section 2, 3 or 4
+math. None is cycle 3 work and none may gate the power-stat experiment.

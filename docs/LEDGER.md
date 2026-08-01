@@ -14,6 +14,71 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003q - Link ingest stage 6: four items adopted, one killed by the plan's own adversarial pass (2026-08-01)
+
+Commit `<pending>`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
+**544 passed, exit 0**, ruff clean, `ascii_guard` exit 0.
+
+Eight stage 4 candidates: **four ADOPTED with acceptance criteria (S7.2, S7.5,
+S7.1, S7.3, in build order), one DROPPED, one deferred, one blocked on another
+owner, one already discharged. Zero tools adopted**, which is now the settled
+result of the whole 146-entry corpus.
+
+**THE PLAN WAS PUT THROUGH THE SAME ADVERSARIAL PASS AS THE TOOLS AND DID NO
+BETTER.** Three lenses - falsifiability of every criterion, re-measurement of
+every premise, redundancy against existing gates - plus an adjudicator. 4 agents,
+0 errors. I re-ran every load-bearing claim myself; all reproduced. One item died,
+three criteria were rewritten, and one bullet was deleted as simply wrong.
+
+**THE DRAFT COMMITTED THIS TRACK'S SIGNATURE FAILURE INSIDE THE DOCUMENT
+DIAGNOSING IT.** S7.4 proposed pinning the ingest census's per-key min/max "for
+the six promoted tables". MEASURED by importing `shape_census` and running it
+over the real tree: it returns **four** - `abilities` and `ability_stats` produce
+nothing, because `_observe` fires only on a `dict` or `list` value and a table
+with no nested container is dropped. **The 1,818-row combat table Bloodforge
+consumes is structurally invisible to it.** Nine numeric slots exist in total,
+two of them guid identity fields and three degenerate. A test iterating the
+census would have covered nine numbers, been labelled "the six promoted tables",
+and read exactly like a passing gate. DROPPED, not re-scoped: the four pins it
+could have produced would not have caught the one value drift RM actually
+suffered, because the `vbloods` row swap at `docs/LEDGER.md:740` moves
+`level`, `physical_power` and `spell_power`, all top-level scalars.
+
+**THREE MORE SELF-INFLICTED FINDINGS.** (1) Four criteria described the FEATURE
+rather than a FAILURE THE TEST MUST PRODUCE - "stands down on a build change",
+"is silent on identical dumps" - and every clause phrased as an absence of output
+is satisfied by `def diff(old, new): return []`. The stage list now rules that
+out. (2) The draft called `tests/test_bridge_probe.py:31` "structurally incapable
+of failing"; it is not - `bridge_probe.py:107-108` reads `current.txt` itself, so
+the test sources the SUT's real input, and `:183` is a working negative control.
+Bullet deleted rather than repaired. (3) A frozen-file block did not survive
+contact with the frozen file's public API: `rm_facts.py:40` and `:50` expose
+`game_build()` and `data_build()` as importable functions, so the ASSERTION is
+unblocked and only the PRINT needs operator approval. The draft applied "assert
+the outcome, not the mechanism" to S7.2 and failed to apply it here.
+
+**AND THE DRAFT APPLIED ITS OWN STANDARD INCONSISTENTLY.** It refused S7.6 (a
+`Stop` hook) because the failure has never occurred, then adopted S7.1 against a
+failure that has also never occurred - across 16 recorded suite counts the
+collected total is monotonically non-decreasing. S7.1 survives on an argument it
+owed and had not made: the ledger count is transcribed by hand at session end **by
+the same agent that would be hiding the shrink**, and is prose nothing reads back,
+whereas a Stop hook carries a live regression risk of its own.
+
+**S7.3 IS THE ITEM WORTH KEEPING.** RM's five gates each catch a wrong count,
+type, shape or key; none catches a value that changed in place under a fixed
+build, and git cannot see it either. It has HAPPENED - `LEDGER:740-745`, a dedupe
+fix that "silently made the row whichever of two DISAGREEING entities the world
+walk reached first. The count looked right afterwards, which is why it survived a
+cycle." The challenge added the clause that makes it safe: cycle 3 is where the
+dumper is under development, so same-build value change is normal there, and a
+hard refusal from a non-roadmap batch would gate cycle 3. An explicit
+`--accept-value-changes` is required when the diff is non-empty. The placement
+rationale was also corrected - a post-promotion diff fails because the promotion
+loop OVERWRITES the baseline, eleven lines before `_clear_incoming` runs.
+
+Stage 7 is the only open stage.
+
 ## 003p - Link ingest stages 4 and 5 CLOSE: 21 of 21 dived, 0 adopted, and the corpus's product is a list of corrections to Red Moon (2026-08-01)
 
 Commit `10ababa`. NON-ROADMAP track. `python -m pytest` **544 passed, exit 0**,

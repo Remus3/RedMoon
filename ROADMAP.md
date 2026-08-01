@@ -378,9 +378,17 @@ that the wiki publishes boss health, that RM suffers unverified "tests pass"
 claims (0 of 9 sessions), that RM cannot test without the game (544 of 544 pass
 with it off). Stage 2 scored good tools against beliefs about Red Moon. The
 track's real product is the corrections those measurements forced, several of
-which are recorded as gaps below. Stage 6 (plan) is next and has eight measured
-candidates, most of which are not tools; nothing is adopted until it names an
-acceptance criterion.
+which are recorded as gaps below.
+
+**STAGE 6 IS ALSO COMPLETE.** Eight candidates, **four adopted with acceptance
+criteria, one DROPPED, one deferred, one blocked, one discharged, and zero tools
+adopted.** The plan was put through the same adversarial pass as the tools and
+did no better: one item died because its mechanism could not reach the subject
+its criterion named (the ingest census covers 4 of 6 tables and cannot see the
+1,818-row combat table at all), and three criteria were rewritten because they
+described the feature rather than a failure the test must produce. **Stage 7 is
+the only open stage:** implement S7.2, S7.5, S7.1 and S7.3 in that order, TDD.
+None is cycle 3 work and none may gate the power-stat experiment.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

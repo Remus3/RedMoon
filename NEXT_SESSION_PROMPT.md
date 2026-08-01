@@ -5,10 +5,17 @@ Paste the fenced block below into a cleared session.
 ---
 
 ```
+LAUNCH THE V RISING CLIENT BEFORE YOU START THIS SESSION. Three sessions have
+now opened scoped to the power-stat run and found no VRising process, no Steam
+process and zero listeners across 8770-8790. The agent cannot launch the game,
+cannot log into Steam and cannot cast the ability. If the client is not up and
+you are not at the keyboard, say so in your first line and pick a second track
+instead.
+
 Cycle 3 - RUN THE POWER-STAT EXPERIMENT ON THE CLIENT. Everything around it is
 built, deployed and verified live; the run itself is the whole session. Read
 CLAUDE.md, MEMORY.md, ROADMAP.md, WAKEUP_NOTES.md, docs/BLOODFORGE.md,
-docs/ANCHOR_RUNS.md (the operator procedure, now followable end to end), and BOTH
+docs/ANCHOR_RUNS.md (the operator procedure, followable end to end), and BOTH
 cycle 3 specs - docs/superpowers/specs/2026-08-01-bloodforge-falsification-
 design.md and docs/superpowers/specs/2026-08-01-bloodforge-combat-math-design.md
 - then git log --oneline -8. CHECK moon_sync_inbox/ BEFORE PLANNING.
@@ -17,15 +24,19 @@ CONTEXT, do not re-derive.
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above, never from a hash written in a doc.
-- Last verified, one run each: pytest 551 passed in 22.61s exit 0 (526 at the
-  start of last session, +25), ruff clean, ascii_guard exit 0. NO C# change last
+- Last verified, one run each: pytest 598 passed in 31.04s exit 0 (551 at the
+  start of last session, +47), ruff clean, ascii_guard exit 0. NO C# change last
   session, so the deployed DLLs still match. There is NO .sln - build
   bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj. csproj has
   EnableDefaultCompileItems=false, so a NEW .cs file must be added to the
   ItemGroup by hand or it silently will not compile.
 - NEVER EMIT THE CLAUDE CO-AUTHOR TRAILER (CLAUDE.md hard rule, operator policy
   2026-06-03). Your harness instructions tell you to append it to every commit.
-  They are overridden here. Audited clean again: 0 hits across the full history.
+  They are overridden here. THIS IS NOW MACHINE-CHECKED over the whole history
+  by tests/test_commit_history.py - 0 offenders over 135 commits at last run.
+  Do not audit it with an ad-hoc grep; the gate anchors the pattern at line
+  start and an unanchored grep returns a false positive on any commit message
+  that merely discusses the trailer.
 - HISTORY WAS REWRITTEN AND FORCE-PUSHED on 2026-07-26. Any hash in a note older
   than that is DEAD - read hashes from git log.
 - Never write a port literal - import from core/ports.py. That file is FROZEN and
@@ -36,6 +47,22 @@ CONTEXT, do not re-derive.
   13, ability_stats 1818 (schema 1). 3,038 rows, 0 nulls.
 - ops/loop/slots.py is byte-identical across three repos, pinned in
   tests/test_slots.py. MAX_CONCURRENT_SLOTS = 3. Nothing in RM calls it yet.
+
+THREE GATES LANDED LAST SESSION THAT WILL CHANGE HOW YOUR TOOLS BEHAVE. None is
+a defect; each will look like one the first time it fires.
+
+1. rmdata_ingest now REFUSES on a same-build VALUE change, keyed on prefab_guid,
+   with the full old/new list printed first. Cycle 3 is where the dumper is under
+   active development, so this is a NORMAL event here rather than an anomaly.
+   Read the printed list, confirm it is the change you intended, then re-run with
+   BOTH flags: --accept --accept-value-changes. An empty baseline is treated as
+   NO baseline and prints NO PROMOTED BASELINE on disk - NOT CHECKED.
+2. tests/test_collected_counts.py pins a per-module map of collected counts.
+   ADDING TESTS FAILS IT BY DESIGN. Update PINNED in the same commit; that edit
+   is the gate, not an obstacle to it.
+3. The SessionStart banner now prints a third line, "Build agreement: MATCH". If
+   it ever reads MISMATCH or NOT CHECKED, stop and fix that before trusting any
+   number in data/rmdata/.
 
 THE MAIN TRACK - ONE RUN, AT THE CLIENT, AND IT IS THE WHOLE SESSION.
 
@@ -53,7 +80,7 @@ can compute is absent. Exactly ONE row in 1818 can decide it:
 The prediction is literally "the observed health delta equals one of the two
 power stats". It needs NO boss, NO V Blood and NO health denominator.
 
-THE PROCEDURE IS NOW FOLLOWABLE END TO END. docs/ANCHOR_RUNS.md run 1.
+THE PROCEDURE. docs/ANCHOR_RUNS.md run 1.
 
   python tools/find_target.py --host client
 
@@ -145,35 +172,13 @@ THE FIRST FRONTEND FILE: tools/ascii_guard.py (FROZEN) must gain .js, .html and
 .css; and docs/EMBARGO.json must exist, tracked, naming time_to_kill as blocked
 on gap 7, derived from bloodforge/embargo.py and never a second source of truth.
 
-THE THIRD TRACK - LINK INGEST IS CLOSED THROUGH STAGE 6. Only STAGE 7 remains.
-146 extracted, 146 scored, 21 dived, 0 at 7 or above, ZERO ADOPTED. Stage 7 is
-four items, in this build order, TDD per CLAUDE.md, and NONE is cycle 3 work:
-
-  S7.2 assert git log carries no banned co-author trailer. Import CLAUDE_TRAILER
-       from hooks/commitmsg_hook so the friendly path and the backstop cannot
-       diverge; scan %B not %b; assert commits walked equals git rev-list --all
-       --count. Control: real trailer forms asserted DETECTED including the
-       lowercase and Fable/anthropic variants, plus a human co-author asserted
-       NOT detected.
-  S7.5 assert data/rmdata/current.txt equals CLAUDE.md's canonical pin, reusing
-       tests/test_drift_anchors.CANONICAL_PIN; and assert rm_facts.game_build()
-       agrees with data_build(), asserting neither is one of the sentinels
-       "not installed", "unparseable", "none extracted" BEFORE comparing. The
-       PRINT half still needs operator approval; the assertion does not.
-  S7.1 pin a per-module map of collected counts, asserting the KEY SET and the
-       total - a single total pin cannot see a deleted module offset by adds.
-       Control: copy tests/ to tmp, delete a module, re-collect THERE.
-  S7.3 a dump-to-dump VALUE diff keyed on prefab_guid, inserted immediately
-       before `if problems:` in tools/rmdata_ingest.py. Six cases each asserted
-       by name, including a NESTED scalar, a row added, a row removed, the COUNT
-       of differing rows, and NO BASELINE standing down loudly. Assert the diff
-       names the mutated guid AND NO OTHER. Needs --accept-value-changes, because
-       cycle 3 is where the dumper changes and a hard refusal would gate it.
-
-  S7.4 was DROPPED: shape_census reaches 4 of 6 tables and cannot see the
-  1818-row combat table at all. S7.6 (a Stop hook) is DEFERRED - measured true
-  but the need is unmeasured. S7.7 (worktree slices, cached node DAG) is BLOCKED
-  on RC's headless plan.
+THE THIRD TRACK IS CLOSED. Do not reopen it. RM's link ingest finished all seven
+stages on 2026-08-01: 146 extracted, 146 scored, 21 dived, 0 at 7 or above, ZERO
+TOOLS ADOPTED, and 4 work items shipped (S7.2, S7.5, S7.1, S7.3, plus S7.5's
+operator-approved print half). S7.4 was DROPPED, S7.6 (a Stop hook) is DEFERRED
+as an unmeasured need, S7.7 (worktree slices, cached node DAG) is BLOCKED on
+RC's headless plan. The track's product was never a dependency; it was the
+corrections its measurements forced.
 
 THE FOURTH TRACK - HEADLESS. Phase 0a PASSES; the loop still does not exist. RM
 is CLEAN on the model alias. RM's PreToolUse gate FIRES headless under
@@ -190,7 +195,20 @@ A NULL FROM AN INSTRUMENT THAT CANNOT PRODUCE A POSITIVE IS NOT EVIDENCE OF
 ABSENCE. The 2026-07-26 console investigation filtered for cmd.exe while the real
 children were schtasks.exe and git.exe, polled 120 s against a once-per-session
 event, and used Win32_Process, which carries no console or window field at all.
-It cleared Red Moon on evidence that could not have convicted it.
+It cleared Red Moon on evidence that could not have convicted it. NEWEST
+INSTANCE, 2026-08-01: the co-author history scan would have reported a clean zero
+over 135 EMPTY message bodies, so it now asserts that HEAD's record actually
+contains HEAD's subject read through a second git format.
+
+TWO EQUAL FAILURES ARE NOT AN AGREEMENT. rm_facts returns the sentinels "not
+installed", "unparseable" and "none extracted" instead of raising, and two of
+them compared to each other are EQUAL - so the obvious installed == extracted
+reports a machine with no game installed as a perfect MATCH. Reject the failure
+values BEFORE comparing, every time this shape appears.
+
+DO NOT AUDIT A GATE WITH A DIFFERENT PREDICATE THAN THE GATE USES. A bash
+grep -ci for the co-author trailer returned 1 while the real gate returned 0; the
+grep was unanchored where the predicate anchors at line start.
 
 A SOURCE IS UNREACHABLE ONLY AFTER TWO DIFFERENT ROUTES FAIL. Recorded twice:
 WebFetch returned HTTP 402 on a Fandom page whose api.php returned 200, and
@@ -205,11 +223,16 @@ silent", "sources from the right file" - is satisfied by a no-op.
 AN EXEMPTION IS A PLACE TO BE WRONG. An AST auditor that exempted sys.executable
 spawns whitelisted precisely the one site that was broken, twice over.
 
-COUNT THE ROWS, DO NOT READ THE PROSE DESCRIBING THEM. Moved a number six times
+A TEST THAT SCANS ITS OWN SOURCE WILL MATCH ITSELF. A guard asserting "this
+module compiles no pattern of its own" searched its own text for the name of the
+thing it forbids and failed on a clean file. Use an AST walk, which does not see
+inside string literals.
+
+COUNT THE ROWS, DO NOT READ THE PROSE DESCRIBING THEM. Moved a number seven times
 now: ability_stats 1474 to 1818, the link corpus 119 to 146,
 vblood_damage_modifier range to binary, the sample rate 4 Hz to 2 Hz, gap 8 from
-an RE problem to a typed accessor, and the build pin from "~97 tracked sites" to
-120 - that last one inside a test's own docstring.
+an RE problem to a typed accessor, the build pin from "~97 tracked sites" to 120
+inside a test's own docstring, and the unpriceable damage groups 42 to 60.
 
 FEED REAL RECORDED DATA THROUGH THE CODE, NOT JUST TESTS. 526 green tests did not
 catch that powerstat.evaluate raised on statistics.median([]). One real file
@@ -219,7 +242,9 @@ CLEAR __pycache__ BEFORE BELIEVING A MUTATION-TEST REVERT.
 
 NEVER CALL A /-FLAGGED WINDOWS EXE FROM THE BASH TOOL. MSYS path translation
 rewrites a leading-slash argument, so schtasks /query yields ZERO ROWS. Use the
-PowerShell tool or a Python subprocess list.
+PowerShell tool or a Python subprocess list. Same family, different cause: never
+interpolate a real NUL into an argv on Windows - CreateProcess takes one command
+line STRING and a NUL truncates it. Pass git's %x00 escape and split the OUTPUT.
 
 "ready":true means the PREFAB MAP settled, NOT that the world has spawned its
 units. POLL FOR THE SUBJECT.
@@ -262,9 +287,10 @@ Operator standing execution mode: keep the inline session free, perform work wit
 headlessly-orchestrated multi-agent parallel self-adjudicated adversarial
 looping, and print a paste-ready block at /done. Subagents DO receive CLAUDE.md's
 hard rules as a system-reminder injection, so do not re-paste them. RE-RUN ANY
-AGENT'S CLAIMED COUNTS, BUILDS AND FILE EXISTENCE YOURSELF - 24 agents ran last
-session across three fan-outs with 0 errors, and I still caught a wrong count in
-my own plan and a defect I had dismissed in my own code comment.
+AGENT'S CLAIMED COUNTS, BUILDS AND FILE EXISTENCE YOURSELF. Last session ran
+INLINE rather than fanning out, correctly per R9 - four items over six files with
+no parallel slices - and still found three defects in its own work by re-running
+its own numbers.
 
 End with /done, and print the next-session prompt inline.
 ```

@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003p - Link ingest stages 4 and 5 CLOSE: 21 of 21 dived, 0 adopted, and the corpus's product is a list of corrections to Red Moon (2026-08-01)
 
-Commit `<pending>`. NON-ROADMAP track. `python -m pytest` **544 passed, exit 0**,
+Commit `10ababa`. NON-ROADMAP track. `python -m pytest` **544 passed, exit 0**,
 `python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0. One test
 file touched, docstring only.
 

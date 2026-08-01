@@ -7,6 +7,22 @@ in a comment) would trip it. The full rationale lives in ADR-003.
 """
 from __future__ import annotations
 
+CONTROL = 8770
+"""Headless control plane, on the floor of Red Moon's reserved block.
+
+Infrastructure rather than a game service, and deliberately placed below the
+game ports so the block reads as two regions: 8770-8776 for infrastructure,
+8777 and up for services that talk to V Rising. Operator decision 2026-08-01,
+adopting a structural split proposed by a sibling project on this machine.
+
+Red Moon reserves 8770-8789. The floor was free the whole time - 8777 is the
+lowest USED port, not the bottom of the block - and this constant is the first
+allocation to sit below the bridge.
+
+Nothing binds this yet. The headless orchestrator it serves is unbuilt, and a
+reserved-but-unbound port must never be read off a live port scan as free.
+"""
+
 BRIDGE = 8777
 """RedMoon.Bridge in the V Rising CLIENT process, local live game JSON (cycle 2).
 
@@ -32,7 +48,7 @@ VISION = 8779
 ENGINE = 8783
 """Bloodforge combat math server (cycle 3)."""
 
-ALL = frozenset({BRIDGE, BRIDGE_SERVER, DASHBOARD, VISION, ENGINE})
+ALL = frozenset({CONTROL, BRIDGE, BRIDGE_SERVER, DASHBOARD, VISION, ENGINE})
 
 BRIDGE_HOSTS = ("client", "server")
 """The two V Rising hosts the bridge assembly can load into (ADR-004)."""

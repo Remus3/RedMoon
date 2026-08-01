@@ -94,8 +94,43 @@ def test_bridge_port_for_host_is_total_and_deterministic():
 
 
 def test_all_is_the_complete_disjoint_set():
-    assert ports.ALL == frozenset({8777, 8778, 8779, 8780, 8783})
+    assert ports.ALL == frozenset({8770, 8777, 8778, 8779, 8780, 8783})
     assert ports.ALL.isdisjoint(FORBIDDEN)
+
+
+def test_control_plane_sits_on_the_block_floor():
+    """The headless control plane takes 8770, the bottom of RM's block.
+
+    Operator decision 2026-08-01, taking the structural split RC proposed:
+    infrastructure ports on the floor 8770-8776, game services from 8777 up.
+    RM previously believed 8781 and 8782 were "the free ones" - true about the
+    interior of the used region, but 8770-8776 were never allocated at all and
+    8777 is merely the lowest USED port.
+
+    core/ports.py is on the frozen list; this constant landed under explicit
+    operator approval.
+    """
+    assert ports.CONTROL == 8770
+    assert ports.CONTROL in ports.ALL
+    assert ports.CONTROL not in {
+        ports.BRIDGE,
+        ports.BRIDGE_SERVER,
+        ports.DASHBOARD,
+        ports.VISION,
+        ports.ENGINE,
+    }
+
+
+def test_every_port_sits_inside_the_reserved_block():
+    """RM reserved 8770-8789 with RC on 2026-08-01. Nothing may fall outside it.
+
+    Sibling blocks on this machine: RC 8888-8895, LegionWallpaper 8900-8919,
+    Daemon Slayer 8860-8879. Those numbers are deliberately NOT written here -
+    disjointness is proven from the negative side by FORBIDDEN, so this repo
+    never carries another project's allocation.
+    """
+    for port in ports.ALL:
+        assert 8770 <= port <= 8789, f"{port} is outside RM's reserved block"
 
 
 def test_game_host_env_name():

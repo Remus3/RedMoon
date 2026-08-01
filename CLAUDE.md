@@ -2,8 +2,13 @@
 
 V Rising coaching and analysis project. Reads live game state from the
 RedMoon.Bridge BepInEx plugin, computes combat and progression math in
-Bloodforge, and serves a local dashboard. Standalone: Red Moon shares no code,
-data, keys or scheduled-task namespace with any other project on this machine.
+Bloodforge, and serves a local dashboard. Standalone with ONE deliberate
+exception: Red Moon shares no keys, no ports and no scheduled-task namespace
+with any other project on this machine, and shares exactly one file of code plus
+one directory of data - `ops/loop/slots.py`, the machine-wide concurrency
+governor, held byte-identical across three repositories and pinned by SHA256 in
+`tests/test_slots.py`. Operator decision 2026-08-01; rationale in
+`ops/loop/__init__.py`. Never edit that file unilaterally.
 
 > **Living docs (read at session start):** `docs/ARCHITECTURE.md` -
 > `docs/OPERATIONS.md` - `ROADMAP.md` - `docs/API.md`

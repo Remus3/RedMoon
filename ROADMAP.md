@@ -127,6 +127,12 @@ run**, so `P(G)` is undefined, every damage number is absent, and discharge is
 blocked on exactly one operator session at the CLIENT.
 Procedure: `docs/ANCHOR_RUNS.md`.
 
+The procedure is now followable end to end, 2026-08-01. `tools/find_target.py`
+closes the step that said "find the target's prefab guid" without saying how,
+and the caster-side precondition - the two power stats must DIFFER - is a check
+against the arm response rather than a warning read after a wasted run. Nothing
+about the experiment itself changed.
+
 Known input gaps the spec must scope rather than assume away. The first two are
 the large ones and were found by reading the promoted rows rather than the
 schema, at cycle 2 close:

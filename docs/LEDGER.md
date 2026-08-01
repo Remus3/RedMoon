@@ -14,6 +14,73 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003m - The experiment did not run, and the three things blocking it did (2026-08-01)
+
+Commit `<pending>`. **NO ROADMAP ITEM CLOSED, AND THE MAIN TRACK WAS NOT
+ATTEMPTED.** The session was scoped to the section 3.3 power-stat experiment at
+the V Rising CLIENT. Neither bridge port answered and no V Rising process was
+running; the run needs a human in-world to equip, slot, target and cast about
+30 times, and the operator was not available. Deferred intact rather than
+approximated. `P(G)` is still undefined and every damage number is still absent.
+
+State at close, one run each: `python -m pytest` **544 passed in 20.02s, exit 0**
+(526 before, +18), `python -m ruff check .` clean, `python tools/ascii_guard.py`
+exit 0. No C# change, so no rebuild and no redeploy.
+
+**What was verified rather than assumed before anything was touched.** The
+discriminator row reproduced by counting, not by reading the prose describing
+it: 1818 rows in `ability_stats`, exactly one with `prefab_guid` -1136860480,
+`spell_school` unholy, `damage_type` physical, `coefficient` 1, `hits_per_cast`
+1, `ability_type` SpellSlot2. `moon_sync_inbox/` was clean at open - all 14
+files timestamped 10:19 or earlier against a 13:00 HEAD.
+
+**THE PROCEDURE HAD A HOLE WHERE THE RUN STARTS.** `docs/ANCHOR_RUNS.md` said
+"find the target's prefab guid" and did not say how. `tools/find_target.py` now
+does it, over `/dump/components?instanced=1`, which returns entities SPAWNED in
+the world rather than the prefabs they came from - the distinction the whole
+recorder turns on, because a prefab reads `Health.Value` 0 and a recorder
+latched onto one produces a flat series indistinguishable from a recorder
+reading nothing. V Bloods and prefab rows are MARKED, never dropped: a tool that
+silently filters teaches the operator that the list it printed was complete.
+
+The same doc gained the caster-side precondition as a CHECK rather than a
+warning. The arm response is the first and only place `PhysicalPower` versus
+`SpellPower` is observable, and at 10 and 10 both hypotheses predict the same
+number and the run is indeterminate however clean the deltas are.
+
+**THE ENGINE NO LONGER IMPORTS A `tools/` SCRIPT.** `bloodforge/series.py` holds
+the pure series layer - `parse_stamp`, `sample_intervals`, `observed_cadence`,
+`per_hit_discard_reasons`, `isolated_deltas` and `GAP_TICK_MULTIPLE` - and
+`tools/anchor_record.py` re-exports it. Duplicating the two functions was the
+worse option on the table: two copies of the isolation rule can DRIFT, and
+catching that class of divergence is what the falsification protocol is for.
+`tests/test_series.py` asserts the re-export **by identity, not equality**, so a
+copy pasted back into the writer fails where an equality check would pass, plus
+an AST check that no module under `bloodforge/` imports from `tools/` at all -
+the layering rule itself, not the one module that happened to break it.
+
+**A DATA FIX THAT RECOVERED THE ALREADY-BROKEN STATE, NOT ONLY FUTURE RUNS.**
+`rmdata_ingest` promoted by COPYING out of `tables/_incoming/` and left the
+source in place, so after a successful accept the two directories held
+byte-identical files and nothing on disk said which state the tree was in.
+Promotion now empties the quarantine, and only on the success path - a refused
+run and a validated-but-unaccepted run both still leave the rows there, which is
+the state `_incoming/` exists to represent. The six stale files on the real tree
+were SHA256-compared against their promoted copies, found identical on all six,
+and removed. Three tests pin all three states.
+
+**Doc drift found while syncing.** `docs/ARCHITECTURE.md` listed the engine as
+`agents/bloodforge/`, a path that has never existed; the module map now names
+the six real modules. `DASHBOARD_CONCEPTS.md` justified deferring F8 partly on
+"no `agents/bloodforge/` exists", which was true of the path and false of the
+package - the real blocker is that nothing binds 8783, and it now says so.
+
+Caveat carried forward unchanged: when the experiment does run, one row is a
+sample of one. A pass says which hypothesis survives on THAT ability and does
+not prove the rule corpus-wide. It is the only evidence this build affords -
+zero rows are `is_weapon_ability` with a non-physical `damage_type` and a
+nonzero coefficient, so the weapon side is dead by exhaustion, not by sampling.
+
 ## 003l - The anchor recorder runs, and its first run corrects four things (2026-08-01)
 
 Commit `23d40bf` (the recorder, the damage model, the DPS cycle, the anchor

@@ -53,6 +53,26 @@ gap 12.
 Launch the client and load in. Then find the target's prefab guid, arm, cast,
 stop. The bridge is on the client port from `core/ports.py`; substitute it below.
 
+**Finding the target's prefab guid.** `/dump/components` takes a `name` PREFIX
+and an `instanced` flag, and `instanced=1` returns only entities SPAWNED in the
+world rather than prefabs (`BridgeServer.cs:445-463`). So, standing near the
+unit you mean to hit:
+
+```bash
+python tools/find_target.py --host client
+```
+
+It prints `entity_index`, `prefab_guid`, `carries_prefab_marker` and
+`prefab_name` per match, and MARKS - never silently drops - every V Blood and
+every row that is the prefab rather than a spawned unit. The endpoint
+enumerates every component of every match, about 60 KB per entity, so
+`--limit` defaults to 24. Pick an unmarked row.
+
+**Poll for the SUBJECT, never for `ready:true`.** `ready` means the prefab map
+settled, not that the world has spawned its units. A live boss did not exist at
+5 s of server uptime and did exist at 20 s, and a negative taken too early is
+indistinguishable from a real absence.
+
 ```bash
 python tools/anchor_record.py start --guid <TARGET_PREFAB_GUID> --note "power stat H1 vs H2, ward of the damned"
 ```
@@ -64,10 +84,13 @@ work at all:
   block is the entire comparison basis. It was silently omitted by a defect
   found on 2026-08-01 and is now forced, but check it rather than assume it.
 - `carries_prefab_marker` must be `false`. If the arm returns
-  `subject_not_spawned`, the prefab exists but nothing is spawned from it yet.
-  **Poll for the subject, never for `ready:true`** - a live boss did not exist at
-  5 s of server uptime and did exist at 20 s, and a negative taken too early is
-  indistinguishable from a real absence.
+  `subject_not_spawned`, the prefab exists but nothing is spawned from it yet -
+  poll for the subject as above.
+- **`player_unit_stats.PhysicalPower` must not equal `.SpellPower`.** The arm
+  response is the first and only place this is checkable, and it is prerequisite
+  3. If they are equal, STOP, do not cast, equip a weapon and arm again. A run
+  taken at 10 and 10 is indeterminate no matter how clean the deltas are, and
+  the only thing that tells you is a number in this block.
 
 Now cast the Ward, on its own, with a pause between casts, about 30 times. Then:
 

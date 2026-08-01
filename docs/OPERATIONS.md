@@ -151,6 +151,26 @@ python tools/rmdata_extract.py
 git status --short data/rmdata/
 ```
 
+`tables/_incoming/` is the quarantine and its CONTENTS are the answer to "is
+this tree promoted or pending". A successful `--accept` empties it; a refused
+run and a validated-but-unaccepted run both leave the rows there for
+inspection. The directory itself always survives. Before 2026-08-01 promotion
+copied and left the source in place, so six stale files sat there looking
+exactly like six awaiting acceptance.
+
+## Take an anchor run
+
+`docs/ANCHOR_RUNS.md` is the procedure. Two commands are worth knowing here:
+
+```
+python tools/find_target.py --host client    list SPAWNED units, pick a subject
+python tools/anchor_record.py start --guid <GUID> --note "..."
+```
+
+`find_target.py` MARKS V Bloods and prefab rows rather than dropping them.
+Check `player_resolved`, `player_unit_stats` and `carries_prefab_marker` in the
+arm response before casting anything.
+
 ## Scheduled tasks
 
 All Red Moon tasks are named `RM-*`. The namespace is exclusive to this project.

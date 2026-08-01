@@ -32,8 +32,14 @@ C:\RedMoon\
 | `tools/gen_bridge_ports.py` | 2 | Generates `RmPorts.g.cs` so the plugin holds no port literal. |
 | `tools/rmdata_ingest.py` | 2 | Validates, gates and promotes a dump into `data/rmdata/<build>/tables/`. |
 | `tools/bridge_probe.py` | 2 | Liveness probe, including `--motion-diff`. |
-| `bridge/src/RedMoon.Bridge/` | 2 | The plugin: host detect, listener, prefab dump, state read, localization. |
-| `agents/bloodforge/` | 3 | Combat math. DPS, EHP and time-to-kill against V Blood bosses. Server on 8783. |
+| `bridge/src/RedMoon.Bridge/` | 2 | The plugin: host detect, listener, prefab dump, state read, localization, `GET /record/*`. |
+| `bloodforge/` | 3 | Combat math. DPS, EHP and time-to-kill against V Blood bosses. Server on 8783 when it exists. |
+| `bloodforge/embargo.py` | 3 | The per-field publication gate. Landed one commit AHEAD of the arithmetic. |
+| `bloodforge/damage.py`, `dps.py` | 3 | The per-application damage model and the DPS cycle. |
+| `bloodforge/series.py` | 3 | Pure functions over a recorded health series. Isolation rule, discard reasons, observed cadence. |
+| `bloodforge/powerstat.py` | 3 | The H1-versus-H2 evaluator for the section 3.3 experiment. |
+| `tools/anchor_record.py` | 3 | Drives `GET /record/*` and writes a validated anchor run. Re-exports `bloodforge/series.py`. |
+| `tools/find_target.py` | 3 | Lists SPAWNED units, so an anchor run has a subject. |
 | `dashboard/` | 4 | HTTPS dashboard on 8778 and the coach loop. |
 | `ops/` | 8 | Supervisor, `runtime/health.json`, `RM-*` scheduled tasks. |
 

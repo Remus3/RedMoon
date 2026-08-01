@@ -105,6 +105,17 @@ thing in this project that can produce a falsifiable series, it samples on the
 same `MainThreadTick` as `StateReader`, and its first live run corrected two
 recorded facts and found two defects. See `docs/BRIDGE_SPIKES.md`.
 
+**The pure series layer is `bloodforge/series.py`,** added 2026-08-01. A
+recorded run is read by two consumers - `tools/anchor_record.py` writes it and
+runs the A.5 checklist, `bloodforge/powerstat.py` evaluates the experiment
+against it - and both need the same isolation rule and the same discard reasons.
+The engine used to import them from the `tools/` script, which is the wrong
+direction; duplicating them was worse, because two copies of the isolation rule
+can DRIFT and catching that class of divergence is the whole point of the
+protocol. The writer now re-exports from the engine, and `tests/test_series.py`
+asserts the re-export by IDENTITY rather than equality, so a copy pasted back
+into the writer fails loudly instead of passing an equality check.
+
 **60 of 732 damage groups cannot be priced after the power-stat experiment, not
 42.** 27 holy and 15 fire are blocked on the reduction side; the other 18 are
 corruption and are blocked on the POWER side, because all 18 carry neither a

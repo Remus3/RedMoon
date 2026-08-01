@@ -3,6 +3,53 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (seventh stretch) - The run did not happen, and the three things blocking it did
+
+Ledger 003m. Suite **544 passed in 20.02s exit 0** (526 before, +18), ruff clean,
+ascii_guard exit 0. No C# change, no rebuild, no redeploy. **NO ROADMAP ITEM
+CLOSED.**
+
+**THE MAIN TRACK WAS NOT ATTEMPTED, DELIBERATELY.** The session was scoped to
+the power-stat experiment at the CLIENT. Neither bridge port answered and no
+V Rising process was running. The run needs a human in-world - equip a weapon so
+the two power stats diverge, slot Ward of the Damned, find a survivable
+non-V Blood target, cast about 30 times in isolation - and the operator was not
+available. It is deferred intact rather than approximated. `P(G)` is still
+undefined.
+
+**WHAT IS DIFFERENT NEXT TIME.** Three things that would have cost time mid-run
+are now closed:
+
+1. **`tools/find_target.py`.** `ANCHOR_RUNS.md` said "find the target's prefab
+   guid" without saying how. It lists SPAWNED units over
+   `/dump/components?instanced=1` and MARKS V Bloods and prefab rows rather than
+   dropping them - a tool that silently filters teaches the operator the list was
+   complete.
+2. **The caster-side precondition is a CHECK, not a warning.** The arm response
+   is the first and only place `PhysicalPower` versus `SpellPower` is
+   observable. `ANCHOR_RUNS.md` now says STOP and re-gear rather than describing
+   the failure after the fact.
+3. **`bloodforge/series.py`.** The engine no longer imports a `tools/` script.
+   The re-export is asserted BY IDENTITY, plus an AST check that nothing under
+   `bloodforge/` imports from `tools/` - the layering rule, not the one module
+   that broke it. Duplicating the two functions was the worse option: two copies
+   of the isolation rule can drift, which is what this protocol exists to catch.
+
+**A DATA FIX THAT ALSO RECOVERED THE BROKEN STATE.** `rmdata_ingest` promoted by
+copying and left `tables/_incoming/` populated, so promoted and pending were
+indistinguishable on disk. Promotion now empties it on the SUCCESS path only -
+refused and validated-but-unaccepted runs still leave the rows for inspection.
+The six stale files were SHA256-compared against their promoted copies,
+identical on all six, and removed.
+
+**Doc drift, found by looking rather than reported.** `ARCHITECTURE.md` listed
+the engine as `agents/bloodforge/`, a path that has never existed. Fixed, and
+the module map now names all six real modules. Historical specs and plans keep
+the old name; they are history.
+
+Inbox clean at open: all 14 `moon_sync_inbox/` files timestamped 10:19 or
+earlier against a 13:00 HEAD.
+
 ## 2026-08-01 (sixth stretch) - The recorder runs, and its first run corrects four things
 
 Commit `23d40bf`. Suite **526 passed in 20.16s exit 0** (405 before), ruff clean,

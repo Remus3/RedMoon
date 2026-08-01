@@ -16,8 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003j - Gap 7 settled, the cycle 4 stack ruled, and a range that was a binary (2026-08-01)
 
-Commit `314ef07` (the specs, the ADR and the living docs) plus the docs commit
-carrying this entry. **NO ROADMAP ITEM CLOSED.** Gap 7 is SETTLED but not
+Commits `314ef07` (the specs, the ADR and the living docs) and `0c276f6` (this
+entry, the session notes and the next-session prompt). **NO ROADMAP ITEM CLOSED.** Gap 7 is SETTLED but not
 DISCHARGED, and cycle 4 is planned but has zero implementation. Both were
 operator-deferred to this session.
 

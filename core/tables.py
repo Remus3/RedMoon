@@ -10,7 +10,15 @@ from pathlib import Path
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "data" / "schemas"
 
-TABLE_NAMES = ("items", "abilities", "vbloods", "blood_types", "recipes")
+TABLE_NAMES = ("items", "abilities", "vbloods", "blood_types", "recipes", "ability_stats")
+"""Every table the extractor seeds and the ingest gate knows about.
+
+ability_stats joined at cycle 3 phase 2. It is a SEPARATE table from abilities
+rather than more columns on it, because the two have different key spaces:
+abilities is keyed on the ability GROUP that a spell-school asset names, and
+covers spell-school abilities only, while ability_stats is keyed on the ability
+GROUP for EVERY group that reaches damage, weapon groups included. See ADR-007.
+"""
 
 TABLES_DIRNAME = "tables"
 """Subdirectory of data/rmdata/<build>/ holding one JSON file per table.

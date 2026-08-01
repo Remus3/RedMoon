@@ -200,7 +200,7 @@ namespace RedMoon.Bridge
         /// the real type list rather than by HasComponent, which keeps this file
         /// honest to its own rule even for the one type name cycle 2 measured.
         /// </summary>
-        private static bool CarriesPrefabMarker(EntityManager em, Entity e)
+        internal static bool CarriesPrefabMarker(EntityManager em, Entity e)
         {
             try
             {
@@ -448,6 +448,201 @@ namespace RedMoon.Bridge
 
             sb.Append(",\"nested\":");
             WriteFields(sb, declared, depth + 1);
+        }
+
+        // -------------------------------------------------------------------
+        // cycle 3 phase 3: the prefab-versus-instance VALUE control
+        // -------------------------------------------------------------------
+        /// <summary>
+        /// Every entity carrying `guidFilter`, prefab and instance alike, with
+        /// the boss stat line read through TYPED accessors.
+        ///
+        /// WHY THIS IS NOT THE COMPONENT DUMP WITH VALUES BOLTED ON. That dump
+        /// reads NAMES and cannot read values, and that is a measured result
+        /// rather than a shortcut: managed reflection through
+        /// EntityManagerDebug.GetComponentBoxed returned 539327184 for every
+        /// Int32 and 1.402156E-19 for every Single, and raw il2cpp field offsets
+        /// off the same pointer hard crashed the process. So this method spells
+        /// out a FIXED list of fields with their types, which is how every
+        /// working reader in this plugin is written.
+        ///
+        /// It emits BOTH sides deliberately. Phase 1 established that every
+        /// stat-bearing component sits on the prefab AND on the live instance,
+        /// so the question is a VALUE comparison and a presence check would
+        /// answer the wrong one.
+        ///
+        /// THE CONTROL THAT MAKES THE NUMBERS FALSIFIABLE: every row restates
+        /// prefab_guid, which the caller already knows from a separate typed
+        /// read. A reader whose control value is wrong has its other values
+        /// discarded - this is what caught the generic reader in phase 1 and it
+        /// costs nothing to keep.
+        /// </summary>
+        internal static string StatControl(string build, string plugin, int guidFilter)
+        {
+            World target = PrefabDumper.FindTargetWorld();
+            if (target == null)
+            {
+                return null;
+            }
+
+            Stunlock.Core.PrefabLookupMap map;
+            if (!PrefabDumper.TryGetReadyMap(target, out map))
+            {
+                return null;
+            }
+
+            var body = new StringBuilder(1 << 14);
+            body.Append("{\"ok\":true,\"exploratory\":true");
+            body.Append(",\"build\":").Append(Json.Str(build));
+            body.Append(",\"plugin\":").Append(Json.Str(plugin));
+            body.Append(",\"captured_at\":").Append(Json.Str(Json.UtcNow()));
+            body.Append(",\"field_values\":\"typed_accessors_only\"");
+            body.Append(",\"query\":{\"guid\":").Append(guidFilter).Append("}");
+            body.Append(",\"entities\":[");
+
+            EntityManager em = target.EntityManager;
+            NativeArray<Entity> all = em.GetAllEntities(Allocator.Temp);
+
+            int written = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                Entity e = all[i];
+
+                Stunlock.Core.PrefabGUID guid;
+                try
+                {
+                    if (!em.HasComponent<Stunlock.Core.PrefabGUID>(e))
+                    {
+                        continue;
+                    }
+
+                    guid = em.GetComponentData<Stunlock.Core.PrefabGUID>(e);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (guid.GuidHash != guidFilter)
+                {
+                    continue;
+                }
+
+                string name;
+                try
+                {
+                    name = map.GetName(guid);
+                }
+                catch (Exception)
+                {
+                    name = "";
+                }
+
+                if (written > 0)
+                {
+                    body.Append(',');
+                }
+
+                WriteStatValues(body, em, e, guid, name);
+                written++;
+            }
+
+            body.Append("],\"written\":").Append(written);
+            return body.Append('}').ToString();
+        }
+
+        private static void WriteStatValues(StringBuilder sb, EntityManager em, Entity e,
+                                            Stunlock.Core.PrefabGUID guid, string name)
+        {
+            sb.Append("{\"entity_index\":").Append(e.Index);
+            sb.Append(",\"prefab_guid\":").Append(guid.GuidHash);
+            sb.Append(",\"prefab_name\":").Append(Json.Str(name));
+            sb.Append(",\"carries_prefab_marker\":")
+              .Append(CarriesPrefabMarker(em, e) ? "true" : "false");
+
+            sb.Append(",\"fields\":{");
+            int written = 0;
+
+            try
+            {
+                if (em.HasComponent<ProjectM.Health>(e))
+                {
+                    var health = em.GetComponentData<ProjectM.Health>(e);
+                    Field(sb, ref written, "Health.MaxHealth", health.MaxHealth._Value);
+                    Field(sb, ref written, "Health.Value", health.Value);
+                    Field(sb, ref written, "Health.MaxRecoveryHealth", health.MaxRecoveryHealth);
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                if (em.HasComponent<ProjectM.UnitLevel>(e))
+                {
+                    var level = em.GetComponentData<ProjectM.UnitLevel>(e);
+                    Field(sb, ref written, "UnitLevel.Level", level.Level._Value);
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                if (em.HasComponent<ProjectM.UnitStats>(e))
+                {
+                    var s = em.GetComponentData<ProjectM.UnitStats>(e);
+                    Field(sb, ref written, "UnitStats.PhysicalPower", s.PhysicalPower._Value);
+                    Field(sb, ref written, "UnitStats.SpellPower", s.SpellPower._Value);
+                    Field(sb, ref written, "UnitStats.ResourcePower", s.ResourcePower._Value);
+                    Field(sb, ref written, "UnitStats.SiegePower", s.SiegePower._Value);
+                    Field(sb, ref written, "UnitStats.PhysicalResistance",
+                          s.PhysicalResistance._Value);
+                    Field(sb, ref written, "UnitStats.SpellResistance", s.SpellResistance._Value);
+                    Field(sb, ref written, "UnitStats.FireResistance", s.FireResistance._Value);
+                    Field(sb, ref written, "UnitStats.PassiveHealthRegen",
+                          s.PassiveHealthRegen._Value);
+                    Field(sb, ref written, "UnitStats.CCReduction", s.CCReduction._Value);
+                    Field(sb, ref written, "UnitStats.HealthRecovery", s.HealthRecovery._Value);
+                    Field(sb, ref written, "UnitStats.DamageReduction", s.DamageReduction._Value);
+                    Field(sb, ref written, "UnitStats.HealingReceived", s.HealingReceived._Value);
+                    Field(sb, ref written, "UnitStats.ReducedBloodDrain",
+                          s.ReducedBloodDrain._Value);
+                    Field(sb, ref written, "UnitStats.BloodDrainMultiplier",
+                          s.BloodDrainMultiplier._Value);
+                    Field(sb, ref written, "UnitStats.CorruptionDamageReduction",
+                          s.CorruptionDamageReduction._Value);
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            sb.Append("},\"field_count\":").Append(written).Append('}');
+        }
+
+        private static void Field(StringBuilder sb, ref int written, string key, float value)
+        {
+            if (written > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append(Json.Str(key)).Append(':').Append(Json.Num(value));
+            written++;
+        }
+
+        private static void Field(StringBuilder sb, ref int written, string key, int value)
+        {
+            if (written > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append(Json.Str(key)).Append(':').Append(value);
+            written++;
         }
     }
 }

@@ -1,19 +1,19 @@
 {
   "table": "vbloods",
-  "schema_version": 1,
-  "description": "V Blood bosses. Stat lines and unlocks. Filled by the cycle 2 bridge prefab dump.",
+  "schema_version": 2,
+  "description": "V Blood bosses. Stat lines and unlocks. SCHEMA_VERSION 2, cycle 3 phase 2: the boss stat line is now EMITTED rather than declared and empty. ROADMAP cycle 3 gap 1 said the rows carried exactly level, name and prefab_guid, so time-to-kill had no denominator on disk. Phase 1 sourced it by enumerating all 150 components on three bosses across the level range, and phase 2 reads it with typed accessors: max_health is ProjectM.Health.MaxHealth._Value (a ModifiableFloat), physical_power and spell_power are ProjectM.UnitStats.PhysicalPower and .SpellPower, and resistances is built from ProjectM.UnitStats. RESISTANCES IS A PARTIAL MAP BY MEASUREMENT, NOT BY OMISSION: exactly four damage types have a unit-side resistance field - physical (UnitStats.PhysicalResistance), spell (.SpellResistance), fire (.FireResistance) and corruption (.CorruptionDamageReduction). Holy, Silver, Garlic and Sun have NO unit-side field anywhere across those 150 enumerated components, which is a full enumeration rather than a failed HasComponent, so the absence is readable. Those four keys are OMITTED, never written as 0, because a zero resistance is a real and different statement. ProjectM.ResistanceData was checked and rejected as the source: every one of its 11 fields is a per-RATING conversion coefficient (GarlicResistance_DamageReductionPerRating and so on), so it is a GLOBAL tuning block and not a per-boss vector. UNVALIDATED NESTED SHAPE does not apply to resistances: core/table_deep.py asserts it maps string keys to flat numbers.",
   "required": ["prefab_guid", "name", "level"],
   "fields": {
     "prefab_guid": {"type": "integer", "description": "Stable in-game PrefabGUID hash."},
     "name": {"type": "string", "description": "Resolved English display name."},
-    "localization_guid": {"type": "string", "description": "Key into strings.json."},
-    "level": {"type": "integer", "description": "Boss gear level."},
-    "max_health": {"type": "number", "description": "Base health pool before difficulty multipliers."},
-    "physical_power": {"type": "number", "description": "Base physical power."},
-    "spell_power": {"type": "number", "description": "Base spell power."},
-    "resistances": {"type": "object", "description": "Resistance name to numeric value."},
-    "blood_type": {"type": "string", "description": "Blood type dropped on defeat."},
-    "unlocks": {"type": "array", "description": "PrefabGUIDs of recipes and abilities granted on defeat."},
-    "region": {"type": "string", "description": "Map region the boss spawns in."}
+    "localization_guid": {"type": "string", "description": "Key into strings.json. NOT ATTEMPTED for vbloods: the one measured runtime route is ManagedDataRegistry.TryGet<ManagedItemData>, which is item-shaped."},
+    "level": {"type": "integer", "description": "Boss unit level, ProjectM.UnitLevel.Level._Value. MEASURED 16 to 91 over the 92 VBloodUnit prefabs. NOT VBloodConsumeSource.Tier, which is a SpellSchoolProgressionTier with five members and cannot be a level."},
+    "max_health": {"type": "number", "description": "ProjectM.Health.MaxHealth._Value. DECLARED AND NEVER EMITTED on this build: it reads 0 on all 65 V Blood PREFABS. The phase 3 control settles what that zero means and it is INSTANCE-ONLY, not spawn scaling - on CHAR_Vampire_Dracula_VBlood, 19 typed fields were compared between the prefab (entity 29012) and the live spawned instance (322945) and 17 are IDENTICAL, including every UnitStats field and UnitLevel.Level; the only two that differ are Health.MaxHealth and Health.Value, 0 on the prefab against 8107 on the instance. So there is no factor to recover - 0 to 8107 is not a ratio - and the health pool is simply not authored on the prefab. Emitting the 0 would be the fabricated items.tier mistake sitting under the denominator of every time-to-kill. Absent means unsourced-from-a-prefab, and a TTK denominator needs a live world with the boss spawned."},
+    "physical_power": {"type": "number", "description": "ProjectM.UnitStats.PhysicalPower. A target-side diff-term candidate (phase 1 T4), not a damage-dealt number."},
+    "spell_power": {"type": "number", "description": "ProjectM.UnitStats.SpellPower. A target-side diff-term candidate (phase 1 T4)."},
+    "resistances": {"type": "object", "description": "Damage type name to numeric resistance, from ProjectM.UnitStats. Keys are drawn from exactly four measured fields: physical, spell, fire, corruption. holy, silver, garlic and sun are PROVEN ABSENT on the unit and are omitted rather than zeroed. A MISSING field means UnitStats could not be read at all, which is a different statement from an empty object."},
+    "blood_type": {"type": "string", "description": "Blood type dropped on defeat. NOT ATTEMPTED this phase."},
+    "unlocks": {"type": "array", "description": "PrefabGUIDs of recipes and abilities granted on defeat. NOT ATTEMPTED this phase."},
+    "region": {"type": "string", "description": "Map region the boss spawns in. NOT ATTEMPTED this phase."}
   }
 }

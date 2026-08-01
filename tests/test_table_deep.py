@@ -19,8 +19,12 @@ VALID_ROWS = {
         "category": "weapon",
         "tier": 1,
         "gear_score": 12.0,
-        "stats": {"PhysicalPower": 3.0, "AttackSpeed": 0.1},
+        "stats": [
+            {"stat": "PhysicalPower", "modification": "Add", "value": 3.0},
+            {"stat": "AttackSpeed", "modification": "AddToBase", "value": 0.1},
+        ],
         "weapon_type": "sword",
+        "ability_group_guids": [-1301247792, 900],
     },
     "abilities": {
         "prefab_guid": 2,
@@ -32,8 +36,22 @@ VALID_ROWS = {
         "prefab_guid": 3,
         "name": "Alpha Wolf",
         "level": 16,
-        "resistances": {"fire": 10, "holy": 0.5},
+        # The four measured keys. holy, silver, garlic and sun have no
+        # unit-side field on this build and are omitted rather than zeroed, so
+        # the fixture does not show one. The gate itself polices value types and
+        # deliberately not key NAMES: a future build adding a field is data.
+        "resistances": {"physical": 10, "spell": 0.5, "fire": 0, "corruption": 0},
         "unlocks": [101, 102],
+    },
+    "ability_stats": {
+        "prefab_guid": 8,
+        "name": "AB_Spear_AThousandSpears_Stab_AbilityGroup",
+        "is_weapon_ability": True,
+        "cast_time": 0.35,
+        "cooldown": 0.0,
+        "coefficient": 1.0,
+        "damage_type": "physical",
+        "hits_per_cast": 1,
     },
     "blood_types": {
         "prefab_guid": 4,
@@ -283,44 +301,75 @@ def test_blood_types_bonus_stats_not_a_list_is_caught():
 
 def test_items_stats_valid_passes():
     row = dict(VALID_ROWS["items"])
-    row["stats"] = {"PhysicalPower": 3, "AttackSpeed": 0.125, "MaxHealth": -2.5}
+    row["stats"] = [
+        {"stat": "PhysicalPower", "modification": "Add", "value": 3},
+        {"stat": "AttackSpeed", "modification": "AddToBase", "value": 0.125},
+        {"stat": "MaxHealth", "modification": "MultiplyBaseAdd", "value": -2.5},
+    ]
+    assert deep_problems("items", _table("items", row)) == []
+
+
+def test_an_item_with_no_stat_entries_passes():
+    """MEASURED: 0 to 6 entries per item over 425 items, so an empty list is a
+    real observation and not a broken read."""
+    row = dict(VALID_ROWS["items"])
+    row["stats"] = []
     assert deep_problems("items", _table("items", row)) == []
 
 
 def test_items_stats_string_value_is_caught():
+    """THE REGRESSION THIS BLOCK EXISTS FOR. items.stats became a LIST at
+    schema_version 2 and the deep gate was not moved with it - it kept calling
+    the object-shaped mapping check, which returns early on a list. Every one of
+    these cases passed silently until 2026-08-01, while the schema description
+    said validate_table was shallow and core/table_deep.py was what inspected
+    the entries. Both gates were blind."""
     bad = dict(VALID_ROWS["items"])
-    bad["stats"] = {"PhysicalPower": "3.0"}
+    bad["stats"] = [{"stat": "PhysicalPower", "modification": "Add", "value": "3.0"}]
     problems = deep_problems("items", _second_row_table("items", bad))
     _assert_flags_row_1(problems)
-    assert any("PhysicalPower" in problem for problem in problems), problems
-
-
-def test_items_stats_nested_object_value_is_caught():
-    bad = dict(VALID_ROWS["items"])
-    bad["stats"] = {"PhysicalPower": {"base": 3.0, "scaled": 4.0}}
-    problems = deep_problems("items", _second_row_table("items", bad))
-    _assert_flags_row_1(problems)
-    assert any("PhysicalPower" in problem for problem in problems), problems
-
-
-def test_items_stats_nested_list_value_is_caught():
-    bad = dict(VALID_ROWS["items"])
-    bad["stats"] = {"PhysicalPower": [3.0]}
-    _assert_flags_row_1(deep_problems("items", _second_row_table("items", bad)))
+    assert any("value" in problem for problem in problems), problems
 
 
 def test_items_stats_boolean_value_is_caught():
     """bool is a subclass of int; it must never pass a number check."""
     bad = dict(VALID_ROWS["items"])
-    bad["stats"] = {"PhysicalPower": True}
+    bad["stats"] = [{"stat": "PhysicalPower", "modification": "Add", "value": True}]
     problems = deep_problems("items", _second_row_table("items", bad))
     _assert_flags_row_1(problems)
-    assert any("PhysicalPower" in problem for problem in problems), problems
+    assert any("value" in problem for problem in problems), problems
 
 
-def test_items_stats_non_string_key_is_caught():
+def test_items_stats_entry_that_is_not_an_object_is_caught():
     bad = dict(VALID_ROWS["items"])
-    bad["stats"] = {7: 3.0}
+    bad["stats"] = ["PhysicalPower"]
+    _assert_flags_row_1(deep_problems("items", _second_row_table("items", bad)))
+
+
+def test_items_stats_missing_modification_is_caught():
+    """The whole reason stats stopped being a map: PhysicalPower Add 10 and
+    PhysicalPower AddToBase 10 are different stats a map renders identically.
+    An entry that drops the modification has thrown away that distinction."""
+    bad = dict(VALID_ROWS["items"])
+    bad["stats"] = [{"stat": "PhysicalPower", "value": 10.0}]
+    problems = deep_problems("items", _second_row_table("items", bad))
+    _assert_flags_row_1(problems)
+    assert any("modification" in problem for problem in problems), problems
+
+
+def test_items_stats_undeclared_key_is_caught():
+    bad = dict(VALID_ROWS["items"])
+    bad["stats"] = [
+        {"stat": "PhysicalPower", "modification": "Add", "value": 1.0, "softcap": 2.0}
+    ]
+    problems = deep_problems("items", _second_row_table("items", bad))
+    _assert_flags_row_1(problems)
+    assert any("softcap" in problem for problem in problems), problems
+
+
+def test_items_stats_non_string_stat_name_is_caught():
+    bad = dict(VALID_ROWS["items"])
+    bad["stats"] = [{"stat": 7, "modification": "Add", "value": 1.0}]
     _assert_flags_row_1(deep_problems("items", _second_row_table("items", bad)))
 
 

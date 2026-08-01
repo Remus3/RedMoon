@@ -1257,3 +1257,188 @@ known rather than suspected:
 Neither is a defect to fix by widening the join. Both are the honest edge of a
 measured chain, and cycle 3 must treat `abilities` as covering spell-school
 abilities only.
+
+## Cycle 3 phase 2 and 3, 2026-08-01: the schema'd dump and the value control
+
+Taken on the standalone dedicated server, build `1.1.13.0-r99712`, through
+`GET /dump/prefabs` and the new `GET /dump/statcontrol`. Payloads under
+`_scratch\rmprobe\c3p2\`, not committed. Every number below was read from a
+saved payload, never off a screen.
+
+Phase 1 read component and field NAMES. This phase reads VALUES, with TYPED
+accessors and one fixed spelled-out field list per reader - the only thing that
+works on this build, because two generic value readers were built and both
+failed (539327184 for every Int32; a hard process crash for raw il2cpp offsets).
+
+### The counts, asserted rather than reported
+
+| table | rows | schema_version |
+|---|---|---|
+| `items` | 425 | 4 |
+| `recipes` | 663 | 2 |
+| `abilities` | 54 | 1 |
+| `vbloods` | 65 | 2 |
+| `blood_types` | 13 | 2 |
+| `ability_stats` | **1818** | 1 |
+
+`tools/rmdata_ingest.py` now PINS every one of these and refuses a dump that
+disagrees, because cycle 2 proved four per-row gates cannot see a wrong count.
+The pin carries its own build id and stands down loudly on any other build.
+
+### `ability_stats` was PREDICTED at 1474 and MEASURED at 1818
+
+This is the phase's sharpest process result, so it is stated first. 1474 is
+cycle 2's figure and it counted a NAME-selected population: prefabs whose name
+ends `_AbilityGroup`. The selector shipped here is the marker COMPONENT,
+`DynamicBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>`, which is what makes
+an entity an ability group.
+
+```
+1818  entities carrying the buffer          <- the shipped selector
+1476  of those whose name ends _AbilityGroup
+ 341  under another convention: _Group 275, _Abilitygroup 18, _UNUSED 4, ...
+```
+
+A name-shaped selector would have silently dropped 341 real ability groups. The
+count had to be MEASURED and pinned afterwards; a predicted count would have
+been wrong by 344 and nothing downstream would have noticed.
+
+NOT RECONCILED and left visible: 1476 is two above cycle 2's 1474, and nothing
+in this dump explains the two.
+
+### What `ability_stats` actually resolved
+
+| field | rows carrying it | of 1818 |
+|---|---|---|
+| `cooldown` | 1818 | every group resolves a `_Cast` |
+| `cast_time`, `post_cast_time` | 1815 | 3 groups have no `AbilityCastTimeData` |
+| `global_cooldown` | 1691 | |
+| `spawn_prefabs_on_cast` | 1668 | |
+| the damage block | **732** | the groups that reach a `_Hit` prefab |
+| `ability_type` | 104 | 42 weapon, 62 spell |
+| `spell_school` | 62 | |
+
+Observed ranges over the 732 damage-reaching rows: `coefficient` 0 to 6,
+`cast_time` 0.05 to 5, `cooldown` 0 to 150, `hits_per_cast` 1 to 4.
+
+`damage_type`: physical 579, spell 93, holy 27, corruption 18, fire 15.
+
+`spell_school`: blood 11, storm 11, chaos 10, illusion 10, unholy 10, frost 9,
+and **shadow 1**. `Shadow` is not reachable through the six-school
+`<School>SpellSchoolAsset` join that fills `abilities`, so the second source
+earns its place immediately rather than in principle.
+
+### A coefficient nobody asked for: `MaterialModifiers.VBlood`
+
+`ProjectM.DealDamageParameters.MaterialModifiers` is a
+`ProjectM.EntityTypeModifiers` carrying 23 per-target-CLASS `Single`
+multipliers - `Human`, `Undead`, `Demon`, `Beast`, `PlayerVampire`, `VBlood`,
+`ShadowVBlood`, the structure classes and so on.
+
+It is NOT in the spike spec's field list. It was found by reading the declared
+field TYPES of `DealDamageParameters` before writing the reader, and it is
+emitted because **MEASURED range over the 732 damage rows is 0.33 to 1.0** - a
+real per-target multiplier that lands directly on a boss time-to-kill. A
+boss-damage table that omitted the boss multiplier would have been wrong in
+exactly the direction nobody would check. The other 22 modifiers are readable by
+the same hop and are NOT ATTEMPTED, because no cycle 3 consumer reads them.
+
+### The V Blood stat line: sourced, except the one field TTK needs most
+
+The four resistances are **NOT COMMENSURABLE**, read off the declared types
+rather than assumed uniform:
+
+```
+UnitStats.PhysicalResistance          ModifiableFloat
+UnitStats.SpellResistance             ModifiableFloat
+UnitStats.FireResistance              ModifiableINT    <- a RATING
+UnitStats.CorruptionDamageReduction   ModifiableFloat  <- already a REDUCTION
+```
+
+Fire is an integer RATING that becomes a reduction only through
+`ProjectM.ResistanceData.FireResistance_DamageReductionPerRating`, a GLOBAL
+per-rating block and not a per-boss vector. Corruption is named
+`DamageReduction` and is already the reduced fraction. A consumer must not
+average these four or feed them to one formula.
+
+MEASURED over all 65 prefabs:
+
+```
+physical      0 on all 65
+spell         0 on all 65
+fire          0 to 75, real per-boss variation
+corruption    0.5 on all 65
+max_health    0 on all 65
+physical_power / spell_power  21.60 to 111.41, 33 distinct values over 33 levels
+```
+
+`physical_power` EQUALS `spell_power` on every one of the 65 rows and both take
+exactly 33 distinct values across 33 distinct levels, so they are LEVEL-DERIVED
+rather than per-boss authored. Holy, Silver, Garlic and Sun have no unit-side
+field at all and are OMITTED, never zeroed.
+
+### The prefab-versus-instance control: BRANCH 3, and it is counted
+
+The subject is `CHAR_Vampire_Dracula_VBlood`, present on both sides in a live
+`world1`. Read through `GET /dump/statcontrol`, which emits every entity carrying
+the guid with ONE fixed list of typed reads, so the comparison is by VALUE.
+
+```
+prefab    entity 29012   carries Unity.Entities.Prefab   19 fields
+instance  entity 322945  no prefab marker                19 fields
+
+19 fields compared
+17 AGREE exactly
+ 2 DIFFER
+    Health.MaxHealth   prefab 0   instance 8107
+    Health.Value       prefab 0   instance 8107
+```
+
+The control that makes those numbers falsifiable: both rows restate
+`prefab_guid` and both read `-327335305`, which the caller already knew from a
+separate typed read. This is the check that caught the generic reader in phase 1.
+
+**The branch is "the prefab carries nothing and only the instance does", and it
+is confined to health.** It is NOT spawn scaling: 17 of 19 fields are identical,
+including every `UnitStats` field and `UnitLevel.Level`, and 0 to 8107 is not a
+ratio. There is no factor to source. The health pool is simply not authored on
+the prefab.
+
+Two consequences, both shipped:
+
+1. `vbloods.max_health` is DECLARED AND NEVER EMITTED. Writing the prefab's 0
+   would be the fabricated `items.tier` mistake sitting under the denominator of
+   every time-to-kill.
+2. **The vblood selector now requires the prefab marker.** A spawned boss carries
+   the SAME `PrefabGUID` as its prefab, so before this the row was whichever of
+   the two the world walk reached first - and they do not agree. Cycle 2 saw this
+   exact pair as "66 vblood rows over 65 distinct" and fixed the COUNT by
+   deduping, which silently made the CHOICE order-dependent instead. The prefab
+   is the deliberate pick because it exists whether or not a boss has spawned.
+
+### One timing trap, recorded because it cost a run
+
+The first control returned ONE entity, the prefab only, and looked like a clean
+"the instance does not exist" result. It was taken at about 5 s of server
+uptime. The instance appears later: at 20 s the same query found entity 322945
+with 151 components. **A negative result taken too early is indistinguishable
+from a real absence**, which is the `Unload()` lesson in a new place. Poll for
+the subject, not just for `ready:true`.
+
+### `items.ability_group_guids`, the L1 link
+
+Emitted for all 425 items, `[]` where the chain grants nothing: 563 links over
+425 items, 0 to 3 per item. The route is the phase 1 chain, and the ASYMMETRY it
+depends on is real - `EquippableData.BuffGuid` is barred as a route to item
+STATS, because `ModifyUnitStatBuff_DOTS` sits on the item prefab itself, and is
+the ONLY route to abilities. An empty `NewGroupId` (guid 0) means the slot clears
+an ability and is skipped rather than emitted as a join target.
+
+### The localization cost of taking this dump on the server
+
+`localization_guid` resolved **0 of 425** here, as cycle 2 measured for this
+host. The promoted `items` table therefore lost the 425 guids a CLIENT dump had
+filled. Backed up to
+`_scratch\rmprobe\c3p2\items-client-v3-with-localization.json` and recoverable
+in one client dump. This is a HOST fact, not a regression, but it is a real cost
+of promoting from the headless host and is owed back.

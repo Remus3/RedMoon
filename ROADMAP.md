@@ -92,40 +92,65 @@ Spec, first of two: `docs/superpowers/specs/2026-07-26-bloodforge-input-spike-de
 settles where the boss stat line and the ability coefficients come from. The
 combat math is a SECOND spec, opened only against what that spike returns.
 
-**Phase 1 is DONE and the OPERATOR GATE IS OPEN.** Ledger 003c, commit `48a9215`.
-The exploratory `/dump/components` endpoint shipped and the component inventory
-for all four subject classes is in `docs/BRIDGE_SPIKES.md` with every component
-and field named. All 14 required fields are SOURCED or PROVEN ABSENT; NOT
-ATTEMPTED is empty. **Phase 2 - the `vbloods` schema 2 bump, `ability_stats`,
-`items` schema 4, the ingest gates and ADR-007 - does not start until that
-inventory is reviewed.**
+**PHASES 1, 2 AND 3 ARE DONE.** The input spike is CLOSED. Phase 1 shipped the
+exploratory `/dump/components` endpoint and the component inventory for all four
+subject classes. Phase 2 shipped the schema'd dump; phase 3 shipped
+`/dump/statcontrol` and the prefab-versus-instance VALUE control. Every
+measurement is in `docs/BRIDGE_SPIKES.md`; the key-space ruling is ADR-007.
 
-Gap 3 below is DISSOLVED by measurement: `ProjectM.WeaponAbilityData`
-distinguishes a weapon ability group from a spell one by COMPONENT, so weapon
-abilities need no `<Weapon>SpellSchoolAsset` to be addressable. Gaps 1 and 2 have
-their sources named and their VALUES unread - phase 2 reads them with typed
-accessors, because a generic value reader was measured impossible on this build.
+Promoted on disk at `data/rmdata/1.1.13.0-r99712/tables/`, every count asserted
+by `tools/rmdata_ingest.py` rather than reported: `items` 425 (schema 4),
+`recipes` 663, `abilities` 54, `vbloods` 65 (schema 2), `blood_types` 13,
+`ability_stats` **1818** (schema 1, new).
 
-Verified inputs on disk, from cycle 2: `items` 425, `recipes` 663, `abilities`
-54, `vbloods` 65, `blood_types` 13, under `data/rmdata/1.1.13.0-r99712/tables/`.
+Two results worth carrying out of the spike:
+
+- **`ability_stats` was predicted at 1474 and measured at 1818.** 1474 counted a
+  NAME-selected population; the shipped selector is the marker COMPONENT, and
+  341 real ability groups use a different naming convention. A pinned count has
+  to be a measurement.
+- **The one input TTK cannot do without is the one still missing.** Boss
+  `max_health` is instance-only, measured, not merely unread. See gap 1.
+
+**The combat-math spec is the next cycle 3 document, and gap 7 must be settled
+before it opens.**
 
 Known input gaps the spec must scope rather than assume away. The first two are
 the large ones and were found by reading the promoted rows rather than the
 schema, at cycle 2 close:
 
-1. **There is no BOSS STAT LINE.** `vbloods` rows carry exactly `level`, `name`
-   and `prefab_guid` - no health, no resistances, no damage. `docs/BLOODFORGE.md`
-   names `tables/vbloods.json` as the source for "Boss stat line and
-   resistances"; the data does not support that claim and the doc is annotated.
-   Time-to-kill needs a denominator that is not on disk. Sourcing it is a cycle 3
-   SPIKE against the live bridge, not an assumption.
-2. **There are no ABILITY COEFFICIENTS.** `abilities` rows carry `name`,
-   `prefab_guid`, `school` and, for 16 of 54, `damage_type`. No cast time, no
-   cooldown, no damage scalar. Spell DPS cannot be computed from this table as it
-   stands.
-3. **Weapon abilities have no rows at all.** No `<Weapon>SpellSchoolAsset` exists
-   to source a school from, so weapon DPS cannot be scaffolded on `abilities`
-   either.
+1. **PARTLY CLOSED, and the residue is the important half.** RESTATED
+   2026-08-01 from phase 2 and 3 measurement. `vbloods` is now schema 2 and
+   carries `physical_power`, `spell_power` and a four-key `resistances` map on
+   all 65 rows. Two findings qualify it and neither is cosmetic:
+   - `physical_power` EQUALS `spell_power` on every row and both take 33
+     distinct values over 33 distinct levels, so they are LEVEL-DERIVED rather
+     than per-boss authored.
+   - **`max_health` is STILL absent, and is now measured rather than merely
+     missing.** It reads 0 on all 65 prefabs. The phase 3 control compared 19
+     typed fields between the Dracula prefab (entity 29012) and its live
+     instance (322945): 17 IDENTICAL, and `Health.MaxHealth` 0 against 8107.
+     That is the "prefab carries nothing, instance does" branch, confined to
+     health. NOT spawn scaling, so there is no factor to source. **A TTK
+     denominator needs a live world with the boss actually spawned.** It is
+     declared and omitted, never zeroed.
+
+   The resistance map is PARTIAL AND NOT COMMENSURABLE: `physical` and `spell`
+   read 0 on all 65, `corruption` is 0.5 on all 65, and only `fire` varies (0 to
+   75) - and it is an integer RATING, not a fraction. Holy, Silver, Garlic and
+   Sun have no unit-side field at all. No consumer may average these four.
+2. **CLOSED 2026-08-01.** `ability_stats` ships at schema 1 with **1818 rows**,
+   keyed on the ability GROUP per ADR-007. Cast time on 1815 rows, cooldown on
+   1818, and the full damage block - coefficient, raw damage, damage type, hit
+   counts and the V Blood multiplier - on the 732 groups that reach a `_Hit`
+   prefab. Groups that deal no damage keep their row with coefficients OMITTED.
+   `abilities` is unchanged and remains the identity and school table.
+3. **DISSOLVED, and now implemented.** `ProjectM.WeaponAbilityData` distinguishes
+   a weapon group from a spell one BY COMPONENT, so no `<Weapon>SpellSchoolAsset`
+   is needed. 42 weapon groups carry an `ability_type`, and
+   `items.ability_group_guids` links them to the items that grant them - 563
+   links over 425 items. Weapon DPS is now scaffoldable. ADR-007 records the key
+   space so this is not re-litigated.
 4. **`items.tier` is absent, not zero,** and no consumer may treat it as an
    ordinal.
 5. **`items.gear_score` is present on only 117 of 425 rows** and is a Red

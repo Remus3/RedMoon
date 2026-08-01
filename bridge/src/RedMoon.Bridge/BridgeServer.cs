@@ -139,8 +139,22 @@ namespace RedMoon.Bridge
             Instanced = instanced;
         }
 
+        /// <summary>
+        /// The EXPLORATORY prefab-versus-instance VALUE control (cycle 3 phase
+        /// 3). Separate from the component dump because that one reads NAMES
+        /// only, by measured necessity: a generic value reader was built twice
+        /// on this build and failed twice. This one reads a FIXED, spelled-out
+        /// list of typed fields, which is the only thing that works here.
+        /// </summary>
+        internal DumpRequest(int guid, bool statValues)
+        {
+            StatValues = statValues;
+            Guid = guid;
+        }
+
         internal readonly string Table;
         internal readonly bool Components;
+        internal readonly bool StatValues;
         internal readonly int Guid;
         internal readonly string NamePrefix;
         internal readonly int Limit;
@@ -270,10 +284,17 @@ namespace RedMoon.Bridge
 
             try
             {
-                request.Body = request.Components
-                    ? ComponentDumper.Dump(_build, _plugin, request.Guid, request.NamePrefix,
-                                           request.Limit, request.Instanced)
-                    : PrefabDumper.Dump(_build, _plugin, request.Table);
+                if (request.StatValues)
+                {
+                    request.Body = ComponentDumper.StatControl(_build, _plugin, request.Guid);
+                }
+                else
+                {
+                    request.Body = request.Components
+                        ? ComponentDumper.Dump(_build, _plugin, request.Guid, request.NamePrefix,
+                                               request.Limit, request.Instanced)
+                        : PrefabDumper.Dump(_build, _plugin, request.Table);
+                }
             }
             catch (Exception ex)
             {
@@ -373,6 +394,26 @@ namespace RedMoon.Bridge
                 int status;
                 string body = RequestDump(
                     new DumpRequest(guid, namePrefix, limit, instanced), out status);
+                TryRespond(context, status, body);
+                return;
+            }
+
+            // EXPLORATORY, cycle 3 phase 3: the prefab-versus-instance VALUE
+            // control. Emits EVERY entity carrying the guid, prefab and instance
+            // alike, with one fixed list of typed reads, so the two can be
+            // compared field by field rather than by presence.
+            if (path == "/dump/statcontrol")
+            {
+                int guid = QueryInt(context, "guid", 0);
+                if (guid == 0)
+                {
+                    TryRespond(context, 400, Error("bad_request",
+                                                   "pass guid so the control has a subject"));
+                    return;
+                }
+
+                int status;
+                string body = RequestDump(new DumpRequest(guid, true), out status);
                 TryRespond(context, status, body);
                 return;
             }

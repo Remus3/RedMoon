@@ -264,6 +264,117 @@ def duplicate_key_problems(tables: dict[str, list]) -> list[str]:
     return problems
 
 
+EXPECTED_ROWS_BUILD = "1.1.13.0-r99712"
+"""The build EXPECTED_ROWS was measured on.
+
+A row count is a fact about ONE build, not about V Rising. Pinning the counts
+without pinning the build they came from would make the gate assert 425 items
+against a game that had since shipped more, which is the cycle 2 lesson exactly:
+a real measurement answering the right question about the wrong subject.
+
+So the gate applies only to this build, and on any other build it stands down
+and SAYS SO in the census rather than passing quietly. A silent stand-down would
+read as "the counts were checked", which is the failure this whole gate exists
+to prevent.
+"""
+
+EXPECTED_ROWS = {
+    "items": 425,
+    "recipes": 663,
+    "abilities": 54,
+    "vbloods": 65,
+    "blood_types": 13,
+    "ability_stats": 1818,
+}
+"""The row count each table must have on build 1.1.13.0-r99712.
+
+WHY A CONSTANT AND NOT A REPORTED NUMBER. Four per-row gates - the shallow
+schema, the deep nested contract, the census and the unmapped array - all passed
+a dump that emitted 66 vblood rows over 65 distinct guids. Every duplicate pair
+was byte-identical, so each individual row was perfect and the only symptom was
+the COUNT; by then 66 had already been written into ROADMAP.md as the V Blood
+total. A count that is merely whatever the dumper emitted asserts nothing.
+
+The first five are the cycle 2 measurements, re-confirmed on both hosts after the
+dedupe fix.
+
+ability_stats is pinned at the count its FIRST run MEASURED, 2026-08-01 on the
+dedicated server, together with the chain that produced it: one row per entity
+carrying DynamicBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>, which is what
+MAKES an entity an ability group. Coefficient fields are omitted on the groups
+that reach no damage prefab rather than the rows being dropped, so this is the
+GROUP population and not the damage-dealing subset: 732 of the 1818 reach damage.
+
+THE NUMBER WAS PREDICTED AS 1474 AND MEASURED AS 1818, and the gap is the whole
+reason this pin has to be a measurement. 1474 is cycle 2's figure and it counted
+a NAME-selected population - prefabs whose name ends `_AbilityGroup`, of which
+this dump finds 1476. The other 341 rows carry the buffer under a different
+naming convention (`_Group`, `_Abilitygroup`, `_UNUSED` and others) and are
+ability groups by COMPONENT, which is the selector this project's own rule
+prefers: a marker component is a fact, a name suffix is a guess about Stunlock's
+conventions. NOT RECONCILED and stated rather than smoothed over: 1476 is two
+above cycle 2's 1474, and nothing in this dump explains the two.
+
+The assertion exists to catch DRIFT tomorrow, which is a different job from
+validating today's dump.
+
+A build bump moves these numbers, and moving them is meant to be a deliberate
+edit here rather than a silent pass.
+"""
+
+
+def count_applies(build: str) -> bool:
+    """True when the pinned counts describe the build being ingested."""
+    return normalize_build(build) == EXPECTED_ROWS_BUILD
+
+
+def format_counts(tables: dict[str, list], build: str) -> list[str]:
+    """Render the count gate's verdict, including when it stood down.
+
+    Printed on every ingest. The stand-down line is the point: an operator who
+    sees no count output at all cannot tell a passing gate from an absent one.
+    """
+    observed = ", ".join(f"{name}={len(tables[name])}" for name in sorted(tables)
+                         if isinstance(tables[name], list))
+    if not count_applies(build):
+        return [
+            f"counts: {observed}",
+            f"  NOT ASSERTED - the pinned counts were measured on "
+            f"{EXPECTED_ROWS_BUILD} and this dump is {normalize_build(build)}",
+        ]
+    return [f"counts: {observed}", f"  asserted against the {EXPECTED_ROWS_BUILD} pin"]
+
+
+def count_problems(tables: dict[str, list], build: str = EXPECTED_ROWS_BUILD) -> list[str]:
+    """Report any table whose row count is not the pinned expected count.
+
+    A table absent from the dump raises nothing: `--table` ingests one table and
+    the gate must not manufacture four failures for the ones nobody asked for.
+    A table with no pinned count also raises nothing, so adding a table to the
+    dump is not blocked on measuring it first - but TABLE_NAMES and EXPECTED_ROWS
+    are asserted to agree in tests/test_ability_stats.py, so the gap cannot
+    survive a commit.
+
+    A dump from a DIFFERENT build raises nothing either, per EXPECTED_ROWS_BUILD,
+    and format_counts prints the stand-down so it is never mistaken for a pass.
+    """
+    problems: list[str] = []
+    if not count_applies(build):
+        return problems
+    for name in sorted(tables):
+        rows = tables[name]
+        if not isinstance(rows, list) or name not in EXPECTED_ROWS:
+            continue
+        expected = EXPECTED_ROWS[name]
+        if len(rows) != expected:
+            problems.append(
+                f"{name}: {len(rows)} rows, expected {expected} - "
+                f"a count that disagrees with the pin is either a real change in "
+                f"the game data or a duplicate no per-row gate can see"
+            )
+    return problems
+
+
 def localization_summary(payload: dict) -> dict:
     """Report the dump's prefab-to-localization join counters.
 
@@ -502,12 +613,20 @@ def ingest(
     # and the deep gate, and the defect is only visible in the collection.
     problems.extend(duplicate_key_problems({name: tables[name] for name in names}))
 
+    # The count gate runs last of the three cross-row checks and for the same
+    # reason the uniqueness one exists: a defect that is invisible per row and
+    # visible only in the collection. A duplicate shows up in both, but a
+    # SILENTLY DROPPED row shows up only here.
+    problems.extend(count_problems({name: tables[name] for name in names}, expected))
+
     # 7. census. Printed even on a failed gate - the census is how the operator
     # finds out WHY the shape is wrong.
     censused = {name: tables[name] for name in names}
     for line in format_census(shape_census(censused), unmapped_summary(payload)):
         print(line, file=out)
     for line in format_localization(localization_summary(payload)):
+        print(line, file=out)
+    for line in format_counts({name: tables[name] for name in names}, expected):
         print(line, file=out)
 
     counts = ", ".join(f"{name}={len(tables[name])}" for name in names)

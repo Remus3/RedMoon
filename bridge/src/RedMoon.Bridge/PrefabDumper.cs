@@ -59,7 +59,7 @@ namespace RedMoon.Bridge
         /// <summary>The tables mapped against this build.</summary>
         internal static readonly string[] WritableTables =
         {
-            "items", "recipes", "abilities", "vbloods", "blood_types"
+            "items", "recipes", "abilities", "vbloods", "blood_types", "ability_stats"
         };
 
         /// <summary>
@@ -226,6 +226,7 @@ namespace RedMoon.Bridge
             bool wantAbilities = string.IsNullOrEmpty(table) || table == "abilities";
             bool wantVbloods = string.IsNullOrEmpty(table) || table == "vbloods";
             bool wantBloodTypes = string.IsNullOrEmpty(table) || table == "blood_types";
+            bool wantAbilityStats = string.IsNullOrEmpty(table) || table == "ability_stats";
 
             var watch = Stopwatch.StartNew();
             var items = new StringBuilder();
@@ -233,12 +234,14 @@ namespace RedMoon.Bridge
             var abilities = new StringBuilder();
             var vbloods = new StringBuilder();
             var bloodTypes = new StringBuilder();
+            var abilityStats = new StringBuilder();
             var unmapped = new StringBuilder();
             int itemCount = 0;
             int recipeCount = 0;
             int abilityCount = 0;
             int vbloodCount = 0;
             int bloodTypeCount = 0;
+            int abilityStatCount = 0;
             int unmappedCount = 0;
 
             // prefab_guid is the join key, and the world can hold MORE THAN ONE
@@ -263,6 +266,7 @@ namespace RedMoon.Bridge
             var seenAbilities = new HashSet<int>();
             var seenVbloods = new HashSet<int>();
             var seenBloodTypes = new HashSet<int>();
+            var seenAbilityStats = new HashSet<int>();
 
             // Opened once per dump, never per row: the registry handle is the
             // expensive part and the counters must accumulate across the pass.
@@ -358,8 +362,24 @@ namespace RedMoon.Bridge
                 // VBloodConsumeSource. The other 27 are templates such as
                 // GateBossComponentsTemplate_Major, which have a UnitLevel and
                 // would look exactly like a boss row.
+                // THE PREFAB MARKER IS PART OF THE SELECTOR, cycle 3 phase 3.
+                // A spawned boss carries the SAME PrefabGUID as its prefab, so
+                // without this test the row was whichever of the two the world
+                // walk reached first - and the two do NOT agree. MEASURED on
+                // CHAR_Vampire_Dracula_VBlood: 19 fields compared, 17 identical,
+                // and Health.MaxHealth reading 0 on the prefab against 8107 on
+                // the live instance. Cycle 2 saw the same pair as "66 vblood
+                // rows over 65 distinct" and fixed the COUNT by deduping, which
+                // silently made the choice order-dependent instead.
+                //
+                // The PREFAB is the deliberate pick: it exists whether or not a
+                // boss has spawned, so the dump stays repeatable and
+                // host-independent. The price is max_health, which is
+                // instance-only and is therefore OMITTED rather than written as
+                // the prefab's 0.
                 if (wantVbloods && Has<ProjectM.VBloodUnit>(em, e)
                     && Has<ProjectM.VBloodConsumeSource>(em, e)
+                    && ComponentDumper.CarriesPrefabMarker(em, e)
                     && seenVbloods.Add(guid.GuidHash))
                 {
                     string reason;
@@ -391,6 +411,29 @@ namespace RedMoon.Bridge
                         unmappedCount++;
                     }
                 }
+
+                // ADR-007: the coefficient key space is the ability GROUP. The
+                // marker is AbilityGroupStartAbilitiesBuffer, which is what
+                // MAKES an entity a group - cycle 2 measured it resolving a cast
+                // for 1474 of 1474 groups. Deliberately NOT the school index the
+                // abilities table uses: that index covers spell-school groups
+                // only, and a weapon group has no school asset to be named by.
+                // Selecting on the school here would reproduce ROADMAP cycle 3
+                // gap 3 inside the table built to dissolve it.
+                if (wantAbilityStats && HasBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>(em, e)
+                    && seenAbilityStats.Add(guid.GuidHash))
+                {
+                    if (TryWriteAbilityStats(abilityStats, abilityStatCount, em, map, e, guid))
+                    {
+                        abilityStatCount++;
+                    }
+                    else
+                    {
+                        WriteUnmapped(unmapped, unmappedCount, guid,
+                                      "ability group whose name could not be read");
+                        unmappedCount++;
+                    }
+                }
             }
 
             watch.Stop();
@@ -406,12 +449,14 @@ namespace RedMoon.Bridge
             body.Append(",\"abilities\":").Append(abilityCount);
             body.Append(",\"vbloods\":").Append(vbloodCount);
             body.Append(",\"blood_types\":").Append(bloodTypeCount);
+            body.Append(",\"ability_stats\":").Append(abilityStatCount);
             body.Append("},\"tables\":{");
             body.Append("\"items\":[").Append(items).Append(']');
             body.Append(",\"recipes\":[").Append(recipes).Append(']');
             body.Append(",\"abilities\":[").Append(abilities).Append(']');
             body.Append(",\"vbloods\":[").Append(vbloods).Append(']');
             body.Append(",\"blood_types\":[").Append(bloodTypes).Append(']');
+            body.Append(",\"ability_stats\":[").Append(abilityStats).Append(']');
             body.Append("},\"unmapped\":[").Append(unmapped).Append(']');
 
             // Emitted on EVERY dump, including one that resolved nothing. A
@@ -778,6 +823,243 @@ namespace RedMoon.Bridge
         }
 
         // -------------------------------------------------------------------
+        // ability_stats - ADR-007
+        // -------------------------------------------------------------------
+        /// <summary>
+        /// One row per ability GROUP, carrying the combat coefficients.
+        ///
+        /// ADR-007: the key space is the GROUP, not the ability and not the
+        /// school. A weapon group has no &lt;Weapon&gt;SpellSchoolAsset and so cannot
+        /// be keyed by school at all, which is ROADMAP cycle 3 gap 3; keying on
+        /// the group dissolves it, because phase 1 measured that
+        /// ProjectM.WeaponAbilityData tells a weapon group from a spell group by
+        /// COMPONENT.
+        ///
+        /// EVERY COEFFICIENT FIELD IS OMITTED WHEN THE CHAIN DOES NOT REACH IT.
+        /// Cycle 2 measured 912 of 1474 groups reaching no damage prefab and a
+        /// second spawn hop adding exactly zero, so those groups genuinely do
+        /// not deal damage. They still get a ROW - they are real abilities with
+        /// real cast times - and ship with the damage fields absent rather than
+        /// zeroed. A zero MainFactor is indistinguishable from a real one.
+        /// </summary>
+        private static bool TryWriteAbilityStats(StringBuilder sb, int index, EntityManager em,
+                                                 Stunlock.Core.PrefabLookupMap map, Entity e,
+                                                 Stunlock.Core.PrefabGUID guid)
+        {
+            string name;
+            try
+            {
+                name = map.GetName(guid);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            if (index > 0)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append("{\"prefab_guid\":").Append(guid.GuidHash);
+            sb.Append(",\"name\":").Append(Json.Str(name));
+
+            // The weapon-versus-spell discriminator is a COMPONENT, which is why
+            // this is a fact rather than a name-prefix guess.
+            bool isWeapon = Has<ProjectM.WeaponAbilityData>(em, e);
+            sb.Append(",\"is_weapon_ability\":").Append(isWeapon ? "true" : "false");
+
+            try
+            {
+                if (isWeapon)
+                {
+                    var weapon = em.GetComponentData<ProjectM.WeaponAbilityData>(e);
+                    sb.Append(",\"ability_type\":").Append(Json.Str(weapon.AbilityType.ToString()));
+                }
+                else if (em.HasComponent<ProjectM.VBloodAbilityData>(e))
+                {
+                    var spell = em.GetComponentData<ProjectM.VBloodAbilityData>(e);
+                    sb.Append(",\"ability_type\":").Append(Json.Str(spell.AbilityType.ToString()));
+
+                    // A SECOND and independent school source to the
+                    // <School>SpellSchoolAsset join that fills abilities.school,
+                    // and its enum carries Shadow, which the six-school join
+                    // cannot produce. Emitted alongside rather than instead:
+                    // two sources that can be compared beat one that cannot.
+                    sb.Append(",\"spell_school\":")
+                      .Append(Json.Str(Lower(spell.AbilitySchool.ToString())));
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            WriteCastAndDamage(sb, em, map, e);
+
+            // power_stat is DECLARED IN THE SCHEMA AND NEVER EMITTED. PROVEN
+            // ABSENT in phase 1: no power-selector member exists across all 51
+            // components enumerated on the _Hit entity, and MainType is the only
+            // discriminator present. Absent means unsourced, not Physical.
+            sb.Append('}');
+            return true;
+        }
+
+        /// <summary>
+        /// The cast entity and, through it, the hit entity. The measured chain,
+        /// one hop at a time and never a name join - the _AbilityGroup to _Hit
+        /// NAME join reaches only 258 of 1474 groups while this reference chain
+        /// resolves a cast for 1474 of 1474.
+        ///
+        ///   group -&gt; AbilityGroupStartAbilitiesBuffer.PrefabGUID -&gt; _Cast
+        ///   _Cast -&gt; AbilitySpawnPrefabOnCast.SpawnPrefab         -&gt; _Hit
+        ///
+        /// FIRST-WINS on both hops, matching the DamageType reader cycle 2
+        /// shipped, so ability_stats and abilities.damage_type cannot disagree
+        /// about which hit prefab they read. An ability whose buffer holds more
+        /// than one start or more than one spawn has that multiplicity reported
+        /// as a COUNT (spawn_prefabs_on_cast) rather than silently averaged.
+        /// </summary>
+        private static void WriteCastAndDamage(StringBuilder sb, EntityManager em,
+                                               Stunlock.Core.PrefabLookupMap map, Entity group)
+        {
+            try
+            {
+                if (!em.HasBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>(group))
+                {
+                    return;
+                }
+
+                var starts = em.GetBuffer<ProjectM.AbilityGroupStartAbilitiesBuffer>(group, true);
+                for (int s = 0; s < starts.Length; s++)
+                {
+                    Entity cast;
+                    if (!map.TryGetValue(starts[s].PrefabGUID, out cast))
+                    {
+                        continue;
+                    }
+
+                    WriteCastTiming(sb, em, cast);
+
+                    if (!em.HasBuffer<ProjectM.AbilitySpawnPrefabOnCast>(cast))
+                    {
+                        return;
+                    }
+
+                    var spawns = em.GetBuffer<ProjectM.AbilitySpawnPrefabOnCast>(cast, true);
+                    sb.Append(",\"spawn_prefabs_on_cast\":").Append(spawns.Length);
+
+                    for (int k = 0; k < spawns.Length; k++)
+                    {
+                        Entity hit;
+                        if (!map.TryGetValue(spawns[k].SpawnPrefab, out hit))
+                        {
+                            continue;
+                        }
+
+                        if (!em.HasBuffer<ProjectM.DealDamageOnGameplayEvent>(hit))
+                        {
+                            continue;
+                        }
+
+                        var events = em.GetBuffer<ProjectM.DealDamageOnGameplayEvent>(hit, true);
+                        if (events.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        WriteDamage(sb, em, hit, events);
+                        return;
+                    }
+
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                // A partially written row is still valid JSON here: every field
+                // this method appends is optional by schema, so an abort mid-way
+                // omits the rest rather than corrupting the object.
+            }
+        }
+
+        private static void WriteCastTiming(StringBuilder sb, EntityManager em, Entity cast)
+        {
+            try
+            {
+                if (em.HasComponent<ProjectM.AbilityCastTimeData>(cast))
+                {
+                    var timing = em.GetComponentData<ProjectM.AbilityCastTimeData>(cast);
+                    sb.Append(",\"cast_time\":").Append(Json.Num(timing.MaxCastTime._Value));
+                    sb.Append(",\"post_cast_time\":")
+                      .Append(Json.Num(timing.PostCastTime._Value));
+                }
+
+                if (em.HasComponent<ProjectM.AbilityCooldownData>(cast))
+                {
+                    var cooldown = em.GetComponentData<ProjectM.AbilityCooldownData>(cast);
+                    sb.Append(",\"cooldown\":").Append(Json.Num(cooldown.Cooldown._Value));
+                }
+
+                // GlobalCooldown.Value is a plain Single, NOT a ModifiableFloat.
+                // Read off the declared field type rather than assumed uniform.
+                if (em.HasComponent<ProjectM.GlobalCooldown>(cast))
+                {
+                    var global = em.GetComponentData<ProjectM.GlobalCooldown>(cast);
+                    sb.Append(",\"global_cooldown\":").Append(Json.Num(global.Value));
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static void WriteDamage(StringBuilder sb, EntityManager em, Entity hit,
+                                        DynamicBuffer<ProjectM.DealDamageOnGameplayEvent> events)
+        {
+            var first = events[0];
+            var parameters = first.Parameters;
+
+            sb.Append(",\"coefficient\":").Append(Json.Num(parameters.MainFactor));
+            sb.Append(",\"raw_damage_value\":").Append(Json.Num(parameters.RawDamageValue));
+            sb.Append(",\"raw_damage_percent\":").Append(Json.Num(parameters.RawDamagePercent));
+            sb.Append(",\"damage_type\":").Append(Json.Str(Lower(parameters.MainType.ToString())));
+
+            // MaterialModifiers is a ProjectM.EntityTypeModifiers carrying 23
+            // per-target-CLASS multipliers. VBlood is the one a boss
+            // time-to-kill multiplies by, and it is emitted for that reason
+            // alone; the other 22 are readable by this same hop and are NOT
+            // ATTEMPTED because no cycle 3 consumer reads them.
+            sb.Append(",\"vblood_damage_modifier\":")
+              .Append(Json.Num(parameters.MaterialModifiers.VBlood));
+
+            sb.Append(",\"damage_modifier_per_hit\":")
+              .Append(Json.Num(first.DamageModifierPerHit));
+            sb.Append(",\"multiply_main_factor_with_stacks\":")
+              .Append(first.MultiplyMainFactorWithStacks ? "true" : "false");
+
+            // A6. The multiplicity is BUFFER LENGTHS, and these are counted
+            // rather than folded into a single hits-per-cast, because turning
+            // three counts into one effective number is a MODEL and belongs to
+            // the combat-math spec. Counting is measurement; the fold is not.
+            sb.Append(",\"hits_per_cast\":").Append(events.Length);
+            sb.Append(",\"hit_triggers\":").Append(BufferLength<ProjectM.HitTrigger>(em, hit));
+            sb.Append(",\"gameplay_events_on_hit\":")
+              .Append(BufferLength<ProjectM.CreateGameplayEventsOnHit>(em, hit));
+        }
+
+        private static int BufferLength<T>(EntityManager em, Entity e) where T : unmanaged
+        {
+            try
+            {
+                return em.HasBuffer<T>(e) ? em.GetBuffer<T>(e, true).Length : 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        // -------------------------------------------------------------------
         // vbloods
         // -------------------------------------------------------------------
         private static bool TryWriteVBlood(StringBuilder sb, int index, EntityManager em,
@@ -820,11 +1102,90 @@ namespace RedMoon.Bridge
             sb.Append(",\"name\":").Append(Json.Str(name));
             sb.Append(",\"level\":").Append(level);
 
-            // max_health, physical_power, spell_power, resistances, blood_type,
-            // unlocks and region are all OMITTED: none has been measured on this
-            // build, and a zero here is indistinguishable from a real zero.
+            // THE BOSS STAT LINE, schema_version 2. ROADMAP cycle 3 gap 1: these
+            // rows carried level, name and guid only, so time-to-kill had no
+            // denominator. Phase 1 enumerated all 150 components on three bosses
+            // spanning levels 16, 57 and 91 and named the source of every field;
+            // this reads them with TYPED accessors, which is the only thing that
+            // works on this build - a generic value reader was built twice and
+            // failed twice, once returning 539327184 for every Int32 and once
+            // hard-crashing the process.
+            // max_health IS NOT EMITTED, and this is a MEASUREMENT rather than a
+            // gap. ProjectM.Health.MaxHealth reads 0 on all 65 V Blood PREFABS.
+            // The phase 3 control settles what that zero means: on
+            // CHAR_Vampire_Dracula_VBlood, 19 typed fields were compared between
+            // the prefab (entity 29012) and the live instance (322945) and 17
+            // are IDENTICAL - every UnitStats field and UnitLevel.Level. The two
+            // that differ are Health.MaxHealth and Health.Value, both 0 on the
+            // prefab and 8107 on the instance.
+            //
+            // So there is NO spawn-scaling factor to recover: 17 of 19 agree
+            // exactly, and 0 -> 8107 is not a ratio. The health pool simply is
+            // not authored on the prefab. Writing the 0 would be the fabricated
+            // items.tier mistake with the denominator of every time-to-kill.
+            //
+            // CONSEQUENCE, carried into ROADMAP cycle 3 gap 1 rather than
+            // buried here: the boss stat line IS on the prefab except for the
+            // health pool, and a TTK denominator needs a live world with the
+            // boss actually spawned.
+            WriteUnitStats(sb, em, e);
+
+            // blood_type, unlocks and region stay OMITTED and are NOT ATTEMPTED
+            // this phase, which is a different statement from measured-absent.
             sb.Append('}');
             return true;
+        }
+
+        /// <summary>
+        /// physical_power, spell_power and the resistance map, all from
+        /// ProjectM.UnitStats.
+        ///
+        /// THE FOUR RESISTANCES ARE NOT COMMENSURABLE, and this is the finding
+        /// that matters most about this block. Read off the declared field
+        /// types rather than assumed:
+        ///
+        ///   PhysicalResistance          ModifiableFloat
+        ///   SpellResistance             ModifiableFloat
+        ///   FireResistance              ModifiableINT   - a RATING, not a fraction
+        ///   CorruptionDamageReduction   ModifiableFloat - already a REDUCTION
+        ///
+        /// Fire is an integer RATING that only becomes a damage reduction
+        /// through ProjectM.ResistanceData.FireResistance_DamageReductionPerRating,
+        /// which is a GLOBAL per-rating coefficient block and not a per-boss
+        /// vector. Corruption is named DamageReduction rather than Resistance
+        /// and is already the reduced fraction. So a consumer must NOT average
+        /// these four or feed them to one formula: they are four differently
+        /// shaped quantities sharing a JSON object because they share a source
+        /// component.
+        ///
+        /// Holy, Silver, Garlic and Sun are PROVEN ABSENT on the unit across
+        /// that same full enumeration and are OMITTED. A zero would be
+        /// indistinguishable from a real zero, which is the items.tier mistake.
+        /// </summary>
+        private static void WriteUnitStats(StringBuilder sb, EntityManager em, Entity e)
+        {
+            ProjectM.UnitStats stats;
+            try
+            {
+                stats = em.GetComponentData<ProjectM.UnitStats>(e);
+            }
+            catch (Exception)
+            {
+                // The whole field is omitted, which says "UnitStats could not be
+                // read at all" - a different claim from an empty resistance map.
+                return;
+            }
+
+            sb.Append(",\"physical_power\":").Append(Json.Num(stats.PhysicalPower._Value));
+            sb.Append(",\"spell_power\":").Append(Json.Num(stats.SpellPower._Value));
+
+            sb.Append(",\"resistances\":{");
+            sb.Append("\"physical\":").Append(Json.Num(stats.PhysicalResistance._Value));
+            sb.Append(",\"spell\":").Append(Json.Num(stats.SpellResistance._Value));
+            sb.Append(",\"fire\":").Append(stats.FireResistance._Value);
+            sb.Append(",\"corruption\":")
+              .Append(Json.Num(stats.CorruptionDamageReduction._Value));
+            sb.Append('}');
         }
 
         // -------------------------------------------------------------------
@@ -1058,10 +1419,91 @@ namespace RedMoon.Bridge
             }
 
             sb.Append(",\"weapon_type\":").Append(Json.Str(weaponType));
+
+            // ability_group_guids, schema_version 4, the L1 link. EquippableData
+            // was read successfully above or this method already returned false,
+            // so the chain HAS run by the time this emits - which is what makes
+            // an empty list mean "grants no ability" rather than "not measured",
+            // exactly as ADR-006 rules for station_guids.
+            sb.Append(",\"ability_group_guids\":[");
+            WriteAbilityGroups(sb, em, map, e);
+            sb.Append(']');
+
             sb.Append(",\"stats\":");
             WriteStats(sb, em, e);
             sb.Append('}');
             return true;
+        }
+
+        /// <summary>
+        /// The L1 chain, every hop read off an enumerated component list in
+        /// phase 1 rather than guessed:
+        ///
+        ///   item prefab
+        ///     -&gt; ProjectM.EquippableData.BuffGuid        (PrefabGUID)
+        ///     -&gt; EquipBuff_Weapon_&lt;Family&gt;_Base
+        ///     -&gt; DynamicBuffer&lt;ProjectM.ReplaceAbilityOnSlotBuff&gt;
+        ///     -&gt; element .NewGroupId                     = the ability GROUP
+        ///
+        /// The item prefab itself carries NO ability reference, so the equip
+        /// buff is the only route. Note the ASYMMETRY, which is not a
+        /// contradiction: BuffGuid is BARRED as a route to item STATS, because
+        /// ModifyUnitStatBuff_DOTS sits on the item prefab itself and cycle 2
+        /// settled that. Different question, different answer.
+        ///
+        /// Sorted and deduplicated before emit, because core/table_deep.py
+        /// asserts both and for the same reasons it does on station_guids: a
+        /// repeat would mean this walk is broken rather than that the game lists
+        /// a group twice, and order is what makes two dumps comparable.
+        ///
+        /// element .Slot is READ AND DISCARDED. It is the ability bar slot, it is
+        /// real, and no cycle 3 consumer has a use for it yet; recording that it
+        /// was seen and dropped is cheaper than a future session re-deriving
+        /// whether the chain could carry it.
+        /// </summary>
+        private static void WriteAbilityGroups(StringBuilder sb, EntityManager em,
+                                               Stunlock.Core.PrefabLookupMap map, Entity e)
+        {
+            var groups = new List<int>();
+            try
+            {
+                var equippable = em.GetComponentData<ProjectM.EquippableData>(e);
+
+                Entity buff;
+                if (map.TryGetValue(equippable.BuffGuid, out buff)
+                    && em.HasBuffer<ProjectM.ReplaceAbilityOnSlotBuff>(buff))
+                {
+                    var replacements = em.GetBuffer<ProjectM.ReplaceAbilityOnSlotBuff>(buff, true);
+                    for (int i = 0; i < replacements.Length; i++)
+                    {
+                        int group = replacements[i].NewGroupId.GuidHash;
+
+                        // 0 is the empty PrefabGUID and means "this slot clears
+                        // the ability" rather than "this slot grants group 0".
+                        // Emitting it would invent a join target.
+                        if (group != 0 && !groups.Contains(group))
+                        {
+                            groups.Add(group);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Understates the list rather than inventing an entry. The
+                // resulting [] is honest about the walk having run.
+            }
+
+            groups.Sort();
+            for (int i = 0; i < groups.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(',');
+                }
+
+                sb.Append(groups[i]);
+            }
         }
 
         /// <summary>

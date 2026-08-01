@@ -8,6 +8,7 @@ Before re-litigating a past choice, read the relevant record here first.
 - [ADR-004](ADR-004-bridge-hosts-client-and-server.md) - RedMoon.Bridge targets both the client and the dedicated server
 - [ADR-005](ADR-005-second-bridge-port.md) - A second bridge port instead of arbitration (amends ADR-003)
 - [ADR-006](ADR-006-recipe-stations-are-plural.md) - A recipe has many stations, so `station_guid` becomes `station_guids`
+- [ADR-007](ADR-007-coefficients-are-keyed-on-the-ability-group.md) - The coefficient key space is the ability GROUP, not the ability and not the school
 
 ## Format
 

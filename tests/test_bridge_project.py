@@ -72,7 +72,8 @@ REQUIRED_REFERENCES = frozenset(
 # SpellSchoolAbility.AbilityGroup on the *SpellSchoolAsset prefab, the V Blood
 # level is UnitLevel.Level, and the blood bonus tiers are the two
 # UnitBloodTypeBuffs buffers.
-WRITABLE_TABLES = ("items", "recipes", "abilities", "vbloods", "blood_types")
+WRITABLE_TABLES = ("items", "recipes", "abilities", "vbloods", "blood_types",
+                   "ability_stats")
 UNWRITABLE_TABLES = ()
 
 PORT_LITERALS = re.compile(r"\b(?:" + "|".join(str(port) for port in sorted(ports.ALL)) + r")\b")
@@ -406,12 +407,58 @@ def test_localization_guid_is_omitted_rather_than_written_empty():
     assert "loc.Length > 0" in text, "localization_guid is emitted unconditionally"
 
 
+def _enclosing_methods(text: str, needle: str) -> set[str]:
+    """Names of the methods in which `needle` appears.
+
+    Tracks the most recent method signature seen while scanning, which is enough
+    for this file: it is one flat static class with no nested types.
+
+    COMMENT LINES ARE SKIPPED. The assertion this serves is about what the code
+    READS, and a doc comment sits ABOVE its own method signature, so counting
+    prose would attribute every documented chain to the method before it.
+    """
+    signature = re.compile(r"\b(?:private|internal|public)\s+static\s+[\w<>\[\],. ]+?(\w+)\s*\(")
+    found: set[str] = set()
+    current = "<file scope>"
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("//"):
+            continue
+        match = signature.search(line)
+        if match:
+            current = match.group(1)
+        if needle in line:
+            found.add(current)
+    return found
+
+
 def test_item_stats_are_read_one_hop_off_the_item_prefab():
-    """The two-hop route through EquippableData.BuffGuid was MEASURED WRONG: the
-    buff prefab has no stat buffer at all (BRIDGE_SPIKES.md, corrected)."""
+    """The two-hop route through EquippableData.BuffGuid was MEASURED WRONG for
+    STATS: the buff prefab has no stat buffer at all (BRIDGE_SPIKES.md,
+    corrected).
+
+    This test used to enforce that by banning the BuffGuid token from the whole
+    file, and cycle 3 phase 1 showed that ban was too broad. BuffGuid is the
+    CORRECT and only route to the abilities an item grants - item ->
+    EquippableData.BuffGuid -> the equip buff -> ReplaceAbilityOnSlotBuff. The
+    asymmetry is real and is not a contradiction: stats live on the item prefab
+    itself, abilities live on the equip buff. So the assertion is scoped to the
+    stat reader rather than relaxed away, because the original defect it was
+    written to catch is still a defect.
+    """
     text = _read(SRC / "PrefabDumper.cs")
     assert "ModifyUnitStatBuff_DOTS" in text
-    assert "BuffGuid" not in text, "the dumper follows BuffGuid, which carries no stats"
+
+    users = _enclosing_methods(text, "BuffGuid")
+    assert "WriteStats" not in users, (
+        "the stat reader follows BuffGuid, which carries no stats"
+    )
+    assert "TryWriteItem" not in users, (
+        "the item row follows BuffGuid inline rather than through the ability link"
+    )
+    assert "WriteAbilityGroups" in users, (
+        "the ability link no longer follows BuffGuid, which is its only route"
+    )
 
 
 def test_recipe_output_is_not_read_from_the_unit_buffer():

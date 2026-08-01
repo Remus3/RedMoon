@@ -28,10 +28,26 @@ Contracts asserted here:
                            blood type prefab carries no threshold field at all,
                            and every stat magnitude on the tier buff reads 0
                            because it is scaled from blood quality at runtime.
-3. items.stats           - object mapping string keys to numeric values, flat.
+3. items.stats           - list of objects, each with a string stat, a string
+                           modification and a numeric value, and no undeclared
+                           keys. schema_version 2 turned this field from a map
+                           into a list and this gate was NOT moved with it: it
+                           kept calling the object-shaped mapping check, which
+                           returns early on a list, so the field was unvalidated
+                           by both gates until 2026-08-01.
+3b. items.ability_group_guids - list of integers, unique and ascending, possibly
+                           empty. schema_version 4, the L1 link. Same artifact
+                           class as station_guids and gated by the same helper.
 4. vbloods.resistances   - object mapping string keys to numeric values.
+                           schema_version 2. The map is PARTIAL by measurement:
+                           only physical, spell, fire and corruption have a
+                           unit-side field, and holy, silver, garlic and sun are
+                           omitted rather than zeroed.
 5. vbloods.unlocks and abilities.effects - lists of scalars of a single
                            consistent type across the list.
+6. ability_stats         - FLAT by design, no nested contract. Listed in the
+                           check table with an empty tuple so "no containers" is
+                           readable as a decision rather than an omission.
 
 bool is a subclass of int in Python, so a boolean is never accepted where a
 number or an integer is expected. core/tables.py line 88 guards the same trap at
@@ -59,6 +75,14 @@ SecondaryUnitBloodTypeBuffs, so a bonus belongs to exactly one of them."""
 
 BONUS_STAT_KEYS = ("stat", "modification")
 """A tier buff element carries a StatType and a ModificationType and NO value."""
+
+ITEM_STAT_KEYS = ("stat", "modification", "value")
+"""The only keys an items.stats entry may carry (items schema line 13).
+
+One entry per ModifyUnitStatBuff_DOTS element on the item prefab, read one hop
+with no BuffGuid follow. MEASURED 2026-07-26 over 425 items and 899 entries: 0
+to 6 per item, 29 distinct StatTypes, three ModificationTypes, values 0 to 500.
+"""
 
 SCALAR_LIST_TYPES = (int, str)
 """Scalar kinds a single-type list may hold. bool is rejected separately."""
@@ -207,21 +231,25 @@ def _check_scalar_list(index: int, field: str, value: object, problems: list[str
         )
 
 
-def _check_station_guids(index: int, field: str, value: object, problems: list[str]) -> None:
-    """Assert the inverted station list is integers, unique, ascending.
+def _check_guid_list(index: int, field: str, value: object, noun: str,
+                     problems: list[str]) -> None:
+    """Assert a dumper-built guid list is integers, unique and ascending.
 
-    ADR-006. The list is BUILT by the dumper by inverting
-    WorkstationRecipesBuffer and RefinementstationRecipesBuffer, so every
-    property here is a property of that inversion rather than of the game:
+    Shared by recipes.station_guids (ADR-006) and items.ability_group_guids
+    (schema_version 4), because both are the SAME kind of artifact: a list the
+    dumper assembles by following a reference the game stores in one direction
+    only. Every property asserted is therefore a property of that assembly
+    rather than of the game:
 
       * integers, because a PrefabGUID that arrives as text has been through a
         stringifying hop;
       * unique, because the dumper accumulates into a set and a repeat means the
-        inversion is broken, not that the game lists a station twice;
+        assembly is broken, not that the game lists the same target twice;
       * ascending, because order is the only thing that makes two dumps of the
         same world byte-comparable.
 
-    An empty list is valid and means measured-and-reachable-from-no-station.
+    An empty list is valid and means measured-and-reached-nothing, which stays
+    distinguishable from a missing field meaning the join did not run.
     """
     if not isinstance(value, list):
         return
@@ -234,12 +262,64 @@ def _check_station_guids(index: int, field: str, value: object, problems: list[s
             problems.append(f"{where} is {_kind(entry)}, expected an integer")
             continue
         if entry in seen:
-            problems.append(f"{where} repeats station {entry}")
+            problems.append(f"{where} repeats {noun} {entry}")
             continue
         seen.add(entry)
         if previous is not None and entry < previous:
             problems.append(f"{where} is {entry}, which is below {previous} - expected ascending")
         previous = entry
+
+
+def _check_station_guids(index: int, field: str, value: object, problems: list[str]) -> None:
+    """ADR-006. The inverted station list, per _check_guid_list."""
+    _check_guid_list(index, field, value, "station", problems)
+
+
+def _check_ability_group_guids(index: int, field: str, value: object,
+                               problems: list[str]) -> None:
+    """items schema_version 4. The L1 link, per _check_guid_list.
+
+    Assembled by following EquippableData.BuffGuid to the equip buff and reading
+    ReplaceAbilityOnSlotBuff.NewGroupId, because the item prefab itself carries
+    no ability reference at all.
+    """
+    _check_guid_list(index, field, value, "ability group", problems)
+
+
+def _check_item_stats(index: int, field: str, value: object, problems: list[str]) -> None:
+    """Assert every items.stats entry is {stat, modification, value}.
+
+    items.stats became a LIST at schema_version 2, when the first real dump
+    showed a name-keyed map cannot carry ModificationType: PhysicalPower Add 10
+    and PhysicalPower AddToBase 10 are different stats a map renders
+    identically. The deep gate was not moved with it and kept routing this field
+    through the object-shaped mapping check, which returns early on a list. So
+    the one container the schema description calls out as unvalidated by the
+    shallow gate was in fact unvalidated by BOTH. Found 2026-08-01 while bumping
+    the same table to 4.
+
+    stat and modification are enum member NAMES stringified by the dumper, so
+    they are asserted as strings rather than against a member list: a new
+    StatType in a future build is data, not a gate failure.
+    """
+    if not isinstance(value, list):
+        return
+    for position, entry in enumerate(value):
+        where = f"row {index} field {field}[{position}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{where} is {_kind(entry)}, expected an object")
+            continue
+        for key in ITEM_STAT_KEYS:
+            if key not in entry:
+                problems.append(f"{where} is missing {key}")
+        for key in entry:
+            if key not in ITEM_STAT_KEYS:
+                problems.append(f"{where} has undeclared key {key}")
+        for key in ("stat", "modification"):
+            if key in entry and not isinstance(entry[key], str):
+                problems.append(f"{where} {key} is {_kind(entry[key])}, expected a string")
+        if "value" in entry and not _is_number(entry["value"]):
+            problems.append(f"{where} value is {_kind(entry['value'])}, expected a number")
 
 
 _Check = Callable[[int, str, object, list[str]], None]
@@ -250,12 +330,20 @@ _CHECKS: dict[str, tuple[tuple[str, _Check], ...]] = {
         ("station_guids", _check_station_guids),
     ),
     "blood_types": (("bonuses", _check_bonuses),),
-    "items": (("stats", _check_number_mapping),),
+    "items": (
+        ("stats", _check_item_stats),
+        ("ability_group_guids", _check_ability_group_guids),
+    ),
     "vbloods": (
         ("resistances", _check_number_mapping),
         ("unlocks", _check_scalar_list),
     ),
     "abilities": (("effects", _check_scalar_list),),
+    # ability_stats is FLAT by design and so has no nested contract to assert.
+    # It is listed rather than left out so a reader can tell "no containers" from
+    # "nobody wired this table up", which is the same measured-versus-unmeasured
+    # distinction the empty-list rule makes one level down.
+    "ability_stats": (),
 }
 
 

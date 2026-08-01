@@ -30,6 +30,7 @@ def good_tables():
                 "stats": [{"stat": "PhysicalPower", "modification": "Add", "value": 12.5},
                           {"stat": "AttackSpeed", "modification": "AddToBase", "value": 0.2}],
                 "weapon_type": "sword",
+                "ability_group_guids": [801, 802],
             },
             {
                 "prefab_guid": 102,
@@ -41,6 +42,11 @@ def good_tables():
                 "stats": [{"stat": "PhysicalPower", "modification": "Add", "value": 4.0},
                           {"stat": "MaxHealth", "modification": "Add", "value": 90.0}],
                 "weapon_type": "",
+                # ADR-006's shape, reused for the L1 link: an empty list says the
+                # equip-buff chain RAN and this item grants nothing. A chest
+                # granting no ability is the ordinary case, so the fixture
+                # carries one rather than only the interesting weapon row.
+                "ability_group_guids": [],
             },
         ],
         "abilities": [
@@ -63,7 +69,10 @@ def good_tables():
                 "max_health": 1200.0,
                 "physical_power": 20.0,
                 "spell_power": 0.0,
-                "resistances": {"fire": 10.0, "holy": -5.0},
+                # The four measured keys only. holy, silver, garlic and sun have
+                # no unit-side field on this build and are omitted, never zeroed.
+                "resistances": {"physical": 10.0, "spell": -5.0,
+                                "fire": 0.0, "corruption": 0.0},
                 "blood_type": "Warrior",
                 "unlocks": [401, 402],
                 "region": "Farbane Woods",
@@ -109,6 +118,44 @@ def good_tables():
                 "station_guids": [701],
                 "craft_duration": 12.0,
             }
+        ],
+        # Two rows so the fixture covers BOTH measured shapes: a group that
+        # reaches damage and carries coefficients, and one that reaches none and
+        # therefore omits every coefficient field rather than zeroing it. Cycle 2
+        # measured 912 of 1474 groups in the second case, so the omitting row is
+        # the majority shape and not an edge case.
+        "ability_stats": [
+            {
+                "prefab_guid": 801,
+                "name": "AB_Spear_AThousandSpears_Stab_AbilityGroup",
+                "is_weapon_ability": True,
+                "ability_type": "Primary",
+                "cast_time": 0.35,
+                "post_cast_time": 0.1,
+                "cooldown": 0.0,
+                "global_cooldown": 1.5,
+                "coefficient": 1.0,
+                "raw_damage_value": 0.0,
+                "raw_damage_percent": 0.0,
+                "damage_type": "physical",
+                "hits_per_cast": 1,
+                "hit_triggers": 1,
+                "gameplay_events_on_hit": 0,
+                "spawn_prefabs_on_cast": 1,
+                "damage_modifier_per_hit": 0.0,
+                "multiply_main_factor_with_stacks": False,
+            },
+            {
+                "prefab_guid": 802,
+                "name": "AB_Spear_AThousandSpears_Travel_AbilityGroup",
+                "is_weapon_ability": True,
+                "ability_type": "Travel",
+                "cast_time": 0.2,
+                "post_cast_time": 0.0,
+                "cooldown": 8.0,
+                "global_cooldown": 1.5,
+                "spawn_prefabs_on_cast": 1,
+            },
         ],
     }
 

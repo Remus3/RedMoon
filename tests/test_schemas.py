@@ -18,11 +18,12 @@ def test_every_declared_table_has_a_schema_file():
 
 
 EXPECTED_SCHEMA_VERSIONS = {
-    "items": 3,
+    "items": 4,
     "abilities": 1,
-    "vbloods": 1,
+    "vbloods": 2,
     "blood_types": 2,
     "recipes": 2,
+    "ability_stats": 1,
 }
 
 

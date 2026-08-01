@@ -19,7 +19,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 Commits `b1b6b2d` (inbox out of the port scan), `6cfc614` (backlog plus memory
 seed), `a3fa2f6` (phase 3 counts and ratios), `91b9ed2` (the gate fix),
 `7d735da` (port 8770 and the shared governor), `370c019` (bucket held at 2) and
-`<docs>` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
+`9151d61` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
 started. All of this arrived from a cross-project handoff, not the roadmap.
 
 State at close, one run: `python -m pytest` **348 passed in 20.15s, exit 0**

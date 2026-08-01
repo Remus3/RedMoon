@@ -75,9 +75,32 @@ def test_items_localization_guid_is_declared_optional():
     assert "localization_guid" not in schema["required"]
 
 
+NON_TABLE_SCHEMAS = ("anchor",)
+"""Schemas in data/schemas/ that are deliberately NOT extracted game tables.
+
+anchor joined 2026-08-01 with the gap 7 embargo. It is a recorded run - a boss
+Health.Value series plus its manifest - and it must stay out of
+core.tables.TABLE_NAMES, because that tuple is what tools/rmdata_extract seeds
+per build: registering the anchor there would create an empty anchor table
+inside every data/rmdata/<build>/tables/ directory. core/tables.py is frozen
+besides. It still lives here rather than off in bloodforge/, because the
+falsification spec cites this path and because one schema directory is easier to
+audit than two.
+
+Named explicitly rather than pattern-matched, so the next non-table schema is a
+deliberate edit here and an accidental stray still fails.
+"""
+
+
 def test_no_stray_schema_files():
     on_disk = sorted(p.name.removesuffix(".schema.json") for p in SCHEMA_DIR.glob("*.schema.json"))
-    assert on_disk == sorted(TABLE_NAMES)
+    assert on_disk == sorted(TABLE_NAMES + NON_TABLE_SCHEMAS)
+
+
+def test_non_table_schemas_are_not_registered_as_tables():
+    """The registry and the directory must disagree only where it is declared."""
+    for name in NON_TABLE_SCHEMAS:
+        assert name not in TABLE_NAMES, f"{name} is declared non-table but is registered"
 
 
 @pytest.mark.parametrize("name", TABLE_NAMES)

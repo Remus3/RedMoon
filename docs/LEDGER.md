@@ -17,7 +17,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003k - The embargo lands before the math, and the default subject proves nothing (2026-08-01)
 
 Commits `6d5095e` (the embargo gate, the first `bloodforge/` code),
-`6056b45` (the combat math spec) and the docs commit carrying this entry.
+`6056b45` (the combat math spec) and `df2131a` (the living docs, this entry and
+the next-session prompt).
 **NO ROADMAP ITEM CLOSED.** The combat math spec is OPEN, not discharged, and no
 math is implemented. Two new gaps opened: 10 and 11.
 

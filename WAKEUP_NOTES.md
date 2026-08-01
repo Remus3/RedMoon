@@ -5,8 +5,8 @@ Last two or three sessions at full fidelity. Archive older entries to
 
 ## 2026-08-01 (fifth stretch) - The embargo lands before the math, and the default subject turns out to prove nothing
 
-Branch `master`. Ledger 003k. Commits `6d5095e` (the embargo gate) and `6056b45`
-(the combat math spec) plus the docs commit carrying this entry. **NO ROADMAP
+Branch `master`. Ledger 003k. Commits `6d5095e` (the embargo gate), `6056b45`
+(the combat math spec) and `df2131a` (the living docs and this entry). **NO ROADMAP
 ITEM CLOSED** - the combat math spec is OPEN, not discharged, and no math is
 implemented. Two new gaps were opened, 10 and 11.
 

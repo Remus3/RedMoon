@@ -15,6 +15,8 @@ EXPECTED_MEMORY_ENTRIES = {
     "reference_vrising_install_shape",
     "reference_flashing_consoles_are_mcp_launchers",
     "reference_powershell_editions_on_legion",
+    "feedback_standing_execution_mode",
+    "project_redmoon_headless_gap",
 }
 
 

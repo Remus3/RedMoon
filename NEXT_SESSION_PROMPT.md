@@ -139,6 +139,17 @@ WHAT PHASE 2 IS, per spec section 4.
    they agree, they differ by a factor (that factor is spawn scaling and must be
    sourced before any TTK is published), or the prefab carries nothing.
 
+   COUNT, DO NOT JUST CLASSIFY. Amended 2026-08-01. A branch name alone is a
+   PRESENCE-shaped answer to a VALUE-shaped question and cannot be checked by
+   the next reader. Report, per component: HOW MANY fields were compared, HOW
+   MANY differ, and FOR EACH DIFFERING FIELD the ratio instance/prefab. "They
+   differ" proves nothing. "9 of 14 fields differ, 8 of them by exactly 2.0x
+   and MaxHealth by 3.5x" names spawn scaling, tells you it is not uniform, and
+   is falsifiable by anyone who re-runs it. If the branch is "they agree", say
+   how many fields were compared to reach that - an agreement over 2 fields and
+   an agreement over 14 are different claims. A ratio table also survives the
+   session; a branch name does not.
+
 ABSENT STAYS ABSENT. A proven-absent field is DECLARED and OMITTED, never zero.
 Do not default anything to 1.0, 0 or a plausible guess. Holy, Silver and Garlic
 resistance are absent from the unit - do not write zeroes for them.
@@ -180,12 +191,23 @@ OPERATIONS.
 ACCEPTANCE, spec section 5. The spike closes only when all six hold: every field
 SOURCED or PROVEN ABSENT with NOT ATTEMPTED empty; the component inventories
 recorded (DONE in phase 1); the prefab-versus-instance control run with one
-branch named in writing; tables promoted with counts asserted (vbloods 65, items
+branch named in writing AND a per-component count of fields compared, fields
+differing, and the ratio for each differing field; tables promoted with counts
+asserted (vbloods 65, items
 425, ability_stats at its measured count together with the chain that produced
 it); pytest, ruff, ascii_guard and dotnet build all green and RE-RUN by the
 closing agent rather than taken from a report; ADR-007 written,
 docs/BLOODFORGE.md's input table rewritten from the measurement, and ROADMAP
 cycle 3 gaps 1, 2 and 3 each closed or restated with evidence.
+
+KNOW WHAT ACCEPTANCE DOES NOT COVER, so you do not mistake a green spike for a
+correct engine. All six criteria are about SOURCING INPUTS. None of them asks
+whether the math over those inputs is right, so all six can pass with a
+confidently wrong time-to-kill. Red Moon has NO ground-truth anchor for computed
+DPS, EHP or TTK, and that is now filed in BACKLOG.md ("a falsification path for
+Bloodforge output", raised 2026-08-01). It does not block this phase, which is
+ingest rather than math. It DOES have to be settled before the combat-math spec
+opens. Do not publish a TTK to any surface in this session.
 
 Launch build work via subagents per CLAUDE.md, but note that a worktree-isolated
 agent has twice written into the MAIN tree while git worktree list showed no

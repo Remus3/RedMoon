@@ -28,16 +28,33 @@ than discovering a divergence on the first real run.
 """
 from __future__ import annotations
 
-MAX_CONCURRENT_SLOTS = 3
-"""Bucket width, agreed with Riot Commander on 2026-08-01.
+MAX_CONCURRENT_SLOTS = 2
+"""Bucket width, agreed across all three projects on 2026-08-01.
 
 ALL THREE PROJECTS MUST CARRY THE SAME NUMBER or the governor is theatre: if Red
 Moon sets 3 while the others set 2, the bucket is 3 wide whenever Red Moon
 acquires first. There is no negotiation protocol and there should not be - one
 number, agreed out of band, written in three files, and asserted in each.
 
-3 preserves the one-slot-each posture that 2 gave the original two participants.
-It is REASONING, not measurement: three-way concurrency has never run on this
-machine. If the account rate-limits at 3, lower it in all three configs together
-and record the measurement.
+RED MOON PROPOSED 3 AND WITHDREW IT THE SAME DAY. The reasoning for 3 was that 2
+was chosen when two loops existed, one slot each, so three participants at 2
+means one project is always blocked - a throttle degenerating into a queue. That
+reasoning is sound in general and WRONG FOR THIS MACHINE, for a reason Red Moon
+could not see from its own tree:
+
+LegionWallpaper is the only GPU-heavy participant - CUDA upscaling, SDXL
+generation, inpainting - all on one card, and as of 2026-08-01 its GPU mutex was
+DECLARED BUT ACQUIRED BY NOTHING. Raising the cap would have permitted a second
+unserialized CUDA lane. The failure mode is not a longer queue: it is two
+processes allocating VRAM mid-upscale, surfacing as a silently degraded or
+half-written image rather than a clean error.
+
+So 2 is a MEASURED blocker on a sibling's constraint, not a preference, and it
+stays at 2 until LegionWallpaper reports its GPU mutex wired and measured.
+
+WHEN IT IS REOPENED, ASK A BETTER QUESTION THAN N. LegionWallpaper's point,
+recorded so it is not lost: the contention that matters on this machine is CUDA,
+not lanes, and a lane count is a proxy for a resource it does not model. With a
+real GPU mutex the honest answer may be to leave lanes at 2 permanently and let
+the mutex govern the card directly.
 """

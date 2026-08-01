@@ -19,11 +19,15 @@ VENDORED = REPO / "ops" / "loop" / "slots.py"
 # Changing this value is a three-repo act, never a unilateral one.
 AGREED_SHA256 = "95077a62527c9764e896e3bd1da9027e5efd2b15631feb725fe6138cee5054f9"
 
-# Agreed bucket width for three participants: one slot each. RC's note is
-# explicit that an unequal N makes the governor theatre - if RM sets 3 while the
-# others set 2, the bucket is 3 wide whenever RM acquires first. There is no
-# negotiation protocol; there is one number written in three files.
-AGREED_MAX_SLOTS = 3
+# Agreed bucket width, all three projects, 2026-08-01. An unequal N makes the
+# governor theatre - if RM sets 3 while the others set 2, the bucket is 3 wide
+# whenever RM acquires first. There is no negotiation protocol; there is one
+# number written in three files.
+#
+# RM proposed 3 and withdrew it the same day: LegionWallpaper is the only
+# GPU-heavy participant and its GPU mutex was declared but wired to nothing, so
+# a third lane could have run unserialized CUDA. See ops/loop/__init__.py.
+AGREED_MAX_SLOTS = 2
 
 
 def test_the_shared_governor_is_byte_identical_to_the_agreed_digest():

@@ -53,11 +53,49 @@ additionally needs the instance-only health denominator and three comparable
 runs. The combat-math spec may now open, because an unvalidated engine behind
 that embargo is harmless. It may not publish until discharge.
 
+## The combat math
+
+OPEN as of 2026-08-01:
+`docs/superpowers/specs/2026-08-01-bloodforge-combat-math-design.md`. Three
+results from it belong here, because each one changes what this table above
+means:
+
+1. **The damage block is ALL-OR-NOTHING.** Zero of the 732 damage rows omit a
+   `coefficient`. A group that reaches no `_Hit` prefab omits the whole block
+   together. So "154 links reach a group whose coefficient is omitted" is really
+   154 links reaching a group with **no damage at all** - including two of the
+   three abilities on the DEFAULT weapon, which makes every GreatSword figure a
+   PRIMARY-ONLY figure. ROADMAP gap 10.
+2. **42 of 732 damage groups cannot be priced against any boss.** 27 deal holy,
+   which has no unit-side field anywhere across 150 enumerated components, and
+   15 deal fire, whose integer rating cannot be converted without the global
+   constant of gap 8. They are OMITTED from computation, never computed at a
+   zero reduction - a zero resistance is a real and different claim. With fire
+   unpriced, **every priceable boss differs from every other only by
+   level-derived power and by health.**
+3. **The default subject vector cannot decide which power stat a coefficient
+   multiplies.** 31 of the 32 weapon-linked damage groups are `damage_type`
+   physical and 203 of 205 weapons grant `PhysicalPower` and no `SpellPower`, so
+   both hypotheses predict the same number for every realistic weapon ability.
+   Exactly ONE row in 1818 separates them:
+   `AB_Unholy_WardOfTheDamned_AbilityGroup`, spell school unholy, `damage_type`
+   physical, `coefficient` exactly 1.0, `hits_per_cast` 1. It is player-castable
+   and needs no boss, so it is the cheapest run in the whole protocol and should
+   be taken first.
+
 ## Versioning
 
-`ENGINE_VERSION` is pinned to the game build it was validated against. A game
-update forces a data refresh and an explicit revalidation before the version is
-bumped. Never bump the version in the same commit as an unvalidated data change.
+`ENGINE_VERSION` EXISTS as of 2026-08-01 and is `0.1.0+1.1.13.0-r99712`, defined
+in `bloodforge/__init__.py`. Before that commit it was described as pinned by
+this document and by ROADMAP while a repo-wide grep returned nothing - a
+document describing an intention as a fact.
+
+Format is `<semver>+<game build pin>`. The semver moves when the MATH changes,
+so an anchor recorded against one revision cannot silently vouch for another.
+The build pin moves when the game changes, which re-arms the embargo
+automatically. A game update forces a data refresh and an explicit revalidation
+before the version is bumped. Never bump the version in the same commit as an
+unvalidated data change.
 
 ## Non-goals
 

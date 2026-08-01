@@ -1,6 +1,139 @@
 # Red Moon History Notes
 
 
+## 2026-08-01 (second session) - The input spike closes: a count that was wrong by 344, and a boss health that is not on the prefab
+
+Branch `master`. Ledger 003h. Commits `863c16f` (the spike) and `a9d5428` (the
+living docs and this entry). **ROADMAP ITEM CLOSED - the Bloodforge input spike is DONE**, phases
+1, 2 and 3. First roadmap movement in six sessions.
+
+State at close, one run each, all four re-run by the closing agent rather than
+taken from a report: `python -m pytest` **382 passed in 19.86s, exit 0** (348
+before, plus 34 new), `python -m ruff check .` clean, `python
+tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on the csproj
+**0 warnings, 0 errors**.
+
+Promoted on disk, every count ASSERTED by the ingest rather than reported:
+`items` 425 (schema 4), `recipes` 663, `abilities` 54, `vbloods` 65 (schema 2),
+`blood_types` 13, `ability_stats` **1818** (schema 1, new).
+
+**A PREDICTED COUNT WAS WRONG BY 344 AND NOTHING DOWNSTREAM WOULD HAVE NOTICED.**
+`ability_stats` was pinned at 1474 before the dump ran, taken from cycle 2's
+figure, and MEASURED 1818. 1474 counted a NAME-selected population - prefabs
+ending `_AbilityGroup` - while the shipped selector is the marker COMPONENT
+`AbilityGroupStartAbilitiesBuffer`. 1476 of the 1818 carry that suffix; 341 use
+`_Group`, `_Abilitygroup`, `_UNUSED` and other conventions and are ability groups
+by component. A name-shaped selector drops 341 real groups in silence. This is
+exactly what the spec meant by "a count that is merely whatever the dumper
+emitted is not an assertion" - the pin has to be a MEASUREMENT, and writing the
+guess first is what made the gap visible. 1476 versus 1474 is NOT RECONCILED and
+is left visible rather than smoothed.
+
+**THE BOSS HEALTH POOL IS NOT ON THE PREFAB, AND THE CONTROL IS WHAT PROVES IT.**
+`Health.MaxHealth` reads 0 on all 65 V Blood prefabs, which alone is only
+suggestive - it is the `items.tier` shape and could equally be a real zero or an
+unread field. The phase 3 control decides it: on `CHAR_Vampire_Dracula_VBlood`,
+**19 typed fields compared between the prefab (entity 29012) and the live
+instance (322945), 17 IDENTICAL and 2 differing** - `Health.MaxHealth` and
+`Health.Value`, 0 against 8107. Every `UnitStats` field and `UnitLevel.Level`
+agree exactly. So the branch is "the prefab carries nothing, the instance does",
+confined to health, and it is **NOT spawn scaling**: 0 to 8107 is not a ratio,
+so there is no factor to source. `max_health` is DECLARED AND NEVER EMITTED and
+ROADMAP gap 1 is RESTATED rather than closed - a TTK denominator needs a live
+world with the boss actually spawned.
+
+Counting rather than classifying is what made that readable. "They differ" would
+have been a presence-shaped answer to a value-shaped question; "17 of 19 agree
+and the two that differ are both Health" names the mechanism and is falsifiable
+by anyone who re-runs it.
+
+**A DEDUPE FIX TURNED A DUPLICATE INTO AN ORDER-DEPENDENT CHOICE, AND THE COUNT
+LOOKED RIGHT AFTERWARDS.** A spawned boss carries the SAME `PrefabGUID` as its
+prefab. Cycle 2 saw the pair as "66 vblood rows over 65 distinct" and fixed the
+COUNT by deduping on first write - which silently made the emitted row whichever
+of two DISAGREEING entities the world walk reached first. Because the symptom it
+was chasing (the count) was cured, nothing pointed at the remaining defect for a
+whole cycle. The selector now requires the prefab marker, which is deterministic
+and exists whether or not a boss has spawned.
+
+**A GATE THAT HAD BEEN DEAD SINCE SCHEMA_VERSION 2.** `items.stats` became a
+list when the first real dump showed a name-keyed map cannot carry
+`ModificationType`. `core/table_deep.py` was never moved with it and kept routing
+the field through `_check_number_mapping`, which returns early on a list. So the
+one nested container whose schema description explicitly says the shallow gate
+cannot see inside it was unvalidated by BOTH gates. Found only because the same
+table was being bumped to 4. **A gate that silently no-ops reads exactly like a
+gate that passes.**
+
+**A COEFFICIENT THE SPEC DID NOT ASK FOR, FOUND BY READING TYPES BEFORE WRITING
+THE READER.** `DealDamageParameters.MaterialModifiers` is a
+`ProjectM.EntityTypeModifiers` holding 23 per-target-class multipliers, and
+`VBlood` is one of them - MEASURED 0.33 to 1.0 over the 732 damage-reaching
+rows. A boss-damage table omitting the boss multiplier would have been wrong in
+exactly the direction nobody would check. The habit that caught it: dump the
+declared field TYPES of every component first, then write typed accessors
+against what is actually there. The phase 1 payloads under `_scratch\rmprobe\c3\`
+were still on disk and answered every type question without a single guess -
+including that `UnitStats.FireResistance` is a `ModifiableINT` while its
+neighbours are `ModifiableFloat`.
+
+**THE FOUR BOSS RESISTANCES ARE NOT COMMENSURABLE.** Physical and spell are
+float resistances, fire is an integer RATING that only becomes a reduction
+through the GLOBAL `ResistanceData` per-rating block, and corruption is already
+a reduction. Measured: physical and spell are 0 on all 65, corruption 0.5 on all
+65, only fire varies (0 to 75). They share a JSON object because they share a
+source component, not because they share a unit. No consumer may average them.
+Separately: `physical_power` EQUALS `spell_power` on every row with 33 distinct
+values over 33 distinct levels, so both are level-derived, not per-boss authored.
+
+**A NEGATIVE RESULT TAKEN TOO EARLY IS INDISTINGUISHABLE FROM A REAL ABSENCE.**
+The first control run returned one entity - the prefab only - and read as a
+clean "the live instance does not exist". It was taken at about 5 s of server
+uptime. At 20 s the instance was there with 151 components. `ready:true` means
+the prefab map settled, NOT that the world has spawned its units. Poll for the
+SUBJECT. Same shape as the `Unload()` silence that three hypotheses predicted
+equally.
+
+**THE ITEMS TABLE LOST ITS 425 LOCALIZATION GUIDS, DELIBERATELY AND
+RECOVERABLY.** The dump was taken on the dedicated server, where the
+localization join resolves 0 of 425 - a HOST fact cycle 2 already measured, not
+a regression. Backed up first to
+`_scratch\rmprobe\c3p2\items-client-v3-with-localization.json`. **A client dump
+re-fills them in about 100 ms and is owed.** Recorded because promoting from the
+headless host has this cost every time and it is easy to forget.
+
+**FROZEN FILE TOUCHED, FLAGGED NOT ASSUMED.** `core/tables.py` gained one line -
+`ability_stats` in `TABLE_NAMES`. The approved spec names that file as the
+shallow-gate home for the new table, so spec approval was read as covering it.
+Nothing else in the file changed.
+
+**A TEST WAS TOO BROAD AND WAS NARROWED, NOT DELETED.**
+`test_item_stats_are_read_one_hop_off_the_item_prefab` enforced its real claim
+by banning the `BuffGuid` token file-wide. Phase 1 showed `BuffGuid` is the ONLY
+route to the abilities an item grants and is wrong only as a route to STATS. The
+assertion is now scoped to the stat reader by enclosing method, so the original
+defect is still caught.
+
+**SIBLING TRAFFIC: LW REVERSED ON THE SLOT COUNT AND RM DID NOT MOVE.** A note
+arrived mid-session (`2026-08-01-1450-from-LW-gpu-wired-n3-is-now-defensible.md`).
+LW's GPU blocker is cleared - nine CUDA consumers, 16 acquisition sites, verified
+by an independent sweep of all 55 tool files and enforced by a mutation-proved
+census test - and LW concedes its objection conflated two resources: the bucket
+models Claude account concurrency and never modelled the GPU. LW now proposes all
+three move to **N=3 in one coordinated round** and will flip when RC confirms.
+**RM agrees with 3 and did NOT change its value**, because LW will not move first
+either and unilateral movement breaks the very agreement that currently holds.
+Reply written into both sibling inboxes. RM contributed one fact neither sibling
+had: **nothing in Red Moon calls the governor at all** (grep-verified, zero
+callers), and LW's own loop has been wedged since 2026-07-27, so the bucket has
+had effectively ONE live user and "N=2 starves someone" remains reasoning rather
+than observation.
+
+**WHAT THE GREEN SPIKE DOES NOT PROVE.** All six acceptance criteria are about
+SOURCING INPUTS. None asks whether the math over them is right, so all six can
+pass with a confidently wrong time-to-kill. No TTK was published to any surface.
+ROADMAP gap 7 must be settled before the combat-math spec opens.
+
 ## 2026-08-01 - Three projects, one machine: a shared governor, a gate that read the wrong tree, and a triage that adopted nothing
 
 Branch `master`. Ledger 003g. Commits `b1b6b2d`, `6cfc614`, `a3fa2f6`,

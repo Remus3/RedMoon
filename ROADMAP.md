@@ -112,8 +112,11 @@ Two results worth carrying out of the spike:
 - **The one input TTK cannot do without is the one still missing.** Boss
   `max_health` is instance-only, measured, not merely unread. See gap 1.
 
-**The combat-math spec is the next cycle 3 document, and gap 7 must be settled
-before it opens.**
+**The combat-math spec is OPEN as of 2026-08-01:**
+`docs/superpowers/specs/2026-08-01-bloodforge-combat-math-design.md`. Gap 7 was
+settled first, and the embargo it mandated is CODE before the math rather than
+after it - `bloodforge/embargo.py` and `ENGINE_VERSION` landed one commit ahead
+of the spec, so nothing the spec describes can publish a wrong number.
 
 Known input gaps the spec must scope rather than assume away. The first two are
 the large ones and were found by reading the promoted rows rather than the
@@ -213,6 +216,35 @@ an explicit `modification` on every entry.
    is a third axis of the subject vector**, alongside the target and the
    loadout, and it is the only axis whose values are completely sourced today.
    Any published ladder or ranking must state its difficulty.
+
+10. **154 OF 563 WEAPON ABILITY LINKS REACH NO DAMAGE AT ALL.** Added
+    2026-08-01 by the combat-math spec. The damage block is ALL-OR-NOTHING -
+    zero of the 732 damage rows omit a `coefficient` - so the 154 non-damage
+    edges reach 15 distinct groups carrying no damage block whatever, which is a
+    different statement from a row with a missing field. Two of the DEFAULT
+    weapon's three abilities are among them (`AB_GreatSword_LeapAttack_
+    AbilityGroup` and `AB_GreatSword_GreatCleaver_AbilityGroup`), so any
+    GreatSword DPS is a PRIMARY-ONLY DPS and must be labelled as one. The
+    sharpest case is `AB_Vampire_Longbow_Primary_AbilityGroup`, which declares
+    `spawn_prefabs_on_cast` **8** and `cast_time` 5 - a draw, not a swing - and
+    reaches no `_Hit` prefab in one hop. ADR-007's measurement that a second
+    spawn hop adds exactly zero is not in doubt; what it means here is that the
+    longbow's damage lives somewhere the one-hop chain does not reach, most
+    likely on a projectile spawned at cast. SETTLED BY enumerating those 8
+    prefabs and checking each for a `DealDamageOnGameplayEvent`.
+
+11. **`ability_stats.ability_type` IS NOT A SLOT DISCRIMINATOR.** Added
+    2026-08-01. Cross-tabbed over all 1818 rows: all **36** weapon groups that
+    carry an `ability_type` report `Secondary`, and 6 more report the string
+    `None`. **Not one reports `Primary`** - not
+    `AB_Vampire_GreatSword_Primary_Moving_AbilityGroup`, not
+    `AB_Vampire_Whip_Primary_AbilityGroup`, not any other primary attack. The
+    schema faithfully copies the DECLARED enum, which lists Primary first, and
+    the data does not contain it. A consumer filtering `ability_type ==
+    "Primary"` gets ZERO rows and will read that as "no primaries found". Slot
+    must be derived from the weapon-to-group link, never from this field.
+    SETTLED BY reading `WeaponAbilityData` on one known primary and one known
+    secondary and comparing, which distinguishes a dumper bug from game data.
 
 There are TWO NON-ROADMAP tracks running in parallel. Both are infrastructure
 rather than cycles, both get their own ledger entries, and neither may fold into

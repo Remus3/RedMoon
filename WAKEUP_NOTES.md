@@ -3,6 +3,105 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (fifth stretch) - The embargo lands before the math, and the default subject turns out to prove nothing
+
+Branch `master`. Ledger 003k. Commits `6d5095e` (the embargo gate) and `6056b45`
+(the combat math spec) plus the docs commit carrying this entry. **NO ROADMAP
+ITEM CLOSED** - the combat math spec is OPEN, not discharged, and no math is
+implemented. Two new gaps were opened, 10 and 11.
+
+State at close, one run each: `python -m pytest` **405 passed in 19.93s, exit
+0** (382 before, +23 from `tests/test_embargo.py`), `python -m ruff check .`
+clean, `python tools/ascii_guard.py` exit 0.
+
+**THE GATE LANDED BEFORE THE MATH, AND THAT WAS THE POINT.** `bloodforge/` is
+the first engine code in the repo and it opens with its embargo rather than its
+arithmetic. `bloodforge/embargo.py` is one gate function that the serializer
+iterates, so `tests/test_embargo.py` is TOTAL rather than a spot check - there
+is no second code path that can emit a field. `dps` lifts on the per-hit gate
+alone, `ehp` on the EHP gate, `ttk_seconds` needs both plus three comparable
+runs. Unlifted fields are REMOVED from the payload: absent key, not null, not 0,
+not -1. `ENGINE_VERSION` now EXISTS at `0.1.0+1.1.13.0-r99712`; before this
+commit ROADMAP and BLOODFORGE both described it as pinned while a repo-wide grep
+returned nothing.
+
+**TWO OPEN QUESTIONS SETTLED BY PROBING RATHER THAN REASONING, both now tests.**
+A fifth envelope key PASSES the frozen `validate_table` - it requires the four
+envelope keys and rejects undeclared fields on ROWS only, never enumerating
+envelope keys - so the anchor manifest rides in the same file as the series. And
+`core.table_deep.deep_problems` CANNOT gate the anchor: it raises KeyError
+outside the frozen `TABLE_NAMES` tuple. The falsification spec's D.4.1 claims
+both and is corrected, pinned by a test so the correction cannot be lost.
+
+**TWO EXISTING GATES CAUGHT REAL VIOLATIONS OF MY OWN CHANGE AND BOTH WERE
+RIGHT.** The port-literal allowlist rejected two ports I had named in a
+docstring. `test_no_stray_schema_files` rejected `anchor.schema.json`, which has
+no table - it now carries an explicit `NON_TABLE_SCHEMAS` allowlist rather than
+a loosened pattern. Worth recording because the instinct on both was to reach
+for the test; the tests were correct both times.
+
+**THE FINDING THAT CHANGES WHAT HAPPENS NEXT: THE DEFAULT SUBJECT VECTOR CANNOT
+FALSIFY THE POWER-STAT HYPOTHESIS.** MEASURED: 31 of the 32 weapon-linked damage
+groups are `damage_type` physical, and 203 of 205 weapons grant `PhysicalPower
+AddToBase` while exactly 1 grants `SpellPower`. So "damage_type selects the
+power stat" and "the ability kind selects it" predict the **same number** for
+every weapon ability a player will realistically use. A per-hit gate run against
+GreatSword versus Dracula passes at 2 percent under both hypotheses and decides
+nothing. ZERO rows are `is_weapon_ability` with a non-physical `damage_type` and
+a nonzero coefficient, so the weapon side is dead by exhaustion, not by
+sampling. The one weapon ability with `damage_type` spell,
+`AB_Spear_AThousandSpears_Stab_AbilityGroup`, has `coefficient` a genuine 0.0
+and scales with no power stat at all.
+
+**THE DISCRIMINATOR: EXACTLY ONE ROW IN 1818.** Searching the other direction -
+a SPELL-school ability whose `damage_type` is physical - returns
+`AB_Unholy_WardOfTheDamned_AbilityGroup`, `prefab_guid` -1136860480,
+`spell_school` unholy, `damage_type` physical, `coefficient` **exactly 1.0**,
+`hits_per_cast` **1**, every near-inert term at its inert value,
+`ability_type` SpellSlot2 so it is player-castable. The prediction is not "some
+arithmetic on a power stat" but literally **"the observed health delta equals
+one of the two power stats"**. It needs no boss and no health denominator, so it
+is the CHEAPEST run in the entire protocol and should be the first one taken.
+Caveat to carry: one row is a sample of one, and a pass proves the rule only on
+that row.
+
+**SIX RECORDED FACTS CORRECTED BY COUNTING.** The pattern held a third time.
+The damage block is ALL-OR-NOTHING: **zero of the 732 damage rows omit a
+`coefficient`**, so "154 edges reach a group whose coefficient is OMITTED" is
+really 154 edges reaching a group with no damage block at all. The edge counts
+themselves - 563 total, 409 to damage, 154 not - are exactly right.
+`AB_Vampire_Longbow_Primary_AbilityGroup` EXISTS as a row, with
+`spawn_prefabs_on_cast` **8**, `cast_time` 5 and `is_weapon_ability` **false**.
+`is_weapon_ability` is true on 42 and **18 of those reach damage, not 26**.
+
+**FOUR MORE TERMS ARE EFFECTIVELY CONSTANT, one of them totally.**
+`hit_triggers` is **0 on all 732 rows** and carries no information at all;
+`multiply_main_factor_with_stacks` is false on all 732; `raw_damage_value` is
+nonzero on 1 row, `raw_damage_percent` on 1, `damage_modifier_per_hit` on 3. All
+three of those last are `hits_per_cast` 1, so the ramp FORM is unobservable on
+this build and the term is identically zero everywhere. The golem story is now
+coherent across three fields: `AB_Shapeshift_Golem_T02_Group` has `coefficient`
+0 AND `raw_damage_percent` 0.3, and its siblings carry the 0.33 V Blood
+modifier - golem damage is percent-of-pool, so a model reading only
+`coefficient` prices every golem ability at exactly zero.
+
+**GAP 10, NEW:** 154 of 563 weapon links reach nothing, across 15 distinct
+groups. Two of the DEFAULT weapon's three abilities are among them, so every
+GreatSword figure is a PRIMARY-ONLY figure and must be labelled one. The longbow
+primary is the sharpest case: 8 spawn prefabs on cast, no damage in one hop.
+
+**GAP 11, NEW:** `ability_type` is `Secondary` on **all 36** weapon groups that
+carry it, primary attacks included. Not one row reports `Primary`. A consumer
+filtering for it gets zero rows and reads that as "no primaries found".
+
+**42 OF 732 DAMAGE GROUPS CANNOT BE PRICED AGAINST ANY BOSS** - 27 holy with no
+unit-side field anywhere, 15 fire whose rating needs the gap 8 constant. They
+are OMITTED, never computed at a zero reduction. With fire unpriced, every
+priceable boss differs from every other only by level-derived power and health.
+
+Inbox was clean at open: all 14 `moon_sync_inbox/` files timestamped 10:19 or
+earlier against a 11:18 HEAD, so every one had been processed last session.
+
 ## 2026-08-01 (fourth stretch) - Gap 7 settled, the cycle 4 stack ruled, and a range that turned out to be a binary
 
 Branch `master`. Ledger 003j. Commit `314ef07` plus the docs commit carrying
@@ -227,136 +326,3 @@ prompt - theirs is the agent file body alone. RM runs a `verifier` subagent and
 keeps its hard rules (7-bit ASCII, no co-author trailer, frozen files) in
 `CLAUDE.md`. If those never reach a subagent, RM's subagents have been running
 without them. UNVERIFIED, and it belongs at the top of stage 4.
-
-## 2026-08-01 (second session) - The input spike closes: a count that was wrong by 344, and a boss health that is not on the prefab
-
-Branch `master`. Ledger 003h. Commits `863c16f` (the spike) and `a9d5428` (the
-living docs and this entry). **ROADMAP ITEM CLOSED - the Bloodforge input spike is DONE**, phases
-1, 2 and 3. First roadmap movement in six sessions.
-
-State at close, one run each, all four re-run by the closing agent rather than
-taken from a report: `python -m pytest` **382 passed in 19.86s, exit 0** (348
-before, plus 34 new), `python -m ruff check .` clean, `python
-tools/ascii_guard.py` exit 0, `dotnet build -c Release -t:Rebuild` on the csproj
-**0 warnings, 0 errors**.
-
-Promoted on disk, every count ASSERTED by the ingest rather than reported:
-`items` 425 (schema 4), `recipes` 663, `abilities` 54, `vbloods` 65 (schema 2),
-`blood_types` 13, `ability_stats` **1818** (schema 1, new).
-
-**A PREDICTED COUNT WAS WRONG BY 344 AND NOTHING DOWNSTREAM WOULD HAVE NOTICED.**
-`ability_stats` was pinned at 1474 before the dump ran, taken from cycle 2's
-figure, and MEASURED 1818. 1474 counted a NAME-selected population - prefabs
-ending `_AbilityGroup` - while the shipped selector is the marker COMPONENT
-`AbilityGroupStartAbilitiesBuffer`. 1476 of the 1818 carry that suffix; 341 use
-`_Group`, `_Abilitygroup`, `_UNUSED` and other conventions and are ability groups
-by component. A name-shaped selector drops 341 real groups in silence. This is
-exactly what the spec meant by "a count that is merely whatever the dumper
-emitted is not an assertion" - the pin has to be a MEASUREMENT, and writing the
-guess first is what made the gap visible. 1476 versus 1474 is NOT RECONCILED and
-is left visible rather than smoothed.
-
-**THE BOSS HEALTH POOL IS NOT ON THE PREFAB, AND THE CONTROL IS WHAT PROVES IT.**
-`Health.MaxHealth` reads 0 on all 65 V Blood prefabs, which alone is only
-suggestive - it is the `items.tier` shape and could equally be a real zero or an
-unread field. The phase 3 control decides it: on `CHAR_Vampire_Dracula_VBlood`,
-**19 typed fields compared between the prefab (entity 29012) and the live
-instance (322945), 17 IDENTICAL and 2 differing** - `Health.MaxHealth` and
-`Health.Value`, 0 against 8107. Every `UnitStats` field and `UnitLevel.Level`
-agree exactly. So the branch is "the prefab carries nothing, the instance does",
-confined to health, and it is **NOT spawn scaling**: 0 to 8107 is not a ratio,
-so there is no factor to source. `max_health` is DECLARED AND NEVER EMITTED and
-ROADMAP gap 1 is RESTATED rather than closed - a TTK denominator needs a live
-world with the boss actually spawned.
-
-Counting rather than classifying is what made that readable. "They differ" would
-have been a presence-shaped answer to a value-shaped question; "17 of 19 agree
-and the two that differ are both Health" names the mechanism and is falsifiable
-by anyone who re-runs it.
-
-**A DEDUPE FIX TURNED A DUPLICATE INTO AN ORDER-DEPENDENT CHOICE, AND THE COUNT
-LOOKED RIGHT AFTERWARDS.** A spawned boss carries the SAME `PrefabGUID` as its
-prefab. Cycle 2 saw the pair as "66 vblood rows over 65 distinct" and fixed the
-COUNT by deduping on first write - which silently made the emitted row whichever
-of two DISAGREEING entities the world walk reached first. Because the symptom it
-was chasing (the count) was cured, nothing pointed at the remaining defect for a
-whole cycle. The selector now requires the prefab marker, which is deterministic
-and exists whether or not a boss has spawned.
-
-**A GATE THAT HAD BEEN DEAD SINCE SCHEMA_VERSION 2.** `items.stats` became a
-list when the first real dump showed a name-keyed map cannot carry
-`ModificationType`. `core/table_deep.py` was never moved with it and kept routing
-the field through `_check_number_mapping`, which returns early on a list. So the
-one nested container whose schema description explicitly says the shallow gate
-cannot see inside it was unvalidated by BOTH gates. Found only because the same
-table was being bumped to 4. **A gate that silently no-ops reads exactly like a
-gate that passes.**
-
-**A COEFFICIENT THE SPEC DID NOT ASK FOR, FOUND BY READING TYPES BEFORE WRITING
-THE READER.** `DealDamageParameters.MaterialModifiers` is a
-`ProjectM.EntityTypeModifiers` holding 23 per-target-class multipliers, and
-`VBlood` is one of them - MEASURED 0.33 to 1.0 over the 732 damage-reaching
-rows. A boss-damage table omitting the boss multiplier would have been wrong in
-exactly the direction nobody would check. The habit that caught it: dump the
-declared field TYPES of every component first, then write typed accessors
-against what is actually there. The phase 1 payloads under `_scratch\rmprobe\c3\`
-were still on disk and answered every type question without a single guess -
-including that `UnitStats.FireResistance` is a `ModifiableINT` while its
-neighbours are `ModifiableFloat`.
-
-**THE FOUR BOSS RESISTANCES ARE NOT COMMENSURABLE.** Physical and spell are
-float resistances, fire is an integer RATING that only becomes a reduction
-through the GLOBAL `ResistanceData` per-rating block, and corruption is already
-a reduction. Measured: physical and spell are 0 on all 65, corruption 0.5 on all
-65, only fire varies (0 to 75). They share a JSON object because they share a
-source component, not because they share a unit. No consumer may average them.
-Separately: `physical_power` EQUALS `spell_power` on every row with 33 distinct
-values over 33 distinct levels, so both are level-derived, not per-boss authored.
-
-**A NEGATIVE RESULT TAKEN TOO EARLY IS INDISTINGUISHABLE FROM A REAL ABSENCE.**
-The first control run returned one entity - the prefab only - and read as a
-clean "the live instance does not exist". It was taken at about 5 s of server
-uptime. At 20 s the instance was there with 151 components. `ready:true` means
-the prefab map settled, NOT that the world has spawned its units. Poll for the
-SUBJECT. Same shape as the `Unload()` silence that three hypotheses predicted
-equally.
-
-**THE ITEMS TABLE LOST ITS 425 LOCALIZATION GUIDS, DELIBERATELY AND
-RECOVERABLY.** The dump was taken on the dedicated server, where the
-localization join resolves 0 of 425 - a HOST fact cycle 2 already measured, not
-a regression. Backed up first to
-`_scratch\rmprobe\c3p2\items-client-v3-with-localization.json`. **A client dump
-re-fills them in about 100 ms and is owed.** Recorded because promoting from the
-headless host has this cost every time and it is easy to forget.
-
-**FROZEN FILE TOUCHED, FLAGGED NOT ASSUMED.** `core/tables.py` gained one line -
-`ability_stats` in `TABLE_NAMES`. The approved spec names that file as the
-shallow-gate home for the new table, so spec approval was read as covering it.
-Nothing else in the file changed.
-
-**A TEST WAS TOO BROAD AND WAS NARROWED, NOT DELETED.**
-`test_item_stats_are_read_one_hop_off_the_item_prefab` enforced its real claim
-by banning the `BuffGuid` token file-wide. Phase 1 showed `BuffGuid` is the ONLY
-route to the abilities an item grants and is wrong only as a route to STATS. The
-assertion is now scoped to the stat reader by enclosing method, so the original
-defect is still caught.
-
-**SIBLING TRAFFIC: LW REVERSED ON THE SLOT COUNT AND RM DID NOT MOVE.** A note
-arrived mid-session (`2026-08-01-1450-from-LW-gpu-wired-n3-is-now-defensible.md`).
-LW's GPU blocker is cleared - nine CUDA consumers, 16 acquisition sites, verified
-by an independent sweep of all 55 tool files and enforced by a mutation-proved
-census test - and LW concedes its objection conflated two resources: the bucket
-models Claude account concurrency and never modelled the GPU. LW now proposes all
-three move to **N=3 in one coordinated round** and will flip when RC confirms.
-**RM agrees with 3 and did NOT change its value**, because LW will not move first
-either and unilateral movement breaks the very agreement that currently holds.
-Reply written into both sibling inboxes. RM contributed one fact neither sibling
-had: **nothing in Red Moon calls the governor at all** (grep-verified, zero
-callers), and LW's own loop has been wedged since 2026-07-27, so the bucket has
-had effectively ONE live user and "N=2 starves someone" remains reasoning rather
-than observation.
-
-**WHAT THE GREEN SPIKE DOES NOT PROVE.** All six acceptance criteria are about
-SOURCING INPUTS. None asks whether the math over them is right, so all six can
-pass with a confidently wrong time-to-kill. No TTK was published to any surface.
-ROADMAP gap 7 must be settled before the combat-math spec opens.

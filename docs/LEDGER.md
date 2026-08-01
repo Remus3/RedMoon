@@ -14,6 +14,66 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003k - The embargo lands before the math, and the default subject proves nothing (2026-08-01)
+
+Commits `6d5095e` (the embargo gate, the first `bloodforge/` code),
+`6056b45` (the combat math spec) and the docs commit carrying this entry.
+**NO ROADMAP ITEM CLOSED.** The combat math spec is OPEN, not discharged, and no
+math is implemented. Two new gaps opened: 10 and 11.
+
+State at close, one run each: `python -m pytest` **405 passed in 19.93s, exit
+0** (382 before, +23 from `tests/test_embargo.py`), `python -m ruff check .`
+clean, `python tools/ascii_guard.py` exit 0.
+
+WHAT SHIPPED.
+
+1. **The publication embargo is CODE, and it landed one commit BEFORE the math
+   spec that needs it.** `bloodforge/embargo.py` is a single gate function the
+   serializer iterates, which is what makes `tests/test_embargo.py` total rather
+   than a spot check - there is no second code path that can emit a field.
+   `dps` lifts on the per-hit gate alone, `ehp` on the EHP gate, `ttk_seconds`
+   needs both plus three comparable runs. Unlifted fields are REMOVED: absent
+   key, not null, not 0, not -1. `data/schemas/anchor.schema.json` is the
+   recorded run. **`ENGINE_VERSION` now exists** at `0.1.0+1.1.13.0-r99712`;
+   before this it was described as pinned by two documents while a repo-wide
+   grep returned nothing.
+
+2. **`docs/superpowers/specs/2026-08-01-bloodforge-combat-math-design.md`** -
+   the damage model term by term, the DPS cycle as a MAX rather than a sum (the
+   three windows overlap), EHP as a per-damage-type map rather than a scalar,
+   and an explicit table of what is computable today versus merely declared.
+
+3. **THE FINDING: the default subject vector cannot falsify the power-stat
+   hypothesis.** 31 of the 32 weapon-linked damage groups are `damage_type`
+   physical and 203 of 205 weapons grant `PhysicalPower` and no `SpellPower`, so
+   both hypotheses predict the same number for every realistic weapon ability.
+   Zero rows are `is_weapon_ability` with a non-physical type and a nonzero
+   coefficient - dead by exhaustion, not by sampling. **Exactly one row in 1818
+   separates the hypotheses:** `AB_Unholy_WardOfTheDamned_AbilityGroup`,
+   `coefficient` exactly 1.0, `hits_per_cast` 1, spell school unholy,
+   `damage_type` physical, player-castable, needs no boss. Cheapest run in the
+   protocol; take it first.
+
+4. **Two open questions settled by probing rather than reasoning, both pinned as
+   tests.** A fifth envelope key PASSES the frozen `validate_table`, which
+   rejects undeclared fields on ROWS only - so the anchor manifest rides with
+   its series. And `core.table_deep.deep_problems` CANNOT gate the anchor: it
+   raises KeyError outside the frozen `TABLE_NAMES`. Falsification spec D.4.1
+   claimed both and is corrected.
+
+5. **Gaps 10 and 11 opened.** 154 of 563 weapon links reach no damage at all,
+   including two of the default weapon's three abilities, so every GreatSword
+   figure is primary-only. And `ability_type` is `Secondary` on all 36 weapon
+   groups that carry it, primary attacks included, so a consumer filtering for
+   `Primary` gets zero rows.
+
+WHAT IS WORTH CARRYING FORWARD. Two existing gates caught real violations of
+this session's own change - the port-literal allowlist and
+`test_no_stray_schema_files` - and both were right. The fix was an explicit
+`NON_TABLE_SCHEMAS` allowlist, not a loosened pattern. And counting the promoted
+rows corrected six recorded facts, the third time that discipline has moved a
+number in this project.
+
 ## 003j - Gap 7 settled, the cycle 4 stack ruled, and a range that was a binary (2026-08-01)
 
 Commits `314ef07` (the specs, the ADR and the living docs) and `0c276f6` (this

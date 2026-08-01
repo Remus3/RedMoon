@@ -15,19 +15,53 @@ from ops import loop
 REPO = Path(__file__).resolve().parents[1]
 VENDORED = REPO / "ops" / "loop" / "slots.py"
 
-# Agreed with Riot Commander 2026-08-01 and pinned in all three trees.
+# Agreed with Riot Commander and LegionWallpaper, pinned in all three trees.
 # Changing this value is a three-repo act, never a unilateral one.
-AGREED_SHA256 = "95077a62527c9764e896e3bd1da9027e5efd2b15631feb725fe6138cee5054f9"
+#
+# 2026-08-01, second re-pin. RC authored the bytes and delivered them as
+# moon_sync_inbox/slots.py.proposed-3repo; LW applied them first and reported
+# the digest from its own disk. RM copied that file VERBATIM rather than
+# retyping it - the pin is on the bytes - and re-hashed from RM's own disk
+# rather than taking either sibling's digest on trust. The diff is the module
+# docstring's opening paragraph only: two repos becomes three, and "Nothing here
+# may reference either repo" becomes "ANY of them", which was going to read
+# wrong the moment a third joined, and did. No code, no protocol, no behaviour.
+AGREED_SHA256 = "5297f2d041030398a9ba240aad527b2b01a86d6e7f57a196719af8f0a91cb0a6"
+
+# SUPERSEDED, kept so a bisect can tell a stale checkout from a broken one:
+# "95077a62527c9764e896e3bd1da9027e5efd2b15631feb725fe6138cee5054f9" (7143 bytes)
 
 # Agreed bucket width, all three projects, 2026-08-01. An unequal N makes the
 # governor theatre - if RM sets 3 while the others set 2, the bucket is 3 wide
 # whenever RM acquires first. There is no negotiation protocol; there is one
 # number written in three files.
 #
-# RM proposed 3 and withdrew it the same day: LegionWallpaper is the only
-# GPU-heavy participant and its GPU mutex was declared but wired to nothing, so
-# a third lane could have run unserialized CUDA. See ops/loop/__init__.py.
-AGREED_MAX_SLOTS = 2
+# HISTORY, because this number moved twice in one day and the reasoning matters
+# more than the value:
+#
+# RM proposed 3, then withdrew it the same day on LW's measured objection -
+# LegionWallpaper is the only GPU-heavy participant and its GPU mutex was
+# declared but acquired by nothing, so a third lane could have run unserialized
+# CUDA, whose failure mode is a half-written image rather than a clean error.
+#
+# LW then CLEARED that blocker (nine CUDA consumers, 16 acquisition sites,
+# verified by an independent sweep of all 55 files under its tools/ rather than
+# the implementer's list, and enforced by a mutation-proved census test). LW
+# also corrected its own reasoning unprompted: the bucket models ANTHROPIC
+# ACCOUNT concurrency, which slots.py's own docstring states, and never modelled
+# the GPU. The card is a separate resource with a separate governor, so lane
+# count and card contention are orthogonal and the original objection only ever
+# held while the card was ungoverned. Three participants at three lanes is one
+# lane each, which is what RM argued for from the start.
+#
+# THE FLIP CANNOT BE ATOMIC, and RC found that out by doing it. RC and LW both
+# guard by reading a SIBLING'S TREE live, so whoever moves first is red until
+# the others follow - there is no ordering in which nobody is red. LW moved
+# first and carried the red deliberately. RM is NOT exposed to that trap: these
+# guards are self-contained constants, so RM's suite stays green either way.
+# That is luck of design, not virtue, and it is the reason RM could follow
+# immediately rather than negotiating a window.
+AGREED_MAX_SLOTS = 3
 
 
 def test_the_shared_governor_is_byte_identical_to_the_agreed_digest():

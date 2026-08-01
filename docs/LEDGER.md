@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003s - Link ingest stage 7, and the whole track closes at zero adoptions (2026-08-01)
 
-Commit `8684aa0`. Suite **588 passed in 26.29s, exit 0** (551 before, +37), ruff
+Commits `8684aa0` (the four gates) and `1f04a95` (the living docs and this
+entry). Suite **588 passed in 26.29s, exit 0** (551 before, +37), ruff
 clean, `ascii_guard` exit 0. No C# change, no rebuild, no redeploy.
 `ENGINE_VERSION` unchanged - none of the four items touches section 2, 3 or 4
 math. **NO ROADMAP ITEM CLOSED**, and the power-stat experiment was not run.

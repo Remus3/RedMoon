@@ -28,6 +28,10 @@ SKIPPED_DIR_PARTS = frozenset(
         "data",
         # .NET build intermediates and the BepInEx pack land here (spec D8).
         "_scratch",
+        # The RC-to-sibling handoff channel. Sibling notes legitimately quote THEIR
+        # port blocks, and this scan walks the working tree, so .gitignore does not
+        # keep them out. See test_the_sibling_inbox_is_outside_the_port_scan.
+        "moon_sync_inbox",
     }
 )
 
@@ -112,6 +116,37 @@ def test_no_foreign_port_literal_anywhere_in_source():
             offenders.append(rel)
     assert examined > 0, "the scan examined no files - it would pass vacuously"
     assert offenders == [], f"foreign port literals found in {offenders}"
+
+
+def test_the_sibling_inbox_is_outside_the_port_scan():
+    """A handoff note from another project may quote ITS OWN ports without failing us.
+
+    moon_sync_inbox/ is the RC-to-sibling channel. The scan walks the WORKING TREE
+    (REPO.rglob), not tracked files, so a .gitignore entry does NOT keep a delivered
+    note out of it - only SKIPPED_DIR_PARTS does. RC's own block is 8888-8895 and
+    three of those numbers are in FORBIDDEN, so a note delivered as .json or .ps1
+    would fail test_no_foreign_port_literal_anywhere_in_source on content Red Moon
+    neither owns nor ships.
+
+    Proven by planting a real file rather than by asserting the constant, so the
+    test fails if the scan changes shape rather than only if the name is removed.
+    """
+    inbox = REPO / "moon_sync_inbox"
+    planted = inbox / "_port_scan_probe.json"
+    created_dir = not inbox.exists()
+    inbox.mkdir(exist_ok=True)
+    planted.write_text('{"note": "a sibling project binds 8888"}\n', encoding="utf-8")
+    try:
+        scanned = [rel for rel, _ in _scanned_sources(skip_tests=True)]
+        assert scanned, "the scan examined no files - it would pass vacuously"
+        assert not any(rel.startswith("moon_sync_inbox/") for rel in scanned), (
+            "moon_sync_inbox/ is inside the port scan - add it to SKIPPED_DIR_PARTS; "
+            ".gitignore alone does not help because the scan walks the working tree"
+        )
+    finally:
+        planted.unlink()
+        if created_dir:
+            inbox.rmdir()
 
 
 def test_own_port_literals_appear_only_in_the_allowlist():

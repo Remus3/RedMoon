@@ -14,3 +14,8 @@ bridge/**/obj/
 logs/
 ops/runtime/
 data/rmdata/
+
+# The RC-to-sibling handoff channel. Notes arrive here from other projects on
+# this machine and are never Red Moon source. tests/test_ports.py additionally
+# excludes it from the port scan, which .gitignore alone does not do.
+moon_sync_inbox/

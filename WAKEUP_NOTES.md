@@ -61,6 +61,27 @@ line happened to wrap so the quoted text did not start a line. A reflow or a
 rebase would have made that commit trip its own new gate. Amended to describe
 the form in words.
 
+### And the last open piece, approved and shipped in the same session
+
+Ledger 003t, commit `90c819e`, suite 588 to **598**. S7.5's PRINT half was the
+one thing stage 6 left blocked on operator approval. Asked, approved, done -
+`tools/rm_facts.py` is FROZEN and the edit is recorded as such.
+
+**The sentinels were the whole difficulty.** The probe never raises, so failures
+come back as VALUES, and two of them compared to each other are EQUAL - so the
+obvious `installed == extracted` reports a machine with no game installed as a
+perfect MATCH. A green light manufactured by comparing two failures, which is
+the same shape as the ruff gate that passed every commit while ruff was failing.
+`build_agreement` rejects the sentinels first and reports NOT CHECKED naming the
+unavailable source.
+
+`BUILD_SENTINELS` is a named constant the test now IMPORTS rather than restates.
+That is S7.2's lesson applied one file over, and worth noticing that it
+transferred inside the session it was learned.
+
+**The S7.1 pin moved 3 to 13 on its first real edit** - the gate behaving as
+designed, not an obstacle to it.
+
 ### Process note
 
 Worked inline, no subagents - R9 (nothing under about three files) and the four

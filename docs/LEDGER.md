@@ -14,6 +14,51 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003t - rm_facts states whether its two build lines agree (2026-08-01)
+
+Commit `90c819e`. Suite **598 passed in 28.85s, exit 0** (588 before, +10), ruff
+clean, `ascii_guard` exit 0. **FROZEN file `tools/rm_facts.py` edited with
+explicit operator approval**, same footing as entry 003r's three.
+
+The last piece of S7.5, recorded by stage 6 as blocked on approval and raised in
+the same session per its own instruction. The assertion half shipped in `8684aa0`
+without touching the frozen file; this is the operator-facing half.
+
+**The defect it closes is a two-line banner that could disagree with itself.**
+`rm_facts.py` has printed a game build and an extracted data build adjacently at
+every session start since cycle 1 and never compared them, so a session could
+bootstrap from combat data extracted from a build the machine no longer runs and
+the banner would look entirely normal. Now:
+
+```
+- Game build: 1.1.13.0-r99712
+- Extracted data build: 1.1.13.0-r99712
+- Build agreement: MATCH
+```
+
+**THE SENTINELS ARE THE WHOLE DIFFICULTY, and they are why this is a function
+rather than an `==`.** The probe never raises, so every failure comes back as a
+VALUE: `"not installed"`, `"unparseable"`, `"none extracted"`. Two of those
+compared to each other are EQUAL, so the obvious implementation reports a machine
+with no game installed as a perfect MATCH - a green light produced by comparing
+two failures. `build_agreement` rejects them first and reports `NOT CHECKED`
+naming the unavailable source, because a false MISMATCH at every session start is
+the fastest way to teach an operator to stop reading the line. Ten tests, six of
+them the sentinel matrix over both sides.
+
+They are named constants now rather than literals repeated at each return, and
+`tests/test_build_pin_crosscheck.py` IMPORTS `BUILD_SENTINELS` rather than
+restating it - S7.2's single-source lesson applied one file over. A hand-copied
+sentinel list drifts silently: a skip guard checking for a string that can no
+longer occur stops skipping and starts comparing two failures.
+
+No new subprocess call, so the 5s `schtasks` timeout pinned at
+`tests/test_hooks.py:284` is untouched and `tests/test_hook_consoles.py` still
+passes with no exemption. **The S7.1 count pin moved 3 to 13 for that module**,
+which is that gate behaving exactly as designed on its first real edit.
+
+---
+
 ## 003s - Link ingest stage 7, and the whole track closes at zero adoptions (2026-08-01)
 
 Commits `8684aa0` (the four gates) and `1f04a95` (the living docs and this

@@ -980,9 +980,14 @@ Two tests, no production code.
   `"not installed"`, `"unparseable"` and `"none extracted"` on failure, so the
   test asserts neither value is any of the three BEFORE comparing. Otherwise it
   is a gate with nothing to catch on any machine but Legion.
-- **Still blocked, operator approval required:** making `rm_facts` PRINT the
-  comparison. That is operator UX, not the gate. Raise it in the same session so
-  it is not forgotten.
+- **UNBLOCKED AND SHIPPED 2026-08-01, commit `90c819e`.** Making `rm_facts`
+  PRINT the comparison was raised in the same session per this note and the
+  operator approved the FROZEN-file edit. The banner now carries a third line,
+  `Build agreement: MATCH`. The sentinels turned out to be the whole difficulty
+  and are why it is a function rather than an `==`: two of them compared to each
+  other are EQUAL, so a naive check reports a machine with no game installed as
+  a perfect match. `BUILD_SENTINELS` is now a named constant the test IMPORTS,
+  which is S7.2's single-source lesson applied one file over.
 
 **S7.1 - pin the collected test count. BUILD THIRD.**
 *The argument the draft owed:* a shrinking suite has never happened here, and

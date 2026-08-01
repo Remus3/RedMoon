@@ -17,8 +17,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003l - The anchor recorder runs, and its first run corrects four things (2026-08-01)
 
 Commit `23d40bf` (the recorder, the damage model, the DPS cycle, the anchor
-writer, the power-stat evaluator, and every doc correction below), plus a
-follow-up docs commit carrying this entry.
+writer, the power-stat evaluator, and every doc correction below) and `5566933`
+(the living docs, this entry and the next-session prompt).
 **NO ROADMAP ITEM CLOSED.** The combat math spec is IMPLEMENTED but not
 DISCHARGED: sections 2 and 4 are code, the section 3.3 experiment has NOT been
 run, and discharge requires it. Two new gaps opened: 12 and 13.

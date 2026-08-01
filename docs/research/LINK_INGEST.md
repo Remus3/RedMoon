@@ -116,10 +116,11 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 ## Status
 
 - Stage 1 COMPLETE, 146 of 146 extracted.
-- Stage 2 in progress: 60 of 146 scored (the operator deep-review set).
-- Stage 2 REMAINING: the 82 entries the operator marked "not needed", swept
-  against RM's rubric rather than accepted, because those notes were the
-  operator reviewing RC's triage in RC's frame.
+- Stage 2 COMPLETE, 146 of 146 scored.
+- Stage 3 COMPLETE: threshold 6+, 21 survivors, 125 culled.
+- Stage 4 deep-dive NOT STARTED. No survivor may be adopted until its actual
+  source has been read - every score so far is against a one-line summary
+  written by someone else for someone else.
 
 Nothing is adopted until stage 6 names it with an acceptance criterion.
 
@@ -227,3 +228,156 @@ corpus**. The difference is not generosity - it is that a rubric asking "what
 does a V Rising engine with an unfalsifiable output need" ranks a wiki reader and
 a transcript auditor completely differently from one asking "what can a League
 dashboard lift".
+
+## Stage 2b - the 84 "not needed" entries, swept rather than accepted
+
+The operator marked 84 entries "not needed" while reviewing RC's triage. Those
+notes were written in RC's frame, so RM swept them against RM's own rubric
+instead of inheriting the verdict. **Coverage: 84 + 60 review-more + 2 bespoke =
+146 of 146.** Stated as an arithmetic identity because the previous pass's whole
+failure was believing a count it had not checked.
+
+Most of the 84 are correctly closed and the sweep confirms it: EU AI Act
+compliance tooling, GitLab and TeamCity CI bridges, SEO and backlink analysis,
+trade-document validation, incident management, business advisors, 3D website
+generators, cloud media pipelines and a dozen memory-layer and MCP-aggregator
+variants. None of that is a single-user V Rising engine's problem.
+
+**Six are OVERTURNED UPWARD, and one cluster is the most consequential finding
+in the whole corpus.**
+
+### THE BINARY REVERSE-ENGINEERING CLUSTER - overturned to the second-highest scores in the corpus
+
+| id | license | why RM's rubric ranks it completely differently | score |
+|---|---|---|---|
+| CCR-35 | MIT | **pyghidra-lite** - token-efficient Ghidra wrapper for PE binaries, shared JVM, read-only by default. | **8** |
+| CCR-89 | MIT | **x64dbg** - drives the x64dbg debugger through 23 tools: memory reads, breakpoints, disassembly. | **7** |
+
+This is the single clearest case of RC's frame hiding RM's need. A League
+coaching dashboard has no binary to reverse; **Red Moon's hardest problem class
+is nothing else.** Concretely, from RM's own recorded history:
+
+- `BACKLOG.md` carries "Offline parser for the DOTS ECS blobs (`ContentArchives`,
+  `EntityScenes`), so item stats need no running game", REJECTED for cycle 1 on
+  "per-patch reverse-engineering cost against a moving binary format". **These
+  two tools are precisely the cost-reduction on that rejection.**
+- Cycle 2 needed an exhaustive field scan across **169 interop assemblies** to
+  prove `items.tier` had no source, and built a throwaway `System.Reflection.
+  Metadata` console app to do it.
+- Cycle 3 phase 1 had a generic value reader **HARD CRASH the dedicated server
+  twice**, and the diagnosis stopped at "GetComponentBoxed does not hand back
+  chunk-backed memory". A debugger is how that stops being a guess.
+- `max_health` being instance-only was settled today by comparing a prefab to a
+  live instance. Every future question of that shape is a memory question.
+
+Neither is adopted here - stage 4 has to check that pyghidra-lite handles
+IL2CPP-flavoured PE and that x64dbg driving is safe against a live game process.
+But scoring them 2 because a League dashboard cannot use them was the error.
+
+### The data-validation family, consistent with CCR-74
+
+| id | license | note | score |
+|---|---|---|---|
+| CCR-50 | MIT | **AnomalyArmor** - schema-drift, freshness and null-rate anomaly monitoring. Same class as goldencheck, which scored 8. RM shipped a count pin TODAY precisely because drift is the failure no per-row gate sees. | 7 |
+| CCR-80 | MIT | **goldenflow** - 76 normalization transforms for messy tabular input. Weaker than the above; RM's data is machine-generated, not messy. | 6 |
+
+### Three that answer a problem RM hit this session
+
+| id | license | note | score |
+|---|---|---|---|
+| CCR-75 | MIT | **rendex-mcp** - scheduled URL change-watch with visual and text diff. RM pins the game build in about 97 tracked sites behind a drift-anchor test, and finds out a patch landed by noticing. Watching the patch notes and the wiki is the missing trigger. | 6 |
+| CCR-76 | MIT | **temporal-mcp** - elapsed time between turns, day rollover, resumed-session detection. RM lost a run today to a control taken at 5 s of server uptime when the subject appears at 20 s, and its session notes rule requires converting relative dates to absolute. | 6 |
+| CCR-144 | prose | **Eliciting critical feedback** - three follow-up prompts that break uncritical agreement ("argue against me", "what are you least confident about"). RM's single most repeated failure mode across sessions is an agent's unverified claim being believed, which is why CLAUDE.md carries a Verification section and a `verifier` subagent. | 6 |
+
+### The rest of the 84, confirmed closed
+
+| band | ids | reason |
+|---|---|---|
+| 5 | CCR-64, CCR-85, CCR-98, CCR-107, CCR-128 | Real but not urgent: web search for stage-4 deep dives, cross-session memory indexing, pre-install package verification, multi-language snippet execution, and the epic-to-worktree parallel pattern RM already half-practises. |
+| 3-4 | CCR-08, CCR-12, CCR-33, CCR-38, CCR-56, CCR-57, CCR-62, CCR-71, CCR-83, CCR-87, CCR-92, CCR-104, CCR-106, CCR-112, CCR-122, CCR-125 | Adjacent. RM would have to bend the tool or itself. Includes the browser and screen-control cluster, which R3 already restricts to rendered-pixel checks and live-game capture. |
+| 1-2 | the remaining 57 | Not RM's problem. Compliance and audit-attestation tooling (CCR-13/14/15/17/18/20/97/99), CI and repo hosting (CCR-06/41/43/73), aggregators and routers (CCR-11/16/69/93/117/118/119), SEO and market intel (CCR-23/40/45/96), memory-layer variants competing with a system RM already has seeded, mirrored and test-asserted (CCR-05/10/48/51/90/91), and hosted or credit-metered services (CCR-07/27/31/49/53/60/94). |
+
+### The two bespoke notes, answered directly
+
+**CCR-04 Augments** - operator asked: "would the score change if we ever ported
+or are sharing the share folder to a JS framework?" **Yes, conditionally, and it
+is worth writing down because cycle 4 has not chosen a stack yet.** Today it
+scores **2**: Augments injects npm and JS-framework API docs, and RM is Python
+plus C# with no JS anywhere. If cycle 4's dashboard on 8778 adopts a real
+framework rather than server-rendered HTML, it rises to about **5** - not
+higher, because it serves generic framework docs and RM's dashboard difficulty
+will be domain shape, not React API recall. **The decision this actually flags
+is upstream: cycle 4 has no declared frontend stack, and that choice should be
+deliberate rather than emergent.**
+
+**CCR-120 claude-task-viewer** - operator asked for whole-project dashboard
+concepts, categorized and agent-adjudicated, not a Loop Monitor rehash. Scored
+**6** as an OBSERVER-posture reference: it renders state it does not own, over
+SSE rather than poll-and-repaint, with dependency edges, cross-session fuzzy
+search and stale-session auto-archive. **Carried into the cycle 4 dashboard work
+next session together with CCR-135 (Codeman), which the operator named as the
+stronger of the two.**
+
+## Stage 3 - the cull, threshold chosen from the observed distribution
+
+All 146 now scored.
+
+NO HISTOGRAM IS GIVEN, and the reason is a correction rather than an omission. A
+draft of this section carried a per-score distribution that did not reconcile
+with the survivor list below it - it claimed 24 entries at 6 and above while the
+enumerated table held 21. The counts in the low bands were grouped rather than
+counted, because the sections above deliberately bundle whole clusters into one
+row ("the remaining 57", "the graph cluster, 2-3 each"). **A distribution that
+cannot be reconciled against the enumerated rows is exactly the unchecked count
+this whole document exists to correct**, so it is withdrawn rather than tidied.
+
+What IS enumerable, and therefore what is stated: the survivors, individually,
+by id.
+
+**Threshold: keep 6 and above. 21 entries survive, 125 are culled.**
+
+Chosen after scoring, from the shape of the distribution rather than picked in
+advance: there is a natural break between 6 and 5. Everything at 6+ names a
+specific RM cycle or an open blocking problem; everything at 5 is "a good idea
+RM has no cycle for". Setting it at 7 would drop the drift-watch and
+critical-feedback entries that answer failures RM hit this same session, and
+setting it at 5 admits 15 more with nowhere to put them.
+
+### The 21 survivors, every one named
+
+| score | id | one line |
+|---|---|---|
+| 9 | CCR-143 | red-handed - audit "tests pass" claims against git |
+| 8 | CCR-74 | goldencheck - tabular drift validation |
+| 8 | CCR-146 | subagents do not inherit the main system prompt |
+| 8 | CCR-35 | pyghidra-lite - PE binary RE |
+| 7 | CCR-81 | skylos - invented-API detection |
+| 7 | CCR-39 | MediaWiki - independent second source for boss numbers |
+| 7 | CCR-84 | MediaWiki professional - same route, second implementation |
+| 7 | CCR-123 | talkthrough - local narrated-recording pipeline |
+| 7 | CCR-135 | Codeman - dashboard UX reference |
+| 7 | CCR-110 | mockd - mock the bridge, test without the game |
+| 7 | CCR-127 | PreToolUse deny plus reason fed back |
+| 7 | CCR-89 | x64dbg - debugger driving |
+| 7 | CCR-50 | AnomalyArmor - schema drift monitoring |
+| 6 | CCR-55 | Kagan - agent gates plus isolated worktrees |
+| 6 | CCR-121 | Graph Skill - node-level cached retry |
+| 6 | CCR-129 | CLAUDE.md snapshotting and keeper-rule externalisation |
+| 6 | CCR-120 | claude-task-viewer - observer posture, SSE |
+| 6 | CCR-75 | rendex - scheduled change-watch on the build pin |
+| 6 | CCR-76 | temporal - elapsed time and resumed-session detection |
+| 6 | CCR-144 | eliciting critical feedback |
+| 6 | CCR-80 | goldenflow - normalization transforms |
+
+Counted from the rows above: 1 at nine, 3 at eight, 9 at seven, 8 at six.
+**21.** CCR-39 and CCR-84 are two distinct entries reaching the same source and
+are listed separately rather than merged, so the count reconciles.
+
+## What stages 4 to 7 still owe
+
+Stage 4 deep-dive has NOT run. Every score above is against a one-line summary
+written by someone else for someone else, which is exactly the kind of secondhand
+claim this project refuses elsewhere. **No survivor may be adopted until its
+actual source has been read.** Stage 5's adversarial pass must check its own
+input coverage before reporting, and stage 6 names an acceptance criterion per
+adopted item or nothing is adopted.

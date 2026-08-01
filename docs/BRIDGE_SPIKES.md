@@ -1442,3 +1442,86 @@ filled. Backed up to
 `_scratch\rmprobe\c3p2\items-client-v3-with-localization.json` and recoverable
 in one client dump. This is a HOST fact, not a regression, but it is a real cost
 of promoting from the headless host and is owed back.
+
+## Appendix - the RM-specific hook probe, 2026-08-01
+
+NOT the mechanism question. LegionWallpaper owns that one by operator assignment
+and answered it: PreToolUse hooks DO fire under `bypassPermissions` on CLI
+2.1.220, measured on a throwaway project with its own settings. RC deliberately
+abstained from duplicating it, on the rule that one measurement gets one owner
+because "two of us agree" is not evidence.
+
+The question asked here is different and is RM's alone: **does RED MOON'S OWN
+gate, in Red Moon's own repository, actually fire headless?** LW's report makes
+that worth asking rather than assuming, because LW's first two arms produced a
+clean-looking negative caused by a `settings.json` that silently never parsed.
+
+### Precondition, checked first
+
+`.claude/settings.json` parses as valid JSON, with `PreToolUse` (two matchers),
+`PostToolUse` and `SessionStart` registered and every Windows path
+double-escaped. LW's trap 1 does not apply here.
+
+### THE FIRST PROBE WAS INVALID AND ITS RESULT WAS A LIE
+
+Staged a file containing U+2014 at `_scratch/hookprobe.txt`, ran `git commit`
+headless. **The commit SUCCEEDED**, which reads exactly like "no gate fired".
+
+It is an artifact of the probe. `_scratch` is on `tools/ascii_guard.py`'s skip
+list, so both gates inspected the staged diff, found nothing they own, and
+allowed it CORRECTLY. The commit was reset and the file removed.
+
+This is the mirror image of LW's false negative: a clean-looking POSITIVE that
+proves nothing. Recorded because the shape generalizes - **a gate that stays
+silent because the probe gave it nothing to catch is indistinguishable from a
+gate that is not wired**, and either would have been published as a result.
+
+### The valid probe, and the discriminator that makes it readable
+
+Staged U+2014 at `docs/hookprobe.md`, a SCANNED path. Confirmed first by calling
+`check_staged()` directly, which returned the expected reason - so the gate
+demonstrably had something to catch before anything was measured.
+
+Arm 1, plain `git commit`: BLOCKED, HEAD unmoved. **Not conclusive.** Both the
+git `pre-commit` hook and the PreToolUse gate would block, and the reported
+wording pointed at git - meaning the Bash tool had RUN and git refused. That
+says nothing about whether the agent-side gate fired.
+
+Arm 2, `git commit --no-verify`: this is the discriminator. `--no-verify`
+bypasses the git hook entirely, so anything that still blocks must be the
+PreToolUse layer.
+
+```
+Commit blocked:
+docs/hookprobe.md:1:7 non-ascii U+2014 - authored content must be 7-bit ASCII (CLAUDE.md hard rule)
+```
+
+That string is `tools/precommit_gate.py`'s own `permissionDecisionReason` - the
+literal `"Commit blocked:\n"` prefix it emits and the git hook never does.
+HEAD unmoved.
+
+### Result
+
+**Red Moon's PreToolUse gate fires headless under `bypassPermissions` on CLI
+2.1.220, in Red Moon's own repository, and it catches `--no-verify`.**
+
+CONSEQUENCE for the doctrine, and it is a correction. `CLAUDE.md` and several
+session notes describe the Claude-side gate as a backstop that "cannot fire
+under `--no-verify`". That is true of the `commit-msg` hook, which strips the
+co-author trailer through git. It is NOT true of the PreToolUse ASCII gate,
+which sits ABOVE git and therefore covers the one channel the git hook cannot.
+The two gates are complementary rather than redundant, and the agent-side one is
+the only cover for `--no-verify`.
+
+Still true and unchanged: `.git` hooks remain the floor because they survive
+every channel including a human typing `git` in a terminal. Nothing here weakens
+that.
+
+### What this does NOT claim
+
+- Not a second answer to LW's question. Different subject, different repo.
+- One CLI version, one machine, cwd inside a trusted project, valid config.
+  Three of those four were confounds LW hit personally, and the fourth was RM's
+  own path-separator trust bug fixed earlier the same day.
+- Says nothing about a worktree. RM's gate resolves the repo from the `-C`
+  segment carrying the commit verb, and that path was NOT exercised here.

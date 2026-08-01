@@ -199,5 +199,9 @@ python tools/rmdata_extract.py
 `CLAUDE.md` is size-budgeted under 60 KB and is loaded every turn. Never append
 per-item ledger entries here - append them to `docs/LEDGER.md`.
 
-Cycle 1 (harness plus data floor) is DONE. Cycle 2 (RedMoon.Bridge) is the
-current work. Cycles 3 through 8 are listed in `ROADMAP.md`.
+Cycles 1 (harness plus data floor) and 2 (RedMoon.Bridge) are DONE. Cycle 3
+(Bloodforge core) is the current work and its INPUT SPIKE IS CLOSED - all three
+phases, ADR-007, six tables promoted with counts asserted. The next cycle 3
+document is the COMBAT MATH spec, and ROADMAP gap 7 (nothing can falsify a
+computed TTK) must be settled before it opens. Cycles 4 through 8 are in
+`ROADMAP.md`.

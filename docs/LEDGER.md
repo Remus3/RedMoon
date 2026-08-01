@@ -14,6 +14,130 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003h - Cycle 3 phases 2 and 3: the schema'd dump, and the boss health that is not on the prefab (2026-08-01)
+
+Commit `863c16f` plus the docs commit carrying this entry. **THE BLOODFORGE
+INPUT SPIKE IS CLOSED** - phases 1, 2 and 3 all done, first roadmap movement in
+six sessions.
+
+State at close, one run each, re-run by the closing agent rather than taken from
+a report: `python -m pytest` **382 passed in 19.86s, exit 0** (348 before),
+`python -m ruff check .` clean, `python tools/ascii_guard.py` exit 0,
+`dotnet build -c Release -t:Rebuild` on the csproj **0 warnings, 0 errors**.
+
+WHAT SHIPPED.
+
+1. **`ability_stats`, new at schema_version 1, 1818 rows.** Keyed on the ability
+   GROUP per ADR-007, selected by the marker component
+   `AbilityGroupStartAbilitiesBuffer`. Carries cast time, post-cast time,
+   cooldown, global cooldown, the damage coefficient, raw damage, damage type,
+   the hit counts and the V Blood multiplier. Cast time resolves on 1815 rows,
+   cooldown on 1818, and the full damage block on the 732 groups that reach a
+   `_Hit` prefab. A group that deals no damage KEEPS its row with the
+   coefficients omitted, never zeroed.
+
+2. **`vbloods` to schema_version 2, `items` to 4.** Boss `physical_power`,
+   `spell_power` and a four-key `resistances` map on all 65 rows;
+   `ability_group_guids` on all 425 items, 563 links, `[]` where the item grants
+   nothing.
+
+3. **`/dump/statcontrol`, exploratory.** Emits every entity carrying a guid with
+   ONE fixed list of typed reads, so a prefab and its live instance compare by
+   VALUE. Phase 1 had proven a generic value reader impossible on this build
+   twice over, so the readers here spell out their fields.
+
+4. **An expected-count assertion on every table**, pinned to the build it was
+   measured on. Cycle 2 earned this: four per-row gates passed 66 vblood rows
+   over 65 distinct guids because every duplicate was byte-identical and the
+   only symptom was the count. The pin stands DOWN loudly on any other build
+   rather than silently, because a silent stand-down reads as a pass.
+
+5. **ADR-007**, `docs/BLOODFORGE.md`'s input table rewritten from measurement,
+   and ROADMAP gaps 1, 2 and 3 each closed or restated with evidence.
+
+THE FINDINGS, each measured.
+
+**A PREDICTED COUNT WOULD HAVE BEEN WRONG BY 344, AND NOTHING WOULD HAVE
+NOTICED.** `ability_stats` was pinned at 1474 before the dump ran, on cycle 2's
+figure, and MEASURED 1818. 1474 counted a NAME-selected population - prefabs
+ending `_AbilityGroup` - and the shipped selector is the marker COMPONENT. 1476
+of the 1818 carry that suffix; 341 use `_Group`, `_Abilitygroup`, `_UNUSED` and
+others and are ability groups by component. A name-shaped selector would have
+dropped all 341 silently. This is precisely why the spec demanded the count be
+measured and pinned in the same commit. NOT RECONCILED and left visible: 1476 is
+two above 1474.
+
+**THE BOSS HEALTH POOL IS NOT ON THE PREFAB, AND THAT IS NOW MEASURED RATHER
+THAN SUSPECTED.** `Health.MaxHealth` reads 0 on all 65 V Blood prefabs. The
+phase 3 control settles what the zero means: on `CHAR_Vampire_Dracula_VBlood`,
+**19 typed fields compared between the prefab (entity 29012) and the live
+instance (322945), 17 IDENTICAL, 2 differing** - `Health.MaxHealth` and
+`Health.Value`, both 0 against 8107. Every `UnitStats` field and
+`UnitLevel.Level` agree exactly. So this is branch 3, confined to health, and it
+is **NOT spawn scaling**: 0 to 8107 is not a ratio and there is no factor to
+recover. `max_health` is DECLARED AND NEVER EMITTED, and a TTK denominator needs
+a live world with the boss spawned. ROADMAP gap 1 is restated, not closed.
+
+**A DEDUPE FIX TURNED A DUPLICATE INTO AN ORDER-DEPENDENT CHOICE.** A spawned
+boss carries the SAME `PrefabGUID` as its prefab. Cycle 2 saw the pair as "66
+vblood rows over 65 distinct" and fixed the COUNT by deduping on first write -
+which silently made the row whichever of two DISAGREEING entities the world walk
+reached first. The count looked right afterwards, which is why it survived a
+cycle. The selector now requires the prefab marker.
+
+**A GATE THAT HAD BEEN DEAD SINCE SCHEMA_VERSION 2.** `items.stats` became a
+list when the first real dump showed a name-keyed map cannot carry
+`ModificationType`. `core/table_deep.py` was not moved with it and kept routing
+the field through the object-shaped mapping check, which returns early on a
+list. So the one container whose schema description says the shallow gate cannot
+see inside it was unvalidated by BOTH gates. Found while bumping the same table
+to 4; fixed with negative tests that were proven red first.
+
+**A COEFFICIENT THE SPEC DID NOT ASK FOR.**
+`DealDamageParameters.MaterialModifiers` is 23 per-target-class multipliers, and
+`VBlood` is one of them - MEASURED 0.33 to 1.0 over the 732 damage rows. It is
+not in the spike spec's field list. It was found by reading the declared field
+TYPES before writing the reader, and it is emitted because a boss-damage table
+missing the boss multiplier would be wrong in exactly the direction nobody
+checks. The other 22 are NOT ATTEMPTED.
+
+**READ THE DECLARED TYPES, DO NOT ASSUME THEY ARE UNIFORM.** The four boss
+resistances are NOT commensurable: `PhysicalResistance` and `SpellResistance`
+are `ModifiableFloat`, `FireResistance` is a `ModifiableINT` RATING that only
+becomes a reduction through the global `ResistanceData` block, and
+`CorruptionDamageReduction` is already a reduction. Measured: physical and spell
+are 0 on all 65, corruption is 0.5 on all 65, and only fire varies. No consumer
+may average them. Also measured: `physical_power` EQUALS `spell_power` on every
+row, 33 distinct values over 33 distinct levels, so both are level-derived
+rather than per-boss authored.
+
+**A NEGATIVE RESULT TAKEN TOO EARLY IS INDISTINGUISHABLE FROM A REAL ABSENCE.**
+The first control run returned one entity, the prefab only, and looked like a
+clean "there is no instance" finding. It was taken at about 5 s of server
+uptime; at 20 s the instance was there with 151 components. The `Unload()`
+lesson in a new place - poll for the SUBJECT, not just for `ready:true`.
+
+COSTS AND RESIDUE, stated rather than buried.
+
+- **The promoted `items` table lost its 425 `localization_guid` values.** The
+  dump was taken on the dedicated server, where that join resolves 0 of 425 by
+  cycle 2 measurement. Backed up to
+  `_scratch\rmprobe\c3p2\items-client-v3-with-localization.json` and recoverable
+  in one client dump. A host fact, not a regression, but it is owed back.
+- `core/tables.py` is FROZEN and gained one line - `ability_stats` in
+  `TABLE_NAMES`. The approved spec names that file as the shallow-gate home for
+  the new table, so spec approval was read as covering it. Flagged rather than
+  assumed.
+- `test_item_stats_are_read_one_hop_off_the_item_prefab` banned the `BuffGuid`
+  token file-wide. Phase 1 showed that ban too broad: `BuffGuid` is the ONLY
+  route to the abilities an item grants and is wrong only for STATS. Narrowed to
+  the stat reader by method rather than relaxed away.
+
+WHAT THIS DOES NOT PROVE. All six acceptance criteria are about SOURCING INPUTS.
+None asks whether the math over them is right, so all six can pass with a
+confidently wrong time-to-kill. No TTK was published to any surface this
+session. ROADMAP gap 7 must be settled before the combat-math spec opens.
+
 ## 003g - Three-project interop: the shared governor, port 8770, and a gate that read the wrong tree (2026-08-01)
 
 Commits `b1b6b2d` (inbox out of the port scan), `6cfc614` (backlog plus memory

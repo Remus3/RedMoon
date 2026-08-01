@@ -1,6 +1,84 @@
 # Red Moon History Notes
 
 
+## 2026-07-26 - An external /done doc, measured, and the two checks it was right about
+
+Branch `master`. Ledger 003d. Commit `d6bfdd9` (tests) plus the docs commit that
+carries this entry. **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
+started and the operator gate on the phase 1 component inventory is STILL OPEN -
+three sessions running now. That gate is the real next action.
+
+State at close, one run: `python -m pytest` **327 passed in 18.47s, exit 0**
+(324 before, plus 3 new), `python tools/ascii_guard.py` exit 0.
+
+**The input and the ask.** `C:\Users\Administrator\Desktop\DONE_RITUAL_OPTIMIZED.md`,
+another portable process doc from the other project on this box, this one an optimized
+`/done` ritual. Ask was "process it". It proposes two things: a speed rewrite
+that moves a slow suite off-machine to CI, and a standalone `tools/drift_guard.py`
+carrying eight cheap invariant checks.
+
+**MOST OF IT DOES NOT APPLY, AND MEASURING IS THE ONLY WAY THAT WAS KNOWABLE.**
+Its own headline lesson is to measure the shape before choosing a lever. Applied
+to itself: its entire premise is a 27-minute local suite worth overlapping with a
+17-minute CI run. This suite is **18.47s**, there is no `.github/` at all, and no
+CI. Overlapping ~15 minutes of doc writing with a dispatched CI run would have
+been pure overhead. Sections 1 and 2 are inapplicable in full.
+
+**SIX OF THE EIGHT DRIFT CHECKS ALREADY EXIST HERE, AS TESTS.** Doc budget ->
+`test_claude_md_stays_under_the_size_budget`. Mirror parity ->
+`test_live_memory_matches_the_committed_seed`. Memory index ->
+`test_memory_namespace_is_seeded`, which is STRICTER than the proposal, asserting
+an exact expected set rather than parsing links. Orphan docs ->
+`test_every_adr_file_is_listed_in_the_index`. Untracked authored files -> `.claude/`
+is fully tracked, verified. Counted claims -> no such construct in this repo.
+Building the script would have duplicated all six into a second place that runs
+only at wrap, where the tests run on every `pytest`. It was not built.
+
+**THE TWO REAL GAPS, SHIPPED AS `tests/test_drift_anchors.py`.**
+
+1. **Build-pin anchor.** The pin has about 97 tracked sites and nothing asserted
+   they agree with the one CLAUDE.md declares. The canonical value is READ from
+   CLAUDE.md, not hardcoded. The `v3` stale-trap pin is allowlisted BY VALUE so
+   it keeps its own identity. Historical records are excluded. Fixture pins are
+   matched BY SHAPE - majors 8 and 9, which V Rising cannot reach - rather than
+   by excluding `tests/`, so a fixture asserting against the CURRENT build still
+   has to move when the pin moves. The first draft DID exclude nothing and caught
+   ten real fixture pins, which is how the shape rule was arrived at.
+2. **Ledger SHA anchor.** Nothing verified the hashes `docs/LEDGER.md` cites by
+   its own stated format. Entry 003c needed exactly this backfill last session.
+
+**Both were proven to FAIL before being accepted.** A guard that cannot fail
+proves nothing. A stale pin `1.1.12.0-r99000` appended to `docs/API.md` tripped
+the first with file, line and value; a fabricated eight-hex hash appended to the
+ledger tripped the second. Tree restored, `git status --porcelain` clean after.
+
+**Its section 5 needed reframing, and the scrub came back clean.** The doc says
+to run a secret scrub BEFORE flipping a repo public. This repo is ALREADY public
+(`Remus3/RedMoon`), so that ordering is moot - but the scrub was run anyway and
+passes: `API-Key-Claude.txt` was never committed, no key-shaped blob exists
+anywhere in history, and no email appears in any tracked file. The only exposure
+is the git author email in commit metadata, inherent to a public repo.
+
+Its section 4 lists three defects to fix in the ritual text. All three are N/A
+here: this `done.md` has no commit trailer, no retired section, and sequential
+numbering. Worth recording so the next reader does not re-check them.
+
+**SCHEDULED TASKS: ASKED MID-SESSION, ANSWERED, NOTHING TO FIX.** The operator
+asked to find `schtasks` entries that make a window and silence them. Enumerated
+machine-wide: **no scheduled task on this box can show a window.** Only five run
+a console binary at all - one activation shim plus four belonging to the other
+project on this box - and every one runs under **S4U or ServiceAccount** logon,
+which has no desktop and cannot draw a window whatever the binary does. Every
+**Interactive**-logon task runs either a GUI binary or `pythonw.exe`, the
+windowless Python host. Red Moon's own `RM-DataRefresh` is Interactive but runs
+`pythonw.exe` on `tools/rmdata_extract.py` - correct by construction.
+**The `Hidden` property is a red herring**: it controls visibility in the Task
+Scheduler LIST, not whether a console window appears, so several tasks reading
+`Hidden: False` are still windowless. This CORROBORATES the existing memory entry
+`reference_flashing_consoles_are_mcp_launchers` - the flashing consoles are not
+scheduled tasks, and this session ruled them out by direct enumeration rather
+than by trusting the note.
+
 ## 2026-07-26 - The same PS7 doc, re-validated after the operator updated it
 
 Branch `master`. **NO ROADMAP ITEM CLOSED and no production code changed.** The

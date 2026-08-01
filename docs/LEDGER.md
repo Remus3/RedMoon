@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003q - Link ingest stage 6: four items adopted, one killed by the plan's own adversarial pass (2026-08-01)
 
-Commit `<pending>`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
+Commit `b781aab`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
 **544 passed, exit 0**, ruff clean, `ascii_guard` exit 0.
 
 Eight stage 4 candidates: **four ADOPTED with acceptance criteria (S7.2, S7.5,

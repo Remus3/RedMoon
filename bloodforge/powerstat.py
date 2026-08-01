@@ -60,12 +60,10 @@ that. `predict` computes the one narrow form the experiment needs and REFUSES
 any row whose near-inert terms are not at their inert values, because the moment
 `raw_damage_percent` is live the prediction needs `pool(T)`, which is UNSOURCED.
 
-LAYERING NOTE: `isolated_deltas` and `per_hit_discard_reasons` are imported from
-`tools/anchor_record.py`, where the falsification spec puts the isolation rule
-and the A.5 checklist. An engine module importing a `tools/` script is the wrong
-direction and is a known wart, taken deliberately over duplicating two pure
-functions that must never drift from each other. The fix is a rename: move both
-into `bloodforge/series.py` and re-export from the tool.
+`isolated_deltas` and `per_hit_discard_reasons` come from `bloodforge/series.py`
+and are shared verbatim with the writer, which re-exports them. Two copies of
+the isolation rule could drift, and catching that class of divergence is what
+the whole falsification protocol is for.
 """
 from __future__ import annotations
 
@@ -74,8 +72,8 @@ import statistics
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+from bloodforge.series import isolated_deltas, per_hit_discard_reasons
 from core import tables
-from tools.anchor_record import isolated_deltas, per_hit_discard_reasons
 
 RMDATA_DIR = Path(__file__).resolve().parents[1] / "data" / "rmdata"
 

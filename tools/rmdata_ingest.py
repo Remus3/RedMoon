@@ -16,6 +16,8 @@ The pipeline is spec section 7, in order:
   7. print the shape census                    -> operator reads it once
   8. --accept only:
      promote _incoming/<name>.json -> tables/<name>.json   (atomic)
+  9. --accept only: empty _incoming/, so PROMOTED and PENDING are
+     distinguishable on disk. A refused or unaccepted run leaves it populated.
 
 Two properties are worth naming out loud.
 
@@ -655,6 +657,18 @@ def ingest(
     for name in names:
         payload_json = json.loads((incoming / f"{name}.json").read_text(encoding="utf-8"))
         write_json_atomic(tables_dir / f"{name}.json", payload_json)
+
+    # 9. and the quarantine is emptied, because PROMOTED and PENDING have to be
+    # distinguishable on disk. Promotion COPIES rather than moves - the read
+    # above is what re-validates what is written - so without this the two
+    # directories hold byte-identical files and nothing says which state the
+    # tree is in. Observed on the real tree 2026-08-01: six stale files from an
+    # earlier accepted run, indistinguishable from six awaiting --accept.
+    # Deliberately AFTER the writes and only on the success path: a refused run
+    # and a validated-but-unaccepted run both leave the rows here, which is the
+    # state _incoming/ exists to represent.
+    _clear_incoming(incoming)
+
     print(f"promoted {len(names)} table(s) -> {tables_dir}", file=out)
     return EXIT_OK
 

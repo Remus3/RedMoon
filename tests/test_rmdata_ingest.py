@@ -256,13 +256,56 @@ def test_accept_promotes_the_quarantined_content_atomically(repo, tmp_path):
 
     for name in TABLE_NAMES:
         live = read_json(tables_dir(repo) / f"{name}.json")
-        assert live == read_json(incoming_dir(repo) / f"{name}.json")
         assert len(live["rows"]) == len(good_tables()[name])
     # Atomic means temp-then-replace: no .tmp debris is left behind.
     assert not list(tables_dir(repo).glob("*.tmp"))
     assert read_json(tables_dir(repo) / "items.json")["rows"][0]["name"] == (
         "Merciless Nightstalker"
     )
+
+
+def test_promotion_clears_the_quarantine_so_promoted_and_pending_are_distinguishable(
+    repo, tmp_path
+):
+    """The whole point of a quarantine is that its contents are NOT live yet.
+
+    Promotion copied `_incoming/<name>.json` onto `tables/<name>.json` and left
+    the source file in place, so after a successful ingest the two directories
+    held byte-identical copies and nothing on disk said which state the tree was
+    in. A reader - or an operator six sessions later - could not tell a table
+    waiting for `--accept` from one already promoted. Observed on the real tree
+    2026-08-01: six stale files under `_incoming/` from an earlier accepted run.
+
+    The directory itself SURVIVES. It is a directory, not a file, and
+    `tools/rmdata_extract.seed_tables` guards on `path.is_file()` for exactly
+    that reason.
+    """
+    dump = write_dump(tmp_path, dump_payload())
+    assert run(repo, dump, "--accept") == 0
+
+    assert incoming_dir(repo).is_dir()
+    assert [path.name for path in incoming_dir(repo).iterdir() if path.is_file()] == []
+
+
+def test_a_validated_but_unaccepted_run_leaves_the_quarantine_populated(repo, tmp_path):
+    """PENDING is a real state and it is the one _incoming/ exists to represent."""
+    dump = write_dump(tmp_path, dump_payload())
+    assert run(repo, dump) == 0
+
+    quarantined = sorted(
+        path.stem for path in incoming_dir(repo).iterdir() if path.is_file()
+    )
+    assert quarantined == sorted(TABLE_NAMES)
+
+
+def test_a_refused_run_leaves_the_quarantine_populated_for_inspection(repo, tmp_path):
+    """The tool tells the operator the rows stay there. They have to stay there."""
+    tables = good_tables()
+    tables["items"][0]["tier"] = "four"  # declared integer, fails the shallow gate
+    dump = write_dump(tmp_path, dump_payload(tables=tables))
+
+    assert run(repo, dump, "--accept") != 0
+    assert read_json(incoming_dir(repo) / "items.json")["rows"]
 
 
 def test_a_shallow_gate_failure_is_not_promoted(repo, tmp_path, capsys):

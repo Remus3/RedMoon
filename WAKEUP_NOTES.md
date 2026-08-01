@@ -5,8 +5,8 @@ Last two or three sessions at full fidelity. Archive older entries to
 
 ## 2026-08-01 (third stretch) - The slot round, a corpus that was 146 not 119, and two probes that lied before they told the truth
 
-Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` plus the
-docs commit carrying this entry. **NO ROADMAP ITEM CLOSED** - this is the
+Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` and
+`bb59300` (the living docs and this entry). **NO ROADMAP ITEM CLOSED** - this is the
 non-roadmap track, run after 003h closed the Bloodforge input spike earlier the
 same day. Operator-directed order: ingest, headless, dashboard.
 

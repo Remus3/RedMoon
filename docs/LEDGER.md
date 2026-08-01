@@ -17,8 +17,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003i - The slot round, the link corpus that was 146 not 119, and two gates probed (2026-08-01)
 
 Commits `5609509` (slot flip and re-pin), `5665b1a` (link ingest opened),
-`f50881e` (sweep completed and hook probe) plus the docs commit carrying this
-entry. **NO ROADMAP ITEM CLOSED** - all of this is the non-roadmap track, run
+`f50881e` (sweep completed and hook probe) and `bb59300` (the living docs and
+this entry). **NO ROADMAP ITEM CLOSED** - all of this is the non-roadmap track, run
 after ledger 003h closed the Bloodforge input spike earlier the same session.
 
 State at close, one run each: `python -m pytest` **382 passed in 19.50s, exit

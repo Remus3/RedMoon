@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: reference
   originSessionId: 9364de1e-c901-42df-aa5e-bcb1b8e0fd25
-  modified: 2026-07-26T23:41:06.131Z
+  modified: 2026-08-01T15:41:12.137Z
 ---
 
 Legion has BOTH PowerShell editions, side by side. PowerShell 7.6.4 was installed
@@ -38,6 +38,18 @@ at all.
 Red Moon has ZERO PowerShell call sites to migrate: `RM-DataRefresh` executes
 `pythonw.exe`, and no `.py`, `.json`, `.vbs`, `.bat` or `.cmd` in the repo
 invokes powershell. Nothing to do.
+
+**NEVER call a native Windows exe with `/flag` arguments from the Bash tool.**
+Measured 2026-08-01. Git Bash MSYS path-translation rewrites a leading-slash
+argument into a Windows path, so `schtasks /query /fo csv /nh` arrives as
+`schtasks C:/Program Files/Git/query ...`, schtasks exits 1, and the pipeline
+yields ZERO ROWS. **A tool that never ran is indistinguishable from a true
+zero** - this produced a confident, wrong "RM-DataRefresh is not installed" that
+contradicted the SessionStart hook. The task is installed and Ready. The same
+trap applies to any `/`-flagged exe: `sc`, `reg`, `tasklist`, `taskkill /F /PID`,
+`net`. Use the PowerShell tool for those, or a Python `subprocess` list (which is
+what `tools/rm_facts.py` does, and why it got the right answer). Contrast with
+the `_scratch/` ascii-guard probe: same failure shape, different mechanism.
 
 **This does NOT relax the no-em-dash / 7-bit-ASCII rule.** PS7 does remove the
 5.1 parse failure that `CLAUDE.md` cites as the rule's rationale, so that

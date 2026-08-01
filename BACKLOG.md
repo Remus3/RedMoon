@@ -16,9 +16,17 @@ before building it.
   to the game window, and a capture start and stop hook. It is an ops concern, so
   it belongs with cycle 8 rather than in the middle of the bridge, and it was
   deliberately NOT started inside the cycle 2 spike chain.
-- A falsification path for Bloodforge output, so a computed DPS, EHP or
-  time-to-kill can be checked against an observed kill rather than only against
-  its own inputs. Raised 2026-08-01. **Cycle 3's six acceptance criteria are all
+- **PROMOTED 2026-08-01 and no longer aspirational.** A falsification path for
+  Bloodforge output, so a computed DPS, EHP or time-to-kill can be checked
+  against an observed kill rather than only against its own inputs. Raised
+  2026-08-01, settled the same day by
+  `docs/superpowers/specs/2026-08-01-bloodforge-falsification-design.md` and now
+  tracked as ROADMAP cycle 3 gap 7. The scope questions below WERE the open
+  ones and are now answered: what gets recorded is a bridge-side boss
+  `Health.Value` time series at 4 Hz, a run is identified by a manifest keyed on
+  build, target, difficulty and an equipped-item guid MAP, and agreement is a
+  per-hit median APE of 2 percent plus an active-time TTK within 15 percent.
+  Retained here for the reasoning, which stands: **Cycle 3's six acceptance criteria are all
   about SOURCING INPUTS - none of them requires the computed number to be right,
   so all six can pass with a confidently wrong TTK.** That is the cycle 2 lesson
   ("a real measurement can answer the RIGHT question about the WRONG SUBJECT")
@@ -31,7 +39,15 @@ before building it.
   math, but it must be settled BEFORE the combat-math spec opens - a
   time-to-kill published against an unfalsifiable model is the `items.tier`
   mistake with a bigger blast radius.
-- A declared and displayed default subject vector for Bloodforge. Raised
+- **PROMOTED 2026-08-01.** A declared and displayed default subject vector for
+  Bloodforge, now specified in section E of the falsification spec (Dracula at
+  level 91, Normal difficulty, a GreatSword T08 whose pick is labelled ARBITRARY
+  because 72 weapon rows tie at the maximum PhysicalPower, gear as a guid map
+  rather than a scalar because `gear_score` covers 0 of 205 weapons, and blood
+  named but not priced). A THIRD axis was found later the same day and is
+  ROADMAP gap 9: difficulty scales boss level, power and health, so every figure
+  in `vbloods.json` is implicitly a Normal one. The display half belongs to
+  cycle 4 and is concept F3 in `docs/research/DASHBOARD_CONCEPTS.md`. Raised
   2026-08-01. A time-to-kill is meaningless without a target, so the moment the
   engine computes one it must pick a default V Blood, a default gear level and a
   default blood quality. Whatever it picks silently ranks every weapon and every

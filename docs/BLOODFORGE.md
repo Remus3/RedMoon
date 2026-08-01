@@ -24,7 +24,7 @@ below is a count taken from a saved payload, not an expectation.
 | Spell school loadout | `tables/abilities.json` | PARTIAL BY DESIGN. 54 rows, identity and school only, spell schools only. A missing row means "not a spell-school ability", never "not found". |
 | Ability coefficients (cast, cooldown, damage scalar) | `tables/ability_stats.json` (NEW, schema 1) | **AVAILABLE.** 1818 rows keyed on the ability GROUP (ADR-007). Cast time on 1815, cooldown on 1818, and the full damage block on 732 - the groups that reach a `_Hit` prefab. A group that deals no damage keeps its row with the coefficients OMITTED. |
 | Which power stat a coefficient multiplies | - | **PROVEN ABSENT.** No power-selector member exists across all 51 components on the `_Hit` entity. `ability_stats.power_stat` is declared and never emitted. The combat-math spec must establish this empirically. |
-| Per-target damage multiplier | `ability_stats.vblood_damage_modifier` | **AVAILABLE, NOT IN THE SPIKE SPEC.** `DealDamageParameters.MaterialModifiers.VBlood`, measured 0.33 to 1.0 over the 732 damage rows. Multiplies boss damage directly. |
+| Per-target damage multiplier | `ability_stats.vblood_damage_modifier` | **AVAILABLE, and BINARY - corrected 2026-08-01.** `DealDamageParameters.MaterialModifiers.VBlood`. The earlier "measured 0.33 to 1.0 over the 732 damage rows" reported a min and a max as if they were a spread. COUNTED: exactly two values - **1.0 on 728 rows, 0.33 on 4**, all four golem-form NPC abilities, and 1.0 on all 409 weapon-linked damage rows. Inert for loadout coaching. Implement it anyway: being 1.0 almost everywhere is what makes an omission INVISIBLE in 99.5 percent of cases while silently tripling golem builds. |
 | Blood type and quality | `tables/blood_types.json` | NAMES ONLY. Every magnitude is scaled from blood quality at runtime and is not on the prefab. |
 | Gear score, jewels, passives | Live bridge state | `items.gear_score` is present on 117 of 425 rows and is COMPUTED over three separate level systems. |
 | Boss level and power | `tables/vbloods.json` (schema 2) | AVAILABLE. `level` 16 to 91; `physical_power` and `spell_power` 21.60 to 111.41. They are EQUAL on all 65 rows and take 33 distinct values over 33 distinct levels, so both are LEVEL-DERIVED, not per-boss authored. |
@@ -39,8 +39,19 @@ unread. Any TTK before that is sourced from a live world is a fabrication with
 the `items.tier` shape and a larger blast radius.
 
 **AND SOURCING EVERY INPUT WOULD STILL NOT MAKE THE OUTPUT RIGHT.** Nothing here
-checks a computed DPS, EHP or TTK against an observed kill. See ROADMAP cycle 3
-gap 7 and `BACKLOG.md`; it must be settled before the combat-math spec opens.
+checks a computed DPS, EHP or TTK against an observed kill. That is ROADMAP
+cycle 3 gap 7, and it is now SETTLED - though not yet DISCHARGED - by
+`docs/superpowers/specs/2026-08-01-bloodforge-falsification-design.md`, which
+fixes the anchor protocol, run identity, tolerances, the publication embargo and
+the default subject vector.
+
+The embargo is the part that governs this document: **`ttk_seconds`, `dps` and
+`ehp` are DECLARED AND NEVER EMITTED until their per-field lift conditions are
+met**, following the same idiom as `items.tier`, `vbloods.max_health` and
+`ability_stats.power_stat`. `dps` lifts on the per-hit gate alone; `ttk_seconds`
+additionally needs the instance-only health denominator and three comparable
+runs. The combat-math spec may now open, because an unvalidated engine behind
+that embargo is harmless. It may not publish until discharge.
 
 ## Versioning
 

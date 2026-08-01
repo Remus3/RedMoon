@@ -162,16 +162,57 @@ The PLAYER side is in good shape and is not a gap: 203 of 205 weapon items carry
 real `PhysicalPower` or `SpellPower` values, across 29 distinct stat types with
 an explicit `modification` on every entry.
 
-7. **THERE IS NO WAY TO FALSIFY THE OUTPUT.** Added 2026-08-01. Gaps 1 to 6 are
-   all about SOURCING INPUTS, and so are all six of the spike's acceptance
-   criteria - which means **all six can pass with a confidently wrong
-   time-to-kill.** Nothing in cycle 3 checks a computed DPS, EHP or TTK against
-   an observed kill. V Rising has no replay file, so the anchor has to be a
-   recorded combat log or a hand-timed kill against a known V Blood with a known
-   loadout. This does NOT block phase 2, which is ingest rather than math, but it
-   must be settled BEFORE the combat-math spec opens. Filed in `BACKLOG.md`
-   alongside a second gap: no default subject vector is declared, so the first
-   TTK published silently ranks every build for anyone who does not override it.
+7. **SETTLED 2026-08-01, not yet DISCHARGED.** There was no way to falsify the
+   output: gaps 1 to 6 are all about SOURCING INPUTS, and so are all six of the
+   spike's acceptance criteria, which means **all six can pass with a
+   confidently wrong time-to-kill.**
+
+   Settled by `docs/superpowers/specs/2026-08-01-bloodforge-falsification-design.md`,
+   which fixes five decisions. **Decision A is operator-ruled:** the anchor is a
+   **bridge-side boss `Health.Value` time series**, not a hand-timed recording.
+   The reason is that a kill duration is one number containing every unmodelled
+   human term at once, while a per-sample health delta is a number the game
+   itself computed - and since `power_stat` is PROVEN ABSENT, a wrong power stat
+   is nearly invisible in a duration and obvious in a delta. It is also close to
+   free: `ComponentDumper.cs:568-573` already reads `Health.MaxHealth`,
+   `Health.Value` and `IsDead` with typed accessors and already returned 8107 on
+   the live Dracula instance.
+
+   The spec also settles the default subject vector (the second `BACKLOG.md`
+   item, tied to this one by the operator) and imposes a **per-field publication
+   embargo**: `dps` lifts on the per-hit gate alone, `ehp` on the EHP gate, and
+   `ttk_seconds` needs both plus three comparable runs, because only TTK needs
+   the instance-only health denominator. All three are DECLARED AND NEVER
+   EMITTED until then, following the `items.tier` idiom, enforced by a single
+   gate function plus `tests/test_embargo.py`.
+
+   DISCHARGE requires a real recorded kill. The combat-math spec may now open,
+   because an unvalidated engine behind that embargo is harmless.
+
+8. **THE FIRE RATING CANNOT BE CONVERTED TO A REDUCTION.** Added 2026-08-01.
+   Gap 1 records that `fire` is an integer RATING rather than a fraction and
+   that it becomes a reduction only through
+   `ProjectM.ResistanceData.FireResistance_DamageReductionPerRating`. That
+   member is enumerated at `docs/BRIDGE_SPIKES.md:943` as a declared field on a
+   global component - **and its VALUE has never been read.** It is nowhere in
+   `data/rmdata/`, the plugin only names it in a comment
+   (`PrefabDumper.cs:1153`), and `data/rmdata/<build>/difficulty/` holds no
+   per-rating conversion of any kind. So the one resistance that actually varies
+   across the 65 bosses is the one Red Moon cannot currently price. This is
+   gap 1's shape one level down: declared, named, and never sourced. No surface
+   may render a fire resistance as a percentage or a survival time.
+
+9. **BOSS LEVEL, POWER AND HEALTH ARE DIFFICULTY-SCALED, and `vbloods.json` is
+   implicitly a NORMAL table.** Added 2026-08-01, found while adjudicating the
+   cycle 4 concepts and missed by every earlier pass.
+   `data/rmdata/<build>/difficulty/` is fully sourced on disk and holds
+   `UnitStatModifiers_VBlood`: Brutal is `{LevelIncrease: 3, MaxHealthModifier:
+   1.25, PowerModifier: 1.7}`, Easy is `{0, 0.8, 0.6}`, Normal is neutral. So
+   every level and power figure in `vbloods.json` is a Normal-difficulty figure,
+   and on Brutal every boss is three levels higher with 1.7x power. **Difficulty
+   is a third axis of the subject vector**, alongside the target and the
+   loadout, and it is the only axis whose values are completely sourced today.
+   Any published ladder or ranking must state its difficulty.
 
 There are TWO NON-ROADMAP tracks running in parallel. Both are infrastructure
 rather than cycles, both get their own ledger entries, and neither may fold into
@@ -202,7 +243,32 @@ radius.
 
 ## Cycle 4 - Dashboard
 
-HTTPS dashboard on 8778 plus the coach loop.
+HTTPS dashboard on 8778 plus the coach loop. Nothing is implemented; the
+planning is done.
+
+**The stack is DECIDED, ADR-008:** server-rendered HTML from a Python
+standard-library server, about 200 lines of hand-written vanilla JS and inline
+SVG. No framework, no build step, no `package.json`. Three concept agents on
+disjoint lenses each recommended this independently. The choice was forced
+deliberately rather than left to emerge from the first file written, because it
+was load-bearing - `CCR-04` scores 2 today and about 5 under a framework.
+
+**The concepts are ADJUDICATED:** `docs/research/DASHBOARD_CONCEPTS.md`. 30
+concepts across 6 categories, with a ranked 7-item cycle 4 slice, 7 rulings on
+inter-lens conflicts, 16 prohibitions each traced to a measured fact, and a
+NORMATIVE five-state uncertainty vocabulary - COMPUTED, MEASURED ZERO, OMITTED,
+UNSOURCED-ON-BUILD, EMBARGOED - which is the single most Red Moon-specific thing
+on the surface. The corpus is the spine and the live game is an enhancement:
+3,038 rows answer real coaching questions with the game shut, which is its
+ordinary state.
+
+Two prerequisites land BEFORE the first frontend file, not after:
+
+- `tools/ascii_guard.py` (FROZEN) must gain `.js`, `.html` and `.css`.
+  `AUTHORED_SUFFIXES` does not cover them today, so cycle 4 would otherwise ship
+  the project's first authored files outside its own 7-bit-ASCII hard rule.
+- `docs/EMBARGO.json` must exist, tracked, naming `time_to_kill` as blocked on
+  gap 7 with its lifting criterion stated.
 
 ## Cycle 5 - Progression route planner
 

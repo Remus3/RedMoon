@@ -118,9 +118,12 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 - Stage 1 COMPLETE, 146 of 146 extracted.
 - Stage 2 COMPLETE, 146 of 146 scored.
 - Stage 3 COMPLETE: threshold 6+, 21 survivors, 125 culled.
-- Stage 4 deep-dive NOT STARTED. No survivor may be adopted until its actual
-  source has been read - every score so far is against a one-line summary
-  written by someone else for someone else.
+- Stage 4 deep-dive OPENED 2026-08-01, 1 of 21 survivors dived (`CCR-146`,
+  REFUTED for RM, see below), 1 attempted and unreachable (`CCR-135`), 1 read at
+  source during the cycle 4 concept work and corrected in three places
+  (`CCR-120`). 18 still owed. No survivor may be adopted until its actual source
+  has been read - every score is otherwise against a one-line summary written by
+  someone else for someone else.
 
 Nothing is adopted until stage 6 names it with an acceptance criterion.
 
@@ -373,7 +376,70 @@ Counted from the rows above: 1 at nine, 3 at eight, 9 at seven, 8 at six.
 **21.** CCR-39 and CCR-84 are two distinct entries reaching the same source and
 are listed separately rather than merged, so the count reconciles.
 
-## What stages 4 to 7 still owe
+## Stage 4 - the deep dive, OPENED 2026-08-01
+
+Started with `CCR-146` on operator direction, because it is a correctness
+question about Red Moon itself rather than a feature.
+
+### CCR-146 - subagent system-prompt inheritance. REFUTED for RM's setup, with a nuance.
+
+**The claim:** custom subagents do NOT inherit the main agent's system prompt;
+theirs is the agent file body alone. **The stake:** Red Moon runs a `verifier`
+subagent and keeps its hard rules - 7-bit ASCII, the co-author trailer ban,
+frozen files - in `CLAUDE.md`. If those never reach a subagent, every subagent
+this project has ever run has been running without them.
+
+**Measured directly rather than reasoned about.** RM's own `verifier` agent was
+dispatched with a probe forbidding all tool use, so nothing could be read off
+disk, and asked to quote specific rules from context alone. It returned the ASCII
+rule and the co-author-trailer rule **verbatim**, including the incidental
+clause "14 of the 30 commits before it was enforced carried the trailer", and
+enumerated all 17 `CLAUDE.md` H2 headings plus the `MEMORY.md` index. Zero tool
+calls. It could not have fabricated that text.
+
+**VERDICT: the hard rules DO reach subagents, and RM was never exposed.** But
+the subagent's own account of the mechanism is the part worth keeping: the rules
+arrive as a **`system-reminder` injection, not as part of the system prompt
+proper**. So `CCR-146` is literally true about the system prompt and irrelevant
+to the thing that would have mattered. A claim can be accurate and still answer
+the wrong question - the same shape as cycle 2's "0 of 425 localization guids",
+which was correct about a headless host and had been written down as a statement
+about the game build.
+
+**Scope of the measurement, stated rather than generalized.** One agent type
+(a project-level `.claude/agents/verifier.md`), one harness, one version - and
+that version is **2.1.219**, the desktop app, not the 2.1.220 npm CLI on PATH.
+UNVERIFIED for plugin-supplied agents, for worktree-isolated agents, and for
+headless runs. Do not restate this as "subagents always inherit CLAUDE.md".
+
+**Consequence, acted on the same session:** the three dashboard concept agents
+and the gap 7 spec agent were all dispatched knowing the rules would arrive, and
+all four returned 0 non-ASCII bytes.
+
+### Incidental to the same session, and it belongs in this document
+
+RM was named the version tiebreak on the headless hook question. Two facts
+measured while here: **the `claude` on PATH is 2.1.220 and the interactive
+desktop host is 2.1.219**, so RM runs two CLI versions at once and any RM
+finding must say which produced it. And RM's headless model resolution is
+CLEAN - `claude -p` with no `--model` returns correctly, exit 0 - so the
+`rc-main` alias LW still sees is not machine-wide and RM is unaffected.
+
+### Still owed at stage 4
+
+The binary-RE pair `CCR-35` (pyghidra-lite, 8) and `CCR-89` (x64dbg, 7), which
+is the sharpest overturn in the corpus and needs two specific checks: that
+pyghidra-lite handles IL2CPP-flavoured PE, and that driving x64dbg is safe
+against a live game process. Then the gap 7 plumbing entries `CCR-39`/`CCR-84`
+and `CCR-123` - now partly overtaken, since the operator has ruled the anchor is
+a bridge-side health series rather than a narrated recording, which demotes
+`CCR-123` from plumbing-for-the-anchor to a cross-check route at most.
+
+`CCR-135` (Codeman) could NOT be read at source - it is a Reddit post. Its
+information design fed the cycle 4 concepts through its one-line summary only,
+and that is recorded as a stage 4 GAP rather than a completed dive.
+
+## What stages 5 to 7 still owe
 
 Stage 4 deep-dive has NOT run. Every score above is against a one-line summary
 written by someone else for someone else, which is exactly the kind of secondhand

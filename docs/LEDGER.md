@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003t - rm_facts states whether its two build lines agree (2026-08-01)
 
-Commit `90c819e`. Suite **598 passed in 28.85s, exit 0** (588 before, +10), ruff
+Commits `90c819e` (the change) and `e10a19a` (the living docs and this
+entry). Suite **598 passed in 28.85s, exit 0** (588 before, +10), ruff
 clean, `ascii_guard` exit 0. **FROZEN file `tools/rm_facts.py` edited with
 explicit operator approval**, same footing as entry 003r's three.
 

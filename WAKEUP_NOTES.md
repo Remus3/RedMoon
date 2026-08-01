@@ -3,6 +3,122 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (fourth stretch) - Gap 7 settled, the cycle 4 stack ruled, and a range that turned out to be a binary
+
+Branch `master`. Ledger 003j. Commit `314ef07` plus the docs commit carrying
+this entry. **NO ROADMAP ITEM CLOSED** - gap 7 is SETTLED but not DISCHARGED,
+and cycle 4 is fully planned with ZERO implementation. Both tracks were
+operator-deferred to this session.
+
+State at close, one run each: `python -m pytest` **382 passed in 19.60s, exit
+0** (unchanged - documents, not tests), `python -m ruff check .` clean, `python
+tools/ascii_guard.py` exit 0.
+
+**GAP 7 IS SETTLED AND THE COMBAT-MATH SPEC MAY NOW OPEN.**
+`docs/superpowers/specs/2026-08-01-bloodforge-falsification-design.md`, 600
+lines, five decisions. The operator ruled decision A: the anchor is a
+**bridge-side boss `Health.Value` time series**, not a hand-timed recording. The
+argument that won it is worth keeping - **a kill duration is one number
+containing every unmodelled human term at once, while a per-sample health delta
+is a number the game itself computed.** Since `power_stat` is PROVEN ABSENT, the
+most likely way for Bloodforge to be confidently wrong is multiplying a
+coefficient by the wrong power stat, and that is nearly invisible in a duration
+(a player 20 percent slow looks exactly like a model 20 percent hot) and obvious
+in a delta. It is also close to free: `ComponentDumper.cs:568-573` already reads
+`Health.MaxHealth`, `Health.Value` and `IsDead` with typed accessors and already
+returned 8107 on the live Dracula instance. The **embargo is PER FIELD** - `dps`
+lifts on the per-hit gate alone because coefficients and cast times are all on
+disk, while `ttk_seconds` needs the instance-only denominator over three
+comparable runs. Merging them would have forced a choice between embargoing a
+computable number and publishing an uncomputable one.
+
+**A MIN AND A MAX HAD BEEN REPORTED AS A SPREAD, AND CORRECTING IT MADE THE RISK
+WORSE.** Every prior statement of `vblood_damage_modifier` - `BLOODFORGE.md`,
+the session brief, the spec's own first draft - said it "ranges 0.33 to 1.0 over
+the 732 damage rows" and that omitting it "misstates every boss TTK by up to
+3x". COUNTED: exactly **two** values, **1.0 on 728 rows and 0.33 on 4**, all
+four golem-form NPC abilities, and 1.0 on **all 409 weapon-linked damage rows**.
+It is inert for loadout coaching. **The danger inverts rather than
+disappearing:** a term that is 1.0 almost everywhere is one whose omission is
+invisible in 99.5 percent of cases while silently tripling exactly the golem
+builds - the `core/table_deep.py` shape, correct-looking everywhere it is
+exercised. It ships only with a regression test pinned to those four rows. One
+of the four is spelled `AB_Shapesfhit_...` in Stunlock's own data, which
+corroborates ADR-007's marker-component rule with a fresh instance.
+
+**TWO NEW GAPS, BOTH FROM OPENING A DIRECTORY NOBODY HAD OPENED.** Gap 8: the
+fire rating **cannot be converted to a reduction**.
+`ResistanceData.FireResistance_DamageReductionPerRating` is enumerated at
+`BRIDGE_SPIKES.md:943` as a declared member and its VALUE has never been read -
+absent from `data/rmdata/`, named by the plugin only in a comment. The one
+resistance that actually varies across the 65 bosses is the one RM cannot price.
+Gap 9: `difficulty/` holds `UnitStatModifiers_VBlood`, and Brutal is
+`{LevelIncrease 3, MaxHealthModifier 1.25, PowerModifier 1.7}`. **Every level and
+power figure in `vbloods.json` is implicitly a NORMAL figure.** Difficulty is a
+third subject-vector axis that all three concept lenses and every prior pass
+missed, and it is the only axis fully sourced on disk today.
+
+**CYCLE 4 IS PLANNED AND THE STACK IS RULED.** ADR-008: server-rendered HTML,
+vanilla JS, no framework, no build step, no `package.json`. Three concept agents
+on disjoint lenses - observer, coaching, provenance - each reached it
+independently for different reasons, which is what made the agreement worth
+something. `docs/research/DASHBOARD_CONCEPTS.md` holds 30 adjudicated concepts, a
+ranked 7-item slice, 7 conflict rulings, 16 measured prohibitions, and a
+NORMATIVE five-state vocabulary (COMPUTED, MEASURED ZERO, OMITTED,
+UNSOURCED-ON-BUILD, EMBARGOED). The corpus is the spine and the live game is an
+enhancement: **3,038 rows answer real coaching questions with the game shut,
+which is its ordinary state.** Two prerequisites land BEFORE the first frontend
+file: `ascii_guard.py` must gain `.js/.html/.css` (it covers 11 suffixes and not
+those three, so cycle 4 would ship RM's first authored files outside its own hard
+rule), and `docs/EMBARGO.json` must exist.
+
+**THE THREE LENSES INDEPENDENTLY INVENTED ONE PANEL.** Observer O4, coaching C2
+and provenance P4 were three names for the same grid. Built separately they would
+have produced three disagreeing accounts of the same absence. Merged as A1.
+
+**THE ADJUDICATOR PREFERRED THE BUILDER'S SELF-CRITIQUE OVER THE REQUESTER'S
+ENTHUSIASM.** The observer lens called the provenance amendment cycle 4's
+highest-value item; the provenance lens, which would build it, argued against its
+own thesis - every historical failure here was caught by a document, a test or a
+recount, none by a UI. Ruling: split it, the data half is real but is INGEST work
+and must not count toward cycle 4, the UI half is rejected.
+
+**CCR-146 IS LITERALLY TRUE AND BESIDE THE POINT.** Stage 4 opened on it because
+it was a correctness question about RM rather than a feature. RM's `verifier` was
+dispatched under a no-tool constraint and quoted **both hard rules verbatim** -
+including the incidental "14 of the 30 commits" clause - plus all 17 `CLAUDE.md`
+headings, with **zero tool calls**, so nothing was read off disk. The rules DO
+reach subagents; they arrive as a **`system-reminder` injection rather than in
+the system prompt proper**. RM was never exposed. Scope stated rather than
+generalized: one agent type, one harness, **2.1.219** - and the `claude` on PATH
+is **2.1.220**, so RM runs two CLI versions at once and any RM finding must name
+which produced it.
+
+**A SILENT ZERO FOOLED AN ADVERSARIAL AGENT INTO DESIGNING AROUND A FICTION.**
+The provenance lens built a whole section on "`RM-DataRefresh` is defined but not
+installed", from a `schtasks /query` that returned zero rows. Git Bash MSYS
+path-translation had rewritten `/query` into `C:/Program Files/Git/query`;
+schtasks exited 1 and the pipeline yielded nothing. The task is installed and
+Ready, next run 2026-08-02 05:30. **Third instance of this shape** - after 1474
+versus 1818 and 119 versus 146 - and the first where it survived an adversarial
+pass. Rule now in memory: never call a `/`-flagged Windows exe from the Bash
+tool; use the PowerShell tool or a Python `subprocess` list, which is why
+`tools/rm_facts.py` got the right answer all along.
+
+**AND THE SAME TRAP CAUGHT ME.** Checking the coaching lens's claim that player
+items carry the four resistances bosses lack, I keyed on `type`/`name`, got zero
+hits, and nearly recorded the claim as refuted. The real key is `stat`, and the
+claim was correct - Sun 34, Garlic 22, Silver 22, Holy 8, Fire 8. **A probe that
+gives the gate nothing to catch reads exactly like an absence**, landing on the
+agent enforcing that very lesson.
+
+**SIBLING TRAFFIC: RM IS CLEAN ON THE ALIAS AND SAID SO.** LW reports `rc-main`
+still resolves headless on LW despite RC removing the machine-wide key, and
+traced it to RC's `budget_saver` and a live job state. RM probed its own: no
+`model` key anywhere, all THREE `.claude.json` path variants now trusted, and
+`claude -p` with no `--model` returns exit 0. RM is unaffected, which makes the
+source per-project rather than machine-wide and supports LW's own lead.
+
 ## 2026-08-01 (third stretch) - The slot round, a corpus that was 146 not 119, and two probes that lied before they told the truth
 
 Branch `master`. Ledger 003i. Commits `5609509`, `5665b1a`, `f50881e` and
@@ -244,102 +360,3 @@ than observation.
 SOURCING INPUTS. None asks whether the math over them is right, so all six can
 pass with a confidently wrong time-to-kill. No TTK was published to any surface.
 ROADMAP gap 7 must be settled before the combat-math spec opens.
-
-## 2026-08-01 - Three projects, one machine: a shared governor, a gate that read the wrong tree, and a triage that adopted nothing
-
-Branch `master`. Ledger 003g. Commits `b1b6b2d`, `6cfc614`, `a3fa2f6`,
-`91b9ed2`, `7d735da`, `370c019`, plus the docs commit carrying this entry.
-**NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 STILL has not started - five
-sessions now. Every item this session arrived from a cross-project handoff.
-
-State at close, one run: `python -m pytest` **348 passed in 20.15s, exit 0**
-(335 before, plus 13 new), `python tools/ascii_guard.py` exit 0, `ruff` clean.
-
-**THE SESSION WAS DRIVEN BY AN INBOX, NOT THE ROADMAP.** `moon_sync_inbox/` is a
-sibling-to-sibling channel a sibling project opened in this repo. Three notes
-arrived and three went out. If that directory has new files at session start,
-read it before planning anything.
-
-**THE .GITIGNORE ASK WAS THE LESSER HALF, AND SAYING YES TO IT ALONE WOULD HAVE
-LEFT THE BUG.** RC asked for `moon_sync_inbox/` in `.gitignore`. The foreign-port
-guard walks the WORKING TREE via `rglob`, not tracked files, so gitignoring
-changes nothing about what it scans. RC's block is 8888-8895 and three of those
-sit in `FORBIDDEN`, so the next note delivered as `.json` or `.ps1` instead of
-`.md` fails the suite on content Red Moon does not own. Fixed in
-`SKIPPED_DIR_PARTS`. **When a sibling proposes a fix, check whether it addresses
-the mechanism or the symptom.**
-
-**THE GATE READ THE WRONG TREE, AND THIS IS THE FINDING WITH THE LONGEST TAIL.**
-`tools/precommit_gate.py` (frozen, changed with operator approval) called
-`check_staged()` with NO ARGUMENT, so it inspected the hardcoded main tree
-regardless of where the command ran. A commit inside a WORKTREE was gated against
-MAIN's staging area while the worktree's own was never read. Every headless
-design on offer is worktree-based. The git hook still fired correctly, so the
-floor held - but the Claude-side gate was decorative in exactly the runs it
-exists to guard. Second defect in the same file: it tested `"git commit" in
-command`, so any command merely QUOTING the phrase was gated - it denied this
-session's own probe that way. Both proven END TO END against a live worktree,
-because presence of a gate is not proof it fires.
-
-**A FIX CAN REINTRODUCE THE BUG IT FIXES.** The first tokenizer used
-`shlex.split(posix=True)`, which eats backslashes, so `git -C C:\RedMoon`
-resolved to a nonexistent `C:RedMoon` and fell back to the main tree - defect 2
-restored through the fix for defect 1. A failing test caught it; review did not.
-
-**PHASE 0 IS INCONCLUSIVE, NOT PASSED, AND THAT IS THE HONEST RESULT.**
-`claude -p --permission-mode bypassPermissions` exits 1 here: **headless is NOT
-AUTHENTICATED on this box, and `C:\RedMoon` is NOT A TRUSTED WORKSPACE**, which
-discards all 13 `permissions.allow` entries. RC's measurement that PreToolUse
-hooks die headless is RC's, on RC's machine, and is UNREPRODUCED here - do not
-cite it as confirmed. The trust finding is sharper than the auth one: a headless
-worker would run under a DIFFERENT permission set than the interactive session
-that authored its prompt. Neither has a phase in RC's plan.
-
-**JOINED THE MACHINE-WIDE GOVERNOR, AND CLAUDE.MD WAS FALSE UNTIL CORRECTED.**
-`ops/loop/slots.py` is vendored BYTE-IDENTICAL, sha256 `95077a62`, pinned by
-test. Neutrality was VERIFIED, not trusted. `CLAUDE.md` opened by claiming Red
-Moon "shares no code, data, keys or scheduled-task namespace" - false the moment
-this landed, and corrected in the same commit. **RM now shares exactly one file
-of code and one directory of data; still no keys, ports or task namespace.**
-DO NOT EDIT `slots.py`: the digest is the contract and re-syncing is a
-three-repo act. Its own docstring still says TWO repos; correcting that needs a
-coordinated re-pin and RM will not move first.
-
-**TWO OF RM'S OWN CLAIMS WERE WRONG AND SIBLINGS CAUGHT BOTH.** RM told RC that
-8781 and 8782 were "the free ones" - true about the INTERIOR of the used region,
-blind to the block FLOOR 8770-8776 never being allocated at all. 8777 is merely
-the lowest USED port. RM took 8770. Separately RM proposed bucket N=3, reasoning
-that 2 blocks one of three participants permanently; LegionWallpaper replied the
-same day with a measured blocker RM could not see - **LW is the only GPU-heavy
-participant and its GPU mutex was DECLARED BUT ACQUIRED BY NOTHING**, so a third
-lane permitted unserialized CUDA, whose failure mode is a half-written image
-rather than a clean error. Withdrawn same day, held at 2.
-
-**THE 119-ITEM MCP TRIAGE ADOPTED NOTHING, AND THE REASON GENERALIZES.**
-Re-scored for RM then adversarially challenged: **119/119 reviewed, 37 overturns,
-every one downward, zero entries above 5.** The scoring pass correctly voided
-RC's closes that cited RC-only assets, then made a worse error - **treating "RC's
-reason was wrong" as evidence the tool is right.** A void closure returns a
-verdict to NEUTRAL, not to good. Four falsifications did most of the killing:
-`.claude/` is five files, `ops/runtime/` and `logs/` do not exist, `core` plus
-`tools` is 2,730 lines, and `precommit_gate.py` already fires PreToolUse. The
-structural finding is bigger than any entry: **all 119 are developer tooling
-while cycle 3 is blocked on measuring a game binary.** Do not re-run this triage
-on a new link dump before cycle 5.
-
-**AN ADVERSARIAL PASS IS ONLY AS GOOD AS ITS INPUT PLUMBING.** The first fan-out
-truncated its challenge input at 12,000 chars, so 33 of 119 entries were scored
-but never challenged - and every surviving 6+ entry was one the challenge never
-saw. The survivors were artifacts of the bug, not merit. A gap-fill run knocked
-all of them down. **Check coverage before reporting a fan-out's conclusions.**
-
-**TWO GUARDS FIRED CORRECTLY MID-SESSION**, which is the system working rather
-than a problem: the memory-seed mirror refused two unseeded memory entries, and
-`test_adr_003_agrees_with_the_port_registry` refused an undocumented port.
-
-**BACKLOG GAINED TWO REAL BLOODFORGE GAPS.** Cycle 3's six acceptance criteria
-are ALL about sourcing inputs, so **all six can pass with a confidently wrong
-TTK** - Red Moon has no ground-truth anchor for any computed number. And no
-default subject vector is declared, so the first TTK silently ranks every build
-for anyone who does not override. Neither blocks phase 2; the first must be
-settled before the combat-math spec opens.

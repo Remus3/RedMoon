@@ -14,6 +14,117 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003j - Gap 7 settled, the cycle 4 stack ruled, and a range that was a binary (2026-08-01)
+
+Commit `314ef07` (the specs, the ADR and the living docs) plus the docs commit
+carrying this entry. **NO ROADMAP ITEM CLOSED.** Gap 7 is SETTLED but not
+DISCHARGED, and cycle 4 is planned but has zero implementation. Both were
+operator-deferred to this session.
+
+State at close, one run each: `python -m pytest` **382 passed in 19.60s, exit
+0** (unchanged - this session added documents, not tests), `python -m ruff check
+.` clean, `python tools/ascii_guard.py` exit 0.
+
+WHAT SHIPPED.
+
+1. **ROADMAP cycle 3 gap 7 is SETTLED** by
+   `docs/superpowers/specs/2026-08-01-bloodforge-falsification-design.md`, 600
+   lines. Decision A is operator-ruled: the anchor is a **bridge-side boss
+   `Health.Value` time series**, not a hand-timed recording. The embargo is
+   **per field** - `dps` lifts on the per-hit gate alone, `ttk_seconds`
+   additionally needs the instance-only denominator over three comparable runs.
+   The combat-math spec may now open, because an unvalidated engine behind that
+   embargo is harmless.
+
+2. **ADR-008 rules the cycle 4 stack:** server-rendered HTML, vanilla JS, no
+   framework, no build step, no `package.json`.
+
+3. **`docs/research/DASHBOARD_CONCEPTS.md`** - 30 adjudicated concepts in 6
+   categories, a ranked 7-item slice, 7 conflict rulings, 16 measured
+   prohibitions, and a NORMATIVE five-state uncertainty vocabulary.
+
+4. **Link ingest stage 4 opened** and its first dive REFUTED `CCR-146`.
+
+THE FINDINGS.
+
+**A MIN AND A MAX WERE REPORTED AS A SPREAD, AND THE CORRECTION MADE THE RISK
+WORSE.** `vblood_damage_modifier` has been described everywhere - `BLOODFORGE.md`,
+the session brief, the first draft of the gap 7 spec - as "ranging 0.33 to 1.0
+over the 732 damage rows", with the consequence that omitting it "misstates every
+boss TTK by up to 3x". COUNTED: it takes exactly **two** values, 1.0 on 728 rows
+and 0.33 on 4, all four golem-form NPC abilities, and 1.0 on **all 409
+weapon-linked damage rows**. So it is inert for loadout coaching. **The danger
+inverts rather than disappearing:** a bug that drops a term which is 1.0 almost
+everywhere is invisible in 99.5 percent of cases and silently triples exactly the
+golem builds. That is the `core/table_deep.py` shape - correct-looking everywhere
+it is exercised. It must ship with a regression test pinned to those four rows.
+Incidentally one of the four is spelled `AB_Shapesfhit_...` in Stunlock's own
+data, which corroborates ADR-007's marker-component rule with a fresh instance.
+
+**TWO NEW GAPS, BOTH FOUND BY OPENING A DIRECTORY NOBODY HAD OPENED.** Gap 8:
+the fire rating cannot be converted to a reduction.
+`ResistanceData.FireResistance_DamageReductionPerRating` is enumerated at
+`BRIDGE_SPIKES.md:943` as a declared member and its **value has never been
+read** - not in `data/rmdata/`, not by the plugin, which names it only in a
+comment. The one resistance that actually varies across the 65 bosses is the one
+RM cannot price. Gap 9: `data/rmdata/<build>/difficulty/` holds
+`UnitStatModifiers_VBlood`, and Brutal is `{LevelIncrease 3, MaxHealthModifier
+1.25, PowerModifier 1.7}`. **Every level and power figure in `vbloods.json` is
+implicitly a Normal-difficulty figure**, and difficulty is a third subject-vector
+axis that all three concept lenses and every prior pass missed. It is also the
+only subject axis whose values are fully sourced on disk today.
+
+**CCR-146 IS LITERALLY TRUE AND BESIDE THE POINT.** The claim is that custom
+subagents do not inherit the main agent's system prompt. RM's `verifier` was
+dispatched under a no-tool constraint and quoted both hard rules **verbatim**,
+including the incidental "14 of the 30 commits" clause, plus all 17 `CLAUDE.md`
+headings - with zero tool calls, so nothing was read off disk. The rules DO
+reach subagents; they arrive as a **`system-reminder` injection rather than in
+the system prompt proper**. RM was never exposed. Scope stated rather than
+generalized: one agent type, one harness, **2.1.219** - and the `claude` on PATH
+is **2.1.220**, so RM runs two CLI versions at once and any RM finding must say
+which produced it.
+
+**A SILENT ZERO FOOLED AN ADVERSARIAL AGENT INTO DESIGNING AROUND A FICTION.**
+The provenance lens built a whole section on "`RM-DataRefresh` is defined but not
+installed", from a `schtasks /query` that returned zero rows. Git Bash MSYS
+path-translation had rewritten `/query` into `C:/Program Files/Git/query`;
+schtasks exited 1 and the pipeline yielded nothing. The task is installed and
+Ready, next run 2026-08-02 05:30. **This is the third instance of the same shape
+in this project's history** - after 1474 versus 1818 and 119 versus 146 - and the
+first where the silent zero survived an adversarial pass. The rule is now in
+memory: never call a `/`-flagged Windows exe from the Bash tool.
+
+**AND IT HAPPENED TO ME TOO, IN THE SAME SESSION.** Checking the coaching lens's
+claim that player items carry the four resistances bosses lack, I keyed on
+`type`/`name` and got zero hits - and very nearly recorded the claim as refuted.
+The real key is `stat`. The claim was correct: SunResistance 34, Garlic 22,
+Silver 22, Holy 8, Fire 8. **A probe that gives the gate nothing to catch reads
+exactly like an absence**, which is the lesson this project wrote down twice
+already, landing on the agent that was enforcing it.
+
+**THE THREE LENSES INDEPENDENTLY INVENTED ONE PANEL.** Observer O4, coaching C2
+and provenance P4 were three names for the same grid. Built separately they would
+have produced three disagreeing accounts of the same absence. Merged as A1, the
+Corpus Ledger, and it is the highest-value panel in the catalogue.
+
+**THE ADJUDICATOR PREFERRED THE BUILDER'S SELF-CRITIQUE OVER THE REQUESTER'S
+ENTHUSIASM.** The observer lens called the provenance amendment the highest-value
+item in cycle 4; the provenance lens - the one that would build it - argued
+against its own thesis, noting every historical failure was caught by a document,
+a test or a recount and none by a UI. Ruling: split it. The data half is real but
+is INGEST work and must not count toward cycle 4; the UI half is rejected.
+
+VERIFICATION. `pytest` 382 passed exit 0, `ruff` clean, `ascii_guard` exit 0,
+all re-run after the last edit rather than taken from a report. Every load-bearing
+subagent claim was independently re-probed: the bridge's 5 routes, the table
+envelope shape, the absent `health.json`, the absent `package.json`, the
+`ascii_guard` suffix list, `gear_score` 0 of 205 weapons, the 72-row
+PhysicalPower tie, the 3,038-row corpus total, the 409/154 edge split, and 1,086
+of 1,818 coefficients omitted. Two subagent claims were REFUTED
+(`RM-DataRefresh`, and the observer lens's 2,038-row total) and one of my own
+probes was refuted by the agent's.
+
 ## 003i - The slot round, the link corpus that was 146 not 119, and two gates probed (2026-08-01)
 
 Commits `5609509` (slot flip and re-pin), `5665b1a` (link ingest opened),

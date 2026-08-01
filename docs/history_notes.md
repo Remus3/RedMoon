@@ -1,6 +1,106 @@
 # Red Moon History Notes
 
 
+## 2026-08-01 - Three projects, one machine: a shared governor, a gate that read the wrong tree, and a triage that adopted nothing
+
+Branch `master`. Ledger 003g. Commits `b1b6b2d`, `6cfc614`, `a3fa2f6`,
+`91b9ed2`, `7d735da`, `370c019`, plus the docs commit carrying this entry.
+**NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 STILL has not started - five
+sessions now. Every item this session arrived from a cross-project handoff.
+
+State at close, one run: `python -m pytest` **348 passed in 20.15s, exit 0**
+(335 before, plus 13 new), `python tools/ascii_guard.py` exit 0, `ruff` clean.
+
+**THE SESSION WAS DRIVEN BY AN INBOX, NOT THE ROADMAP.** `moon_sync_inbox/` is a
+sibling-to-sibling channel a sibling project opened in this repo. Three notes
+arrived and three went out. If that directory has new files at session start,
+read it before planning anything.
+
+**THE .GITIGNORE ASK WAS THE LESSER HALF, AND SAYING YES TO IT ALONE WOULD HAVE
+LEFT THE BUG.** RC asked for `moon_sync_inbox/` in `.gitignore`. The foreign-port
+guard walks the WORKING TREE via `rglob`, not tracked files, so gitignoring
+changes nothing about what it scans. RC's block is 8888-8895 and three of those
+sit in `FORBIDDEN`, so the next note delivered as `.json` or `.ps1` instead of
+`.md` fails the suite on content Red Moon does not own. Fixed in
+`SKIPPED_DIR_PARTS`. **When a sibling proposes a fix, check whether it addresses
+the mechanism or the symptom.**
+
+**THE GATE READ THE WRONG TREE, AND THIS IS THE FINDING WITH THE LONGEST TAIL.**
+`tools/precommit_gate.py` (frozen, changed with operator approval) called
+`check_staged()` with NO ARGUMENT, so it inspected the hardcoded main tree
+regardless of where the command ran. A commit inside a WORKTREE was gated against
+MAIN's staging area while the worktree's own was never read. Every headless
+design on offer is worktree-based. The git hook still fired correctly, so the
+floor held - but the Claude-side gate was decorative in exactly the runs it
+exists to guard. Second defect in the same file: it tested `"git commit" in
+command`, so any command merely QUOTING the phrase was gated - it denied this
+session's own probe that way. Both proven END TO END against a live worktree,
+because presence of a gate is not proof it fires.
+
+**A FIX CAN REINTRODUCE THE BUG IT FIXES.** The first tokenizer used
+`shlex.split(posix=True)`, which eats backslashes, so `git -C C:\RedMoon`
+resolved to a nonexistent `C:RedMoon` and fell back to the main tree - defect 2
+restored through the fix for defect 1. A failing test caught it; review did not.
+
+**PHASE 0 IS INCONCLUSIVE, NOT PASSED, AND THAT IS THE HONEST RESULT.**
+`claude -p --permission-mode bypassPermissions` exits 1 here: **headless is NOT
+AUTHENTICATED on this box, and `C:\RedMoon` is NOT A TRUSTED WORKSPACE**, which
+discards all 13 `permissions.allow` entries. RC's measurement that PreToolUse
+hooks die headless is RC's, on RC's machine, and is UNREPRODUCED here - do not
+cite it as confirmed. The trust finding is sharper than the auth one: a headless
+worker would run under a DIFFERENT permission set than the interactive session
+that authored its prompt. Neither has a phase in RC's plan.
+
+**JOINED THE MACHINE-WIDE GOVERNOR, AND CLAUDE.MD WAS FALSE UNTIL CORRECTED.**
+`ops/loop/slots.py` is vendored BYTE-IDENTICAL, sha256 `95077a62`, pinned by
+test. Neutrality was VERIFIED, not trusted. `CLAUDE.md` opened by claiming Red
+Moon "shares no code, data, keys or scheduled-task namespace" - false the moment
+this landed, and corrected in the same commit. **RM now shares exactly one file
+of code and one directory of data; still no keys, ports or task namespace.**
+DO NOT EDIT `slots.py`: the digest is the contract and re-syncing is a
+three-repo act. Its own docstring still says TWO repos; correcting that needs a
+coordinated re-pin and RM will not move first.
+
+**TWO OF RM'S OWN CLAIMS WERE WRONG AND SIBLINGS CAUGHT BOTH.** RM told RC that
+8781 and 8782 were "the free ones" - true about the INTERIOR of the used region,
+blind to the block FLOOR 8770-8776 never being allocated at all. 8777 is merely
+the lowest USED port. RM took 8770. Separately RM proposed bucket N=3, reasoning
+that 2 blocks one of three participants permanently; LegionWallpaper replied the
+same day with a measured blocker RM could not see - **LW is the only GPU-heavy
+participant and its GPU mutex was DECLARED BUT ACQUIRED BY NOTHING**, so a third
+lane permitted unserialized CUDA, whose failure mode is a half-written image
+rather than a clean error. Withdrawn same day, held at 2.
+
+**THE 119-ITEM MCP TRIAGE ADOPTED NOTHING, AND THE REASON GENERALIZES.**
+Re-scored for RM then adversarially challenged: **119/119 reviewed, 37 overturns,
+every one downward, zero entries above 5.** The scoring pass correctly voided
+RC's closes that cited RC-only assets, then made a worse error - **treating "RC's
+reason was wrong" as evidence the tool is right.** A void closure returns a
+verdict to NEUTRAL, not to good. Four falsifications did most of the killing:
+`.claude/` is five files, `ops/runtime/` and `logs/` do not exist, `core` plus
+`tools` is 2,730 lines, and `precommit_gate.py` already fires PreToolUse. The
+structural finding is bigger than any entry: **all 119 are developer tooling
+while cycle 3 is blocked on measuring a game binary.** Do not re-run this triage
+on a new link dump before cycle 5.
+
+**AN ADVERSARIAL PASS IS ONLY AS GOOD AS ITS INPUT PLUMBING.** The first fan-out
+truncated its challenge input at 12,000 chars, so 33 of 119 entries were scored
+but never challenged - and every surviving 6+ entry was one the challenge never
+saw. The survivors were artifacts of the bug, not merit. A gap-fill run knocked
+all of them down. **Check coverage before reporting a fan-out's conclusions.**
+
+**TWO GUARDS FIRED CORRECTLY MID-SESSION**, which is the system working rather
+than a problem: the memory-seed mirror refused two unseeded memory entries, and
+`test_adr_003_agrees_with_the_port_registry` refused an undocumented port.
+
+**BACKLOG GAINED TWO REAL BLOODFORGE GAPS.** Cycle 3's six acceptance criteria
+are ALL about sourcing inputs, so **all six can pass with a confidently wrong
+TTK** - Red Moon has no ground-truth anchor for any computed number. And no
+default subject vector is declared, so the first TTK silently ranks every build
+for anyone who does not override. Neither blocks phase 2; the first must be
+settled before the combat-math spec opens.
+
+
 ## 2026-07-26 - The co-author trailer: a policy nothing enforced, and a test that lied
 
 Branch `master`. Ledger 003e. Commits `0cb03a1` (hook plus tests), `bbc2a81`

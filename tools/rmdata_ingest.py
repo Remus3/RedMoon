@@ -14,6 +14,9 @@ The pipeline is spec section 7, in order:
   5. core.tables.validate_table                -> SHALLOW gate, must be clean
   6. core.table_deep.deep_problems             -> NESTED gate, must be clean
   7. print the shape census                    -> operator reads it once
+  7a. value_diff against the promoted baseline -> REFUSE unless
+      --accept-value-changes. Catches a row that changed IN PLACE under a fixed
+      build, which no other gate here and not even git can see.
   8. --accept only:
      promote _incoming/<name>.json -> tables/<name>.json   (atomic)
   9. --accept only: empty _incoming/, so PROMOTED and PENDING are
@@ -377,6 +380,166 @@ def count_problems(tables: dict[str, list], build: str = EXPECTED_ROWS_BUILD) ->
     return problems
 
 
+# ---------------------------------------------------------------------------
+# the value gate - a row that changed IN PLACE under a fixed build
+# ---------------------------------------------------------------------------
+
+
+class _Absent:
+    """A field present on one side of the comparison and missing on the other.
+
+    Distinct from None, which is a value a field can legitimately hold. Rendered
+    rather than compared, so a field appearing or disappearing reads as what it
+    is instead of as a change to null.
+    """
+
+    def __repr__(self) -> str:
+        return "<absent>"
+
+
+_ABSENT = _Absent()
+
+
+def _flatten_scalars(value: object, prefix: str = ""):
+    """Yield (dotted path, scalar) for every leaf reachable from value.
+
+    `stats[0].value` rather than `stats`, because the whole point of this gate
+    is the nested scalar the shallow schema cannot see. Keys are walked in
+    sorted order so the output is stable: dict iteration order tracks insertion
+    order, and a dumper that emitted the same fields in a different sequence
+    would otherwise produce a diff full of phantom differences.
+    """
+    if isinstance(value, dict):
+        for key in sorted(value, key=str):
+            child = f"{prefix}.{key}" if prefix else str(key)
+            yield from _flatten_scalars(value[key], child)
+    elif isinstance(value, list):
+        for index, entry in enumerate(value):
+            yield from _flatten_scalars(entry, f"{prefix}[{index}]")
+    else:
+        yield prefix, value
+
+
+def load_baseline(tables_dir: Path, name: str) -> list | None:
+    """Return the promoted rows for one table, or None when there is no baseline.
+
+    AN EMPTY TABLE IS NO BASELINE. tools/rmdata_extract.seed_tables writes an
+    empty envelope for every table name, so the file exists on any seeded tree
+    from the very first extract. Comparing against zero rows would report all
+    425 items as additions on the first real ingest, which is noise that would
+    train the operator to pass --accept-value-changes reflexively - and that
+    would retire this gate on the day it shipped.
+
+    Unreadable or malformed is also None. This gate reports drift; it does not
+    own the schema, and a corrupt baseline is the shallow gate's business.
+    """
+    path = tables_dir / f"{name}.json"
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    rows = payload.get("rows") if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or not rows:
+        return None
+    return rows
+
+
+def value_diff(name: str, baseline_rows: list, incoming_rows: list) -> list[str]:
+    """Report every field whose VALUE changed between two dumps of one table.
+
+    Keyed on prefab_guid, which is the join key every cycle 3 consumer indexes
+    on and the only stable identity a row has. Row ORDER is deliberately not
+    compared: the dumper walks the world and the order is an artifact of that
+    walk, not a fact about the data.
+
+    WHY THIS EXISTS. The five gates around it - shallow schema, deep nested,
+    duplicate key, count pin, build cross-check - each catch a wrong COUNT,
+    TYPE, SHAPE or KEY. None of them catches a row that stayed valid, stayed
+    unique and stayed counted while one of its numbers changed. Git cannot see
+    it either, because data/rmdata/ is gitignored.
+
+    And it has happened: docs/LEDGER.md:740-745 records a cycle 2 dedupe fix
+    that "silently made the row whichever of two DISAGREEING entities the world
+    walk reached first. The count looked right afterwards, which is why it
+    survived a cycle."
+
+    A row with no prefab_guid is skipped rather than folded in. That is the
+    shallow gate's error to report, and inventing a collision here would hide it.
+    """
+    def by_guid(rows: list) -> dict:
+        indexed = {}
+        for row in rows:
+            if isinstance(row, dict) and "prefab_guid" in row:
+                indexed[row["prefab_guid"]] = row
+        return indexed
+
+    old_rows = by_guid(baseline_rows)
+    new_rows = by_guid(incoming_rows)
+
+    problems: list[str] = []
+    differing = 0
+
+    for guid in sorted(set(old_rows) & set(new_rows), key=repr):
+        old_flat = dict(_flatten_scalars(old_rows[guid]))
+        new_flat = dict(_flatten_scalars(new_rows[guid]))
+        changed: list[str] = []
+        for path in sorted(set(old_flat) | set(new_flat)):
+            if path == "prefab_guid":
+                continue
+            old = old_flat.get(path, _ABSENT)
+            new = new_flat.get(path, _ABSENT)
+            if old != new:
+                changed.append(
+                    f"{name}: prefab_guid {guid} field {path} "
+                    f"changed {old!r} -> {new!r}"
+                )
+        if changed:
+            differing += 1
+            problems.extend(changed)
+
+    for guid in sorted(set(new_rows) - set(old_rows), key=repr):
+        problems.append(
+            f"{name}: prefab_guid {guid} is NEW - it is not in the promoted baseline"
+        )
+    for guid in sorted(set(old_rows) - set(new_rows), key=repr):
+        problems.append(
+            f"{name}: prefab_guid {guid} was REMOVED - it is in the promoted "
+            "baseline and absent from this dump"
+        )
+
+    # Reported as its own line so an implementation that stopped at the first
+    # difference is distinguishable from one that walked every row.
+    if differing:
+        problems.append(
+            f"{name}: {differing} row(s) differ in value from the promoted baseline"
+        )
+    return problems
+
+
+def format_value_drift(drift: list[str], stand_down: list[str]) -> list[str]:
+    """Render the value gate's verdict, INCLUDING when it had nothing to check.
+
+    The stand-down line is the point, in the same voice as the count gate's:
+    an absent baseline is the default state of any fresh clone, and silence
+    there would read as "the values were checked" rather than "there was
+    nothing to check against".
+    """
+    lines = ["", "value diff - the promoted baseline against this dump:"]
+    for name in sorted(stand_down):
+        lines.append(f"  {name}: NO PROMOTED BASELINE on disk - NOT CHECKED")
+    if not drift:
+        if not stand_down:
+            lines.append("  no value changed")
+        return lines
+    for problem in drift[:50]:
+        lines.append(f"  {problem}")
+    if len(drift) > 50:
+        lines.append(f"  ... {len(drift) - 50} more")
+    return lines
+
+
 def localization_summary(payload: dict) -> dict:
     """Report the dump's prefab-to-localization join counters.
 
@@ -523,6 +686,7 @@ def ingest(
     accept: bool = False,
     from_file: Path | None = None,
     table: str | None = None,
+    accept_value_changes: bool = False,
     out=None,
     err=None,
 ) -> int:
@@ -634,6 +798,34 @@ def ingest(
     counts = ", ".join(f"{name}={len(tables[name])}" for name in names)
     print(f"\nquarantined {counts} -> {incoming}", file=out)
 
+    # The value gate, and it must run HERE rather than after promotion. The
+    # promotion loop overwrites tables_dir/<name>.json in place, so by the time
+    # step 8 has run the baseline this diff needs has already been destroyed -
+    # eleven lines before _clear_incoming is even reached.
+    #
+    # It extends `problems`, so a validate-only run surfaces drift before anyone
+    # types --accept and a refusal reuses the existing EXIT_INVALID path.
+    drift: list[str] = []
+    stand_down: list[str] = []
+    for name in names:
+        baseline = load_baseline(tables_dir, name)
+        if baseline is None:
+            stand_down.append(name)
+            continue
+        drift.extend(value_diff(name, baseline, tables[name]))
+
+    for line in format_value_drift(drift, stand_down):
+        print(line, file=out)
+
+    if drift and not accept_value_changes:
+        problems.extend(drift)
+        problems.append(
+            "a value changed in place under a fixed build. Cycle 3 develops the "
+            "dumper, so this is a normal event there and not necessarily a "
+            "defect - confirm the list above is the change you intended, then "
+            "re-run with --accept-value-changes"
+        )
+
     if problems:
         print(
             f"refused: {len(problems)} validation problem(s), nothing promoted. "
@@ -704,6 +896,15 @@ def main(argv: list[str] | None = None) -> int:
         choices=TABLE_NAMES,
         help="ingest one table only (default: every table in the dump)",
     )
+    parser.add_argument(
+        "--accept-value-changes",
+        action="store_true",
+        help=(
+            "promote even though a row's VALUE changed against the promoted "
+            "baseline. Required in addition to --accept, and only after reading "
+            "the printed old/new list"
+        ),
+    )
     args = parser.parse_args(argv)
 
     return ingest(
@@ -712,6 +913,7 @@ def main(argv: list[str] | None = None) -> int:
         accept=args.accept,
         from_file=args.from_file,
         table=args.table,
+        accept_value_changes=args.accept_value_changes,
     )
 
 

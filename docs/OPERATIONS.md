@@ -138,6 +138,39 @@ python tools/rmdata_ingest.py            quarantine, validate, print the census
 python tools/rmdata_ingest.py --accept   promote into data/rmdata/<build>/tables/
 ```
 
+### When the ingest refuses on a VALUE change
+
+Added 2026-08-01. Beside the census the ingest prints a `value diff` section
+comparing the promoted baseline against this dump, keyed on `prefab_guid`. If
+any row's value changed in place, the run REFUSES with the ordinary
+`EXIT_INVALID` path and nothing is promoted:
+
+```
+python tools/rmdata_ingest.py --accept --accept-value-changes
+```
+
+Both flags are required. `--accept-value-changes` alone promotes nothing.
+
+**Read the printed old/new list before you type it.** The other five gates -
+shallow schema, deep nested, duplicate key, count pin, build cross-check - each
+catch a wrong count, type, shape or key, and none of them catches a row that
+stayed valid, stayed unique and stayed counted while one of its numbers changed.
+Git cannot catch it either: `data/rmdata/` is gitignored, so there is no diff to
+read. This is the only thing that looks.
+
+It is a REFUSAL rather than a warning because the failure it exists for was
+silent: a cycle 2 dedupe fix made a row whichever of two disagreeing entities the
+world walk reached first, the count looked right afterwards, and it survived a
+whole cycle (`docs/LEDGER.md:740-745`).
+
+The escape hatch exists because cycle 3 develops the dumper, so a same-build
+value change is a normal event there rather than an anomaly, and a gate with no
+documented way through would block cycle 3 from a non-roadmap batch.
+
+A table with NO promoted baseline - the default state of a fresh clone, and of
+any freshly seeded tree, since `seed_tables` writes an empty envelope - prints
+`NO PROMOTED BASELINE on disk - NOT CHECKED` rather than passing quietly.
+
 Read the shape census before accepting. `core.tables.validate_table` is a
 SHALLOW gate - it cannot see inside `recipes.ingredients`, `blood_types.bonuses`
 or `items.stats` - so a clean validate is not a shape guarantee. The census is

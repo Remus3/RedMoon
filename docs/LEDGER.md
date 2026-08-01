@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003h - Cycle 3 phases 2 and 3: the schema'd dump, and the boss health that is not on the prefab (2026-08-01)
 
-Commit `863c16f` plus the docs commit carrying this entry. **THE BLOODFORGE
+Commits `863c16f` (the spike) and `a9d5428` (the living docs and this entry). **THE BLOODFORGE
 INPUT SPIKE IS CLOSED** - phases 1, 2 and 3 all done, first roadmap movement in
 six sessions.
 

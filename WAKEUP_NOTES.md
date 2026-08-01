@@ -5,8 +5,8 @@ Last two or three sessions at full fidelity. Archive older entries to
 
 ## 2026-08-01 (second session) - The input spike closes: a count that was wrong by 344, and a boss health that is not on the prefab
 
-Branch `master`. Ledger 003h. Commit `863c16f` plus the docs commit carrying
-this entry. **ROADMAP ITEM CLOSED - the Bloodforge input spike is DONE**, phases
+Branch `master`. Ledger 003h. Commits `863c16f` (the spike) and `a9d5428` (the
+living docs and this entry). **ROADMAP ITEM CLOSED - the Bloodforge input spike is DONE**, phases
 1, 2 and 3. First roadmap movement in six sessions.
 
 State at close, one run each, all four re-run by the closing agent rather than

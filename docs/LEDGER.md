@@ -14,6 +14,72 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003r - The console flash, and the ruff gate it had been silencing since it was written (2026-08-01)
+
+Commit `379f6c6`. Suite **551 passed in 22.61s, exit 0** (544 before, +7), ruff
+clean, `ascii_guard` exit 0. **Three FROZEN files edited with explicit operator
+approval:** `tools/rm_facts.py`, `tools/precommit_gate.py`,
+`tools/pytest_guard.py`.
+
+**THE MECHANISM, measured by four independent instruments and unanimous.**
+`pythonw.exe` is a GUI-subsystem image, so a hook launched with it has NO
+console. That makes the hook windowless and does NOT make its children
+windowless: a console-subsystem child of a console-less parent must
+`AllocConsole`, producing a real window. Chain captured live: `pythonw.exe`
+(hook) -> `schtasks.exe` -> `conhost.exe` -> visible window.
+
+**RANKED BY WHAT THE OPERATOR ACTUALLY SEES.** `rm_facts.py`, the SessionStart
+hook, spawns `schtasks` and is **VISIBLE on 5 of 5 runs for 2.0 to 2.3 seconds,
+taking the foreground.** That is not a flicker; it is a two-second window at
+every session start, and `CLAUDE.md` mandates `/clear` between roadmap items.
+`precommit_gate.py`'s two `git` calls are visible 6 of 6 at 47 to 60 ms, and
+only on the commit path - `is_commit_command` short-circuits everything else, so
+an earlier statement here that it fires on every shell call was wrong.
+
+**THE FINDING THAT MATTERS IS NOT THE FLASH.** My own first fix carried the
+comment "not needed on the `sys.executable` call site further down, because under
+`pythonw.exe` that IS `pythonw.exe`, which is already windowless". First clause
+true, conclusion false: **`ruff/__main__.py` on Windows locates the bundled
+`ruff.exe` and re-execs it**, so the GRANDCHILD is a console binary. It allocated
+its own console and bound its standard handles there rather than to the pipe.
+MEASURED under a real `pythonw` parent on a file with one F401:
+
+```
+[sys.executable, -m, ruff, check, f]  ->  rc 1, stdout LENGTH 0
+[ruff.exe,          check, f]         ->  rc 1, stdout 278 chars
+```
+
+`check_staged` collects reasons only when the return code is 1, by iterating
+`result.stdout`. Over an empty string that appends NOTHING. **The ruff half of
+the precommit gate has reported clean on every commit since it was written while
+ruff was actually failing** - and it passed its own tests because pytest's parent
+owns a console. The project's most-named failure mode, a gate that looks exactly
+like a working gate, already live in the gate that enforces the other rules.
+`_ruff_argv` now resolves the binary and spawns it directly, which removes the
+window AND restores the output.
+
+**THE EXEMPTION WAS THE BUG, TWICE.** The first `tests/test_hook_consoles.py`
+auditor exempted spawns whose argv[0] was `sys.executable` - whitelisting
+precisely the one site that was broken. The exemption is deleted; the rule is now
+unconditional, and `pytest_guard.py` carries the flag even though `pytest -m`
+works in-process and does not flash, because the flag is inert there and an
+exemption is a place to be wrong.
+
+**THE 2026-07-26 MEMORY WAS PARTLY RIGHT AND IS CORRECTED, NOT DELETED.** The
+`npx` MCP-launcher windows are real and its remedy still applies; a second
+console-bearing chain from a sibling project was captured live this session. What
+does not survive is "NOT Red Moon". And its central evidence could not have
+produced a positive: it filtered for `cmd.exe` while RM's children are
+`schtasks.exe` / `git.exe` / `ruff.exe`, it polled 120 s against a site that
+fires once per SessionStart, the git windows last under a poll interval, and
+`Win32_Process` carries no console or window field at all - so "never appeared in
+the trace as a console" was an inference from image name, not an observation.
+
+**STILL INFERENCE, stated rather than glossed:** nobody captured a real
+SessionStart hook firing under the live harness. Every measurement launched
+`rm_facts.py` by hand. The command form is identical and `scheduled_tasks()` is
+unconditional, so the inference is strong, but it is not a capture.
+
 ## 003q - Link ingest stage 6: four items adopted, one killed by the plan's own adversarial pass (2026-08-01)
 
 Commit `b781aab`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`

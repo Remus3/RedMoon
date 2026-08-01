@@ -380,6 +380,8 @@ with it off). Stage 2 scored good tools against beliefs about Red Moon. The
 track's real product is the corrections those measurements forced, several of
 which are recorded as gaps below.
 
+**STAGES 4, 5 AND 6 ARE ALL COMPLETE, and STAGE 7 is the only open one.**
+
 **STAGE 6 IS ALSO COMPLETE.** Eight candidates, **four adopted with acceptance
 criteria, one DROPPED, one deferred, one blocked, one discharged, and zero tools
 adopted.** The plan was put through the same adversarial pass as the tools and

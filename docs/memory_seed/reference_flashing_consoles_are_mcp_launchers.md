@@ -1,28 +1,42 @@
 ---
 name: reference-flashing-consoles-are-mcp-launchers
-description: "The console windows flashing on Legion are npx MCP launchers from concurrent Claude sessions, not Red Moon"
+description: "Flashing consoles on Legion have TWO sources - npx MCP launchers AND Red Moon's own hooks, whose children allocated consoles until fixed 2026-08-01"
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: 6a488f8b-9a01-4c6e-9866-56227d67702a
-  modified: 2026-07-26T21:19:55.979Z
+  originSessionId: d68e2314-d168-47bd-b990-b2e3da42e281
+  modified: 2026-08-01T19:41:39.027Z
 ---
 
-The brief console windows the operator sees flashing on Legion are NOT Red Moon.
-Measured 2026-07-26 with a 120-second `Win32_Process` poll capturing command
-lines and parents.
+CORRECTED 2026-08-01. The original note concluded the flashing windows were NOT
+Red Moon. That was right about the windows it saw and wrong to clear Red Moon,
+and its central evidence could not have produced a positive.
 
-They are `cmd.exe /d /s /c npx ...` MCP server launchers, each spawning its own
-`conhost.exe` - `pathmode-mcp`, `desktop-commander`, `chrome-devtools-mcp`,
-`playwright-mcp` - fired in bursts by several concurrent `claude.exe` instances,
-plus other projects' `pytest` hooks running through Git Bash.
+**There are TWO sources and they are additive.**
 
-Red Moon's own hooks (`precommit_gate.py`, `pytest_guard.py`, `rm_facts.py`,
-`text_first_guard.py`) all run under `pythonw.exe`, which is windowless and never
-appeared in the trace as a console. The `statusLine` fix from the prior session
-held and did not appear either.
+1. **`cmd.exe /d /s /c npx ...` MCP server launchers** from concurrent
+   `claude.exe` instances, each spawning its own `conhost.exe`. Still real. The
+   remedy stands: prune unused entries under `enabledPlugins` in the USER
+   `settings.json`. A sibling project's hooks wrapped in Git bash were captured
+   live doing the same thing.
+2. **Red Moon's own hooks, until fixed.** `pythonw.exe` is a GUI-subsystem
+   image, so a hook launched with it has NO console. That makes the HOOK
+   windowless and does NOT make its CHILDREN windowless - a console-subsystem
+   child of a console-less parent must `AllocConsole`. `rm_facts.py` (the
+   SessionStart hook) spawning `schtasks` was VISIBLE 5 of 5 runs for 2.0 to
+   2.3 seconds, taking the foreground. FIXED in commit `379f6c6` with
+   `creationflags=CREATE_NO_WINDOW`.
 
-The remedy is disabling unused entries under `enabledPlugins` in the user
-`settings.json` (15 were enabled). Do not go hunting in the Red Moon repo for it.
+**Why the original probe could not have caught it,** which is the reusable part:
+it filtered for `cmd.exe` while RM's children are `schtasks.exe`/`git.exe`; it
+polled 120 s against a site that fires once per SessionStart; the git windows
+last under one poll interval; and `Win32_Process` has NO console or window field,
+so "never appeared in the trace as a console" was an inference from image name
+rather than an observation. **A null result from an instrument that cannot
+produce a positive is not evidence of absence.**
 
-Related: [[project-redmoon-ports]]
+The same missing flag also silently broke a gate: `ruff` under `pythonw` returned
+rc 1 with EMPTY stdout, so the ruff half of the precommit gate passed every
+commit. Detail in `docs/LEDGER.md` entry 003r.
+
+Related: [[project-redmoon-ports]], [[feedback-standing-execution-mode]].

@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003o - Link ingest stage 4: the wiki has no combat numbers, and 40 of 40 levels agree (2026-08-01)
 
-Commit `<pending>`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
+Commit `0f24c44`. NON-ROADMAP track. Docs only, Tier 0. `python -m pytest`
 **544 passed, exit 0** (unchanged), `python tools/ascii_guard.py` exit 0. Probe
 payloads saved to `_scratch/rmprobe/wiki/`, gitignored.
 

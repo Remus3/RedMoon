@@ -58,21 +58,67 @@ def port_busy(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
+NOT_INSTALLED = "not installed"
+UNPARSEABLE = "unparseable"
+NONE_EXTRACTED = "none extracted"
+
+BUILD_SENTINELS = frozenset({NOT_INSTALLED, UNPARSEABLE, NONE_EXTRACTED})
+"""What the two build accessors return INSTEAD of raising.
+
+This probe never raises, so every failure has to come back as a value. That
+makes the sentinels load-bearing rather than cosmetic: two of them compared to
+each other are EQUAL, and a naive agreement check would report a machine with no
+game installed as a perfect match. build_agreement excludes them first.
+
+Named rather than repeated as literals at each return, so a rename cannot leave
+the set behind. tests/test_build_pin_crosscheck.py imports this set rather than
+restating it, for the same reason."""
+
+
 def game_build() -> str:
     version = DEFAULT_INSTALL / "VERSION"
     if not version.is_file():
-        return "not installed"
+        return NOT_INSTALLED
     try:
         return parse_build_id(version.read_text(encoding="utf-8"))
     except (ValueError, OSError):
-        return "unparseable"
+        return UNPARSEABLE
 
 
 def data_build() -> str:
     pointer = REPO / "data" / "rmdata" / "current.txt"
     if not pointer.is_file():
-        return "none extracted"
+        return NONE_EXTRACTED
     return pointer.read_text(encoding="utf-8").strip()
+
+
+def build_agreement(installed: str, extracted: str) -> str:
+    """Say whether the two build lines above agree, in one line.
+
+    Added 2026-08-01 with explicit operator approval (this file is FROZEN).
+    Both numbers have been printed at every session start since cycle 1 and
+    nothing ever compared them, so a session could bootstrap from combat data
+    extracted from a build the machine is no longer running and the banner would
+    look entirely normal - two correct lines, side by side, disagreeing.
+
+    A sentinel on either side is an UNAVAILABLE SOURCE and not a disagreement.
+    Reporting a mismatch on a machine with no game installed would be a false
+    alarm at every session start, which is the fastest way to teach an operator
+    to stop reading the line.
+    """
+    unavailable = [
+        f"{label} build is {value!r}"
+        for label, value in (("game", installed), ("extracted data", extracted))
+        if value in BUILD_SENTINELS
+    ]
+    if unavailable:
+        return "NOT CHECKED - " + ", ".join(unavailable)
+    if installed == extracted:
+        return "MATCH"
+    return (
+        f"MISMATCH - the game on disk is {installed} but data/rmdata/ was "
+        f"extracted from {extracted}. Re-run tools/rmdata_extract.py."
+    )
 
 
 def scheduled_tasks() -> list[str]:
@@ -97,8 +143,10 @@ def scheduled_tasks() -> list[str]:
 def main() -> int:
     try:
         lines = ["# Red Moon live state (rm_facts.py)", ""]
-        lines.append(f"- Game build: {game_build()}")
-        lines.append(f"- Extracted data build: {data_build()}")
+        installed, extracted = game_build(), data_build()
+        lines.append(f"- Game build: {installed}")
+        lines.append(f"- Extracted data build: {extracted}")
+        lines.append(f"- Build agreement: {build_agreement(installed, extracted)}")
         states = ", ".join(
             f"{label} {port} {'BUSY' if port_busy(port) else 'free'}"
             for port, label in sorted(PORT_LABELS.items())

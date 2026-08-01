@@ -32,20 +32,27 @@ there instead of a phantom build mismatch here.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from tests.test_drift_anchors import PIN, _canonical_pin
-from tools.rm_facts import data_build, game_build
+from tools.rm_facts import BUILD_SENTINELS, build_agreement, data_build, game_build
 
 REPO = Path(__file__).resolve().parents[1]
 CURRENT_TXT = REPO / "data" / "rmdata" / "current.txt"
+HOOK = REPO / "tools" / "rm_facts.py"
 
 # What each accessor returns INSTEAD of raising when its source is unavailable.
 # Comparing two of these to each other is comparing two failures, not two
 # builds, so they are excluded before any comparison is made.
-SENTINELS = frozenset({"not installed", "unparseable", "none extracted"})
+#
+# IMPORTED rather than restated, which is S7.2's lesson applied here: a
+# hand-copied list of the sentinels drifts the moment one of them is renamed,
+# and it drifts silently, because a skip guard checking for a string that can no
+# longer occur simply stops skipping and starts comparing two failures.
+SENTINELS = BUILD_SENTINELS
 
 
 def test_the_extracted_data_pointer_agrees_with_claude_md():
@@ -98,6 +105,62 @@ def test_rm_facts_reports_one_build_and_not_two():
         f"extracted from {extracted!r}. rm_facts.py prints both at every "
         "session start and has never compared them, so this has been readable "
         "in the banner and unenforced. Re-run tools/rmdata_extract.py."
+    )
+
+
+def test_build_agreement_reports_a_match():
+    assert "MATCH" in build_agreement("1.1.13.0-r99712", "1.1.13.0-r99712")
+    assert "MISMATCH" not in build_agreement("1.1.13.0-r99712", "1.1.13.0-r99712")
+
+
+def test_build_agreement_reports_a_mismatch_and_names_both_builds():
+    line = build_agreement("1.1.13.0-r99712", "1.0.10.4-r91333")
+    assert "MISMATCH" in line
+    assert "1.1.13.0-r99712" in line and "1.0.10.4-r91333" in line, (
+        "a mismatch that does not say WHICH two builds disagree sends the "
+        "operator back to the two lines above to work it out"
+    )
+    assert "rmdata_extract" in line, "say what to do about it, not just that it is wrong"
+
+
+@pytest.mark.parametrize("sentinel", sorted(BUILD_SENTINELS))
+@pytest.mark.parametrize("side", ["game", "data"])
+def test_build_agreement_stands_down_on_a_sentinel(sentinel: str, side: str):
+    """A sentinel on either side is an unavailable source, not a disagreement.
+
+    Reporting MISMATCH on a machine with no game installed would be a false
+    alarm at every single session start, which is the fastest way to teach an
+    operator to ignore the line.
+    """
+    pair = (sentinel, "1.1.13.0-r99712") if side == "game" else ("1.1.13.0-r99712", sentinel)
+    line = build_agreement(*pair)
+
+    assert "NOT CHECKED" in line, f"expected a stand-down for {pair}, got {line!r}"
+    assert "MISMATCH" not in line
+    assert sentinel in line, "the stand-down must say which source was unavailable"
+
+
+def test_two_equal_sentinels_are_not_reported_as_a_match():
+    """The trap this whole guard exists for: equality of two FAILURES."""
+    line = build_agreement("not installed", "not installed")
+    assert "MATCH" not in line
+    assert "NOT CHECKED" in line
+
+
+def test_the_session_start_banner_carries_the_agreement_line():
+    """End to end through the hook the operator actually sees."""
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, str(HOOK)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, "rm_facts must never break session start"
+    assert "Build agreement:" in result.stdout, (
+        f"the banner does not state whether the two build lines agree:\n"
+        f"{result.stdout}"
     )
 
 

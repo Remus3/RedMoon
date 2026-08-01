@@ -47,7 +47,7 @@ PINNED = {
     "tests/test_bridge_probe.py": 29,
     "tests/test_bridge_project.py": 50,
     "tests/test_bridge_state.py": 9,
-    "tests/test_build_pin_crosscheck.py": 3,
+    "tests/test_build_pin_crosscheck.py": 13,
     "tests/test_claude_config.py": 10,
     "tests/test_collected_counts.py": 5,
     "tests/test_commit_history.py": 14,

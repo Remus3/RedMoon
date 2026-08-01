@@ -1,6 +1,82 @@
 # Red Moon History Notes
 
 
+## 2026-07-26 - The same PS7 doc, re-validated after the operator updated it
+
+Branch `master`. **NO ROADMAP ITEM CLOSED and no production code changed.** The
+only repo change is docs: these notes, the archive move, the next-session prompt
+and one memory seed. Cycle 3 phase 2 still has not started.
+
+State at close, observed in one run: `python -m pytest` **324 passed in 18.40s,
+exit 0**, `python tools/ascii_guard.py` exit 0. The summary line DID print, so
+the dot-counting workaround the section below describes was not needed this time
+- the line appears on some runs and not others, which is worth knowing before
+anyone "fixes" the pytest config.
+
+**The input and the ask.** The operator updated
+`C:\Users\Administrator\Desktop\POWERSHELL_7_MIGRATION.md` - the same
+another-project doc audited in the session below - and asked for it to be
+re-ingested and validated again. It is now 8 sections; the update added a
+detailed section 5 point 1 listing that project's live VBS and BAT shims that
+name `powershell.exe` explicitly, and a section 8 migration log.
+
+**Eleven claims re-measured and confirmed.** PS7 7.6.4 Core at
+`C:\Program Files\PowerShell\7\pwsh.exe`, machine PATH carries
+`C:\Program Files\PowerShell\7\`, the MSIX per-user alias
+`%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe` does NOT exist, 5.1 is intact at
+exactly `5.1.19041.6456` as its section 6 predicts, and 22 `RC-*` scheduled
+tasks exist. Its section 5 parse measurement also reproduces here, which matters
+because it is the doc's only claim that touches this repo's hard rules: a no-BOM
+UTF-8 `.ps1` with U+2014 inside a double-quoted string, through
+`[System.Management.Automation.Language.Parser]::ParseFile`, gives **2 errors
+under 5.1 and 0 under 7.6.4**.
+
+**TWO DEFECTS, AND BOTH SURVIVED THE UPDATE.**
+
+1. **Section 4c is still wrong**, and it is the doc's most actionable claim.
+   Measured again through the tool this session: `$PSVersionTable` is **7.6.4 /
+   Core** and the process `MainModule.FileName` is
+   **`C:\Program Files\PowerShell\7\pwsh.exe`**. Its PREMISE is correct and was
+   verified - the global `C:\Users\Administrator\.claude\settings.json:6` does
+   hold `CLAUDE_CODE_USE_POWERSHELL_TOOL: "1"` and there is indeed no key that
+   selects the binary - but the conclusion drawn from that premise does not
+   follow. An agent here gets pwsh, so `&&`, `||`, ternary, `??` and `?.` work
+   directly and the `& pwsh -NoProfile -File` escape hatch is real but
+   unnecessary. That the error persisted across a revision is itself the lesson:
+   **a doc being updated is not evidence that any particular claim in it was
+   re-checked.**
+2. **The header hostname is wrong.** It says `DESKTOP-JKZECV9`; this machine is
+   **`DESKTOP-LCA3EBI`**. Every other fact in the doc matches this box, so it is
+   a mis-recorded name and not a different machine. Its `legion-rc` Tailscale
+   label could not be checked at all - Tailscale is not installed and not on
+   PATH here.
+
+**Red Moon impact is still exactly zero, and the update gave a NEW way to
+check.** Section 5 point 1 now says to grep your own project for
+`powershell.exe` in `*.vbs`, `*.bat` and `*.cmd`, because a shim is easy to miss
+when it is neither a scheduled task nor a `.ps1`. Run against this repo that
+returns **no matches**, so Red Moon carries none of the live 5.1 `ParseFile`
+exposure that list documents. Combined with last session's `*.py` and `*.json`
+grep and `RM-DataRefresh` executing `pythonw.exe`, the migration surface here is
+empty by measurement across every file type the doc names.
+
+**The ASCII rule is unchanged.** 5.1 is installed and reachable, it is an
+operator style rule independent of any parser, and `tools/ascii_guard.py` plus
+the wired precommit gate enforce it mechanically. PS7 removes one failure mode,
+not the rule.
+
+**That doc was not edited.** It is another project's territory and correcting
+its 4c and its header is the operator's call. The measurements above are the
+evidence if it is corrected.
+
+**No ledger entry, for the reason the section below states at length** -
+`docs/LEDGER.md` scopes itself to completed roadmap items with an item number
+and a commit hash, and this session closed none. `reference_powershell_editions_on_legion`
+was extended with the hostname correction, the 2/0 parse numbers and the fact
+that 4c survived a revision, and `docs/memory_seed/` was re-synced in the same
+commit by copying the live file AFTER the memory system rewrote its `modified:`
+timestamp, which is the ordering last session learned the hard way.
+
 ## 2026-07-26 - A PowerShell 7 migration doc, audited against this repo
 
 Branch `master`. **NO ROADMAP ITEM CLOSED, no production code changed, and no

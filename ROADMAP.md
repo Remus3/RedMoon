@@ -137,6 +137,23 @@ The PLAYER side is in good shape and is not a gap: 203 of 205 weapon items carry
 real `PhysicalPower` or `SpellPower` values, across 29 distinct stat types with
 an explicit `modification` on every entry.
 
+7. **THERE IS NO WAY TO FALSIFY THE OUTPUT.** Added 2026-08-01. Gaps 1 to 6 are
+   all about SOURCING INPUTS, and so are all six of the spike's acceptance
+   criteria - which means **all six can pass with a confidently wrong
+   time-to-kill.** Nothing in cycle 3 checks a computed DPS, EHP or TTK against
+   an observed kill. V Rising has no replay file, so the anchor has to be a
+   recorded combat log or a hand-timed kill against a known V Blood with a known
+   loadout. This does NOT block phase 2, which is ingest rather than math, but it
+   must be settled BEFORE the combat-math spec opens. Filed in `BACKLOG.md`
+   alongside a second gap: no default subject vector is declared, so the first
+   TTK published silently ranks every build for anyone who does not override it.
+
+There is also a NON-ROADMAP track now running in parallel: a headless
+orchestrator and control plane on port 8770, specced by a sibling project on
+this machine. It is infrastructure rather than a cycle, gets its own ledger
+entries, and must not fold into Bloodforge. Its phase 0 is BLOCKED - see
+`WAKEUP_NOTES.md`.
+
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -
 almost certainly another measured bridge pass - because a time-to-kill computed

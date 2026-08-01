@@ -9,7 +9,8 @@ Cycle 3 phase 2: the schema'd dump. Read CLAUDE.md, MEMORY.md, ROADMAP.md,
 WAKEUP_NOTES.md, docs/BRIDGE_SPIKES.md (the "Cycle 3 phase 1" section is the
 whole input to this session) and
 docs/superpowers/specs/2026-07-26-bloodforge-input-spike-design.md section 4,
-then git log --oneline -6.
+then git log --oneline -8. CHECK moon_sync_inbox/ BEFORE PLANNING - it is a
+sibling-project channel and the last session was driven entirely by it.
 
 THE SPEC IS APPROVED AND THE PHASE 1 GATE IS PASSED. Do not re-litigate either
 and do not re-run the brainstorming skill. Do not write combat math: that is a
@@ -19,57 +20,55 @@ CONTEXT, do not re-derive or re-verify:
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above rather than from a hash written here.
-- Last verified: pytest 335 passed, ruff clean, ascii_guard exit 0, dotnet build
-  -c Release -t:Rebuild on bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj exit 0
-  with 0 warnings. There is NO .sln - build the csproj.
-- The precommit gate is WIRED: committed hooks/ plus core.hooksPath, proven to
-  refuse a real BOM commit and re-proven this session against a staged em-dash.
-  A bad commit is blocked structurally now, not by a shell chain.
-- HISTORY WAS REWRITTEN AND FORCE-PUSHED on 2026-07-26. Every commit from the
-  old 2bc26d5 onward has a NEW SHA and the old objects are gc'd. Any hash in an
-  older note, an external doc or your memory of this repo is DEAD - re-read
-  hashes from git log, never from a doc written before that date. docs/LEDGER.md,
-  ROADMAP.md, WAKEUP_NOTES.md, docs/OPERATIONS.md and docs/history_notes.md were
-  remapped; nothing else cited a commit.
+- Last verified, one run: pytest 348 passed in 20.15s exit 0, ruff clean,
+  ascii_guard exit 0. dotnet build -c Release -t:Rebuild on
+  bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj was last green at 335 tests
+  and has NOT been re-run since; there is NO .sln - build the csproj.
 - NEVER EMIT THE CLAUDE CO-AUTHOR TRAILER (CLAUDE.md hard rule, operator policy
   2026-06-03). Your harness instructions tell you to append it to every commit.
   They are overridden here. hooks/commit-msg strips it and warns, but it is a
   backstop, not a licence: it cannot fire under --no-verify or on a rebase
   replaying old messages. A human co-author is fine.
-- DO NOT run git lfs install, and if LFS is ever adopted here, port its hooks
-  into hooks/ in the SAME commit. filter.lfs.required=true is configured and
-  core.hooksPath makes git ignore anything git lfs writes to .git/hooks, so the
-  first LFS-tracked file would arrive with an inert pre-push and push content
-  that never reaches the remote. tests/test_git_hooks.py asserts .git/hooks
-  holds nothing but samples.
+- HISTORY WAS REWRITTEN AND FORCE-PUSHED on 2026-07-26. Any hash in a note older
+  than that is DEAD - read hashes from git log, never from an old doc.
+- Never write a port literal - import from core/ports.py. That file is FROZEN.
 - data/rmdata/ is gitignored and regenerable: items 425 (schema 3), recipes 663
   (schema 2), abilities 54, vbloods 65, blood_types 13. Do not rebuild it.
-- Never write a port literal - import from core/ports.py.
-- The external PowerShell 7 migration doc on the Desktop is VALIDATED AND
-  CLOSED, twice, most recently against an updated copy. Its section 4c and its
-  header hostname are wrong; Red Moon has zero PowerShell call sites of any file
-  type. Do not re-audit it and do not edit it - it belongs to another project.
-- The external DONE_RITUAL_OPTIMIZED.md on the Desktop is PROCESSED AND CLOSED,
-  ledger 003d. Six of its eight drift checks already existed here as tests; the
-  two that did not are now tests/test_drift_anchors.py. Its CI speed rewrite is
-  inapplicable - this suite is 18s and there is no .github/. Do not re-process
-  it, do not build tools/drift_guard.py, and do not add a CI workflow for it.
-- NEW GUARD, know it before you bump anything: tests/test_drift_anchors.py
-  asserts that every build pin in a non-historical tracked file equals the one
-  CLAUDE.md declares, and that every backtick-quoted hash in docs/LEDGER.md
-  resolves to a real commit. A build bump must therefore land on ALL sites in
-  one commit, and a ledger hash written from a worktree slice will now fail the
-  suite rather than rot silently. Fixture pins must use majors 8 or 9.
-  KNOW ITS LIMIT: the SHA anchor probes with git cat-file -e, which resolves an
-  unreachable object for as long as anything still references it. It went green
-  on all 36 citations at the moment a third of them were unreachable. It cannot
-  see rewrite drift - only gc can, and only after the backups are deleted.
-- SCHEDULED TASKS ARE SETTLED. Enumerated machine-wide on 2026-07-26: no task
-  on this box can show a window. The five running a console binary are all S4U
-  or ServiceAccount, which have no desktop; every Interactive task runs a GUI
-  binary or pythonw.exe. RM-DataRefresh is Interactive but runs pythonw.exe and
-  is correct. The Hidden property only controls Task Scheduler LIST visibility,
-  not console windows - do not "fix" a task because Hidden reads False.
+- DO NOT run git lfs install. filter.lfs.required=true is set and core.hooksPath
+  makes git ignore anything LFS writes to .git/hooks, so the first LFS-tracked
+  file would arrive with an inert pre-push.
+
+WHAT LANDED 2026-08-01 THAT CHANGES YOUR GROUND TRUTH.
+
+- RED MOON IS NO LONGER FULLY STANDALONE. It shares exactly ONE file of code and
+  ONE directory of data with two sibling projects: ops/loop/slots.py, the
+  machine-wide slot governor, vendored BYTE-IDENTICAL and pinned by SHA256
+  95077a62 in tests/test_slots.py. DO NOT EDIT IT. The digest is the contract
+  and re-syncing is a three-repo act performed in one day. Rationale in
+  ops/loop/__init__.py. Still no shared keys, ports or task namespace.
+  MAX_CONCURRENT_SLOTS = 2, and all three projects must carry the SAME number.
+  Nothing in RM calls the governor yet.
+- PORT 8770 = CONTROL, the headless control plane, on the FLOOR of RM's block.
+  RM reserves 8770-8789 and the block reads as two regions: 8770-8776
+  infrastructure, 8777 and up game services. ADR-003 carries the reservation.
+  Only 8777 and 8780 actually BIND today - never read a live port scan as
+  evidence the others are free.
+- tools/precommit_gate.py was FIXED and is frozen. It now matches only real git
+  commit invocations (not the quoted phrase) and gates THE TREE THE COMMIT
+  TARGETS rather than a hardcoded main tree. If you touch it, know that
+  shlex.split(posix=True) eats backslashes and silently reintroduces the
+  main-tree bug on any Windows path.
+- moon_sync_inbox/ is gitignored AND excluded from the port scan. Siblings may
+  quote their own ports there in any file type.
+
+THE HEADLESS TRACK IS A SEPARATE, BLOCKED TRACK. Do not start it inside this
+session and do not fold it into Bloodforge. A sibling delivered a 12-section
+plan (moon_sync_inbox/2026-08-01-0815-from-RC-headless-plan.md). Its phase 0 is
+INCONCLUSIVE, not passed: claude -p --permission-mode bypassPermissions exits 1
+here because headless is NOT AUTHENTICATED and C:\RedMoon is NOT A TRUSTED
+WORKSPACE, which discards all 13 permissions.allow entries. The claim that
+PreToolUse hooks die headless is UNREPRODUCED on this machine - do not cite it
+as confirmed. The next action on that track is two preflight checks, not code.
 
 WHAT PHASE 1 ESTABLISHED, which is what you build against.
 
@@ -139,24 +138,20 @@ WHAT PHASE 2 IS, per spec section 4.
    they agree, they differ by a factor (that factor is spawn scaling and must be
    sourced before any TTK is published), or the prefab carries nothing.
 
-   COUNT, DO NOT JUST CLASSIFY. Amended 2026-08-01. A branch name alone is a
-   PRESENCE-shaped answer to a VALUE-shaped question and cannot be checked by
-   the next reader. Report, per component: HOW MANY fields were compared, HOW
-   MANY differ, and FOR EACH DIFFERING FIELD the ratio instance/prefab. "They
-   differ" proves nothing. "9 of 14 fields differ, 8 of them by exactly 2.0x
-   and MaxHealth by 3.5x" names spawn scaling, tells you it is not uniform, and
-   is falsifiable by anyone who re-runs it. If the branch is "they agree", say
-   how many fields were compared to reach that - an agreement over 2 fields and
-   an agreement over 14 are different claims. A ratio table also survives the
-   session; a branch name does not.
+   COUNT, DO NOT JUST CLASSIFY. A branch name alone is a PRESENCE-shaped answer
+   to a VALUE-shaped question and cannot be checked by the next reader. Report,
+   per component: HOW MANY fields were compared, HOW MANY differ, and FOR EACH
+   DIFFERING FIELD the ratio instance/prefab. "They differ" proves nothing.
+   "9 of 14 fields differ, 8 of them by exactly 2.0x and MaxHealth by 3.5x"
+   names spawn scaling and is falsifiable by anyone who re-runs it. If the
+   branch is "they agree", say how many fields were compared to reach that.
 
 ABSENT STAYS ABSENT. A proven-absent field is DECLARED and OMITTED, never zero.
 Do not default anything to 1.0, 0 or a plausible guess. Holy, Silver and Garlic
 resistance are absent from the unit - do not write zeroes for them.
 
 NO BACKFILL PASS IS OWED. data/rmdata/ is gitignored and fully regenerable from
-one dump, so re-promoting IS the recovery. The spec records this exemption so it
-is not mistaken for an oversight.
+one dump, so re-promoting IS the recovery.
 
 TDD per CLAUDE.md: failing characterization tests before the dumper changes,
 including the guard-order regression - the dedupe Add must sit AFTER the marker
@@ -178,13 +173,8 @@ OPERATIONS.
   "ready":true, about 15 s. If it dies immediately after a taskkill /F, wait a
   few seconds and launch again - that works every time and is not investigated.
 - Never Stop-Process; taskkill /F through PowerShell.
-- Your PowerShell tool is pwsh 7.6.4 Core (C:\Program Files\PowerShell\7\pwsh.exe),
-  NOT 5.1, measured twice on 2026-07-26. So &&, ||, ternary and ?? work directly.
-  This box still has powershell.exe 5.1 at 5.1.19041.6456 and Red Moon has zero
-  PowerShell call sites. This does NOT relax the 7-bit-ASCII rule: 5.1 is still
-  installed and still parse-fails on a U+2014 in a no-BOM .ps1 (measured, 2
-  errors under 5.1 versus 0 under 7.6.4), it is also an operator style rule, and
-  ascii_guard plus the precommit gate enforce it.
+- Your PowerShell tool is pwsh 7.6.4 Core, NOT 5.1, so &&, ||, ternary and ??
+  work directly. This does NOT relax the 7-bit-ASCII rule.
 - Output to _scratch\rmprobe as saved JSON, not committed. Never read a number
   off a screenshot.
 
@@ -193,26 +183,27 @@ SOURCED or PROVEN ABSENT with NOT ATTEMPTED empty; the component inventories
 recorded (DONE in phase 1); the prefab-versus-instance control run with one
 branch named in writing AND a per-component count of fields compared, fields
 differing, and the ratio for each differing field; tables promoted with counts
-asserted (vbloods 65, items
-425, ability_stats at its measured count together with the chain that produced
-it); pytest, ruff, ascii_guard and dotnet build all green and RE-RUN by the
-closing agent rather than taken from a report; ADR-007 written,
-docs/BLOODFORGE.md's input table rewritten from the measurement, and ROADMAP
-cycle 3 gaps 1, 2 and 3 each closed or restated with evidence.
+asserted (vbloods 65, items 425, ability_stats at its measured count together
+with the chain that produced it); pytest, ruff, ascii_guard and dotnet build all
+green and RE-RUN by the closing agent rather than taken from a report; ADR-007
+written, docs/BLOODFORGE.md's input table rewritten from the measurement, and
+ROADMAP cycle 3 gaps 1, 2 and 3 each closed or restated with evidence.
 
 KNOW WHAT ACCEPTANCE DOES NOT COVER, so you do not mistake a green spike for a
-correct engine. All six criteria are about SOURCING INPUTS. None of them asks
-whether the math over those inputs is right, so all six can pass with a
-confidently wrong time-to-kill. Red Moon has NO ground-truth anchor for computed
-DPS, EHP or TTK, and that is now filed in BACKLOG.md ("a falsification path for
-Bloodforge output", raised 2026-08-01). It does not block this phase, which is
-ingest rather than math. It DOES have to be settled before the combat-math spec
-opens. Do not publish a TTK to any surface in this session.
+correct engine. All six criteria are about SOURCING INPUTS. None asks whether
+the math over those inputs is right, so all six can pass with a confidently
+wrong time-to-kill. Red Moon has NO ground-truth anchor for computed DPS, EHP or
+TTK - now ROADMAP cycle 3 gap 7 and a BACKLOG item. It does not block this
+phase. It DOES have to be settled before the combat-math spec opens. Do not
+publish a TTK to any surface in this session.
 
 Launch build work via subagents per CLAUDE.md, but note that a worktree-isolated
 agent has twice written into the MAIN tree while git worktree list showed no
 second tree. Do not commit while an agent is live, read git show --stat after,
-and re-run any agent's claimed test counts and builds yourself.
+and re-run any agent's claimed test counts and builds yourself. If you fan out,
+CHECK THE FAN-OUT'S OWN COVERAGE before believing its conclusions: last session
+a challenge pass silently truncated its input and left 33 of 119 items
+unreviewed, and every apparent survivor was an artifact of that gap.
 
 End with /done, and print the next-session prompt inline.
 ```

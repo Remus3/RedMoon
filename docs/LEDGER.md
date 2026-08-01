@@ -14,6 +14,102 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003g - Three-project interop: the shared governor, port 8770, and a gate that read the wrong tree (2026-08-01)
+
+Commits `b1b6b2d` (inbox out of the port scan), `6cfc614` (backlog plus memory
+seed), `a3fa2f6` (phase 3 counts and ratios), `91b9ed2` (the gate fix),
+`7d735da` (port 8770 and the shared governor), `370c019` (bucket held at 2) and
+`<docs>` (this entry). **NO ROADMAP ITEM CLOSED.** Cycle 3 phase 2 still has not
+started. All of this arrived from a cross-project handoff, not the roadmap.
+
+State at close, one run: `python -m pytest` **348 passed in 20.15s, exit 0**
+(335 before, plus 13 new), `python tools/ascii_guard.py` exit 0, `ruff` clean.
+
+WHAT SHIPPED.
+
+1. **The sibling inbox is out of the port scan.** RC opened a handoff channel at
+   `moon_sync_inbox/` and asked for a `.gitignore` line. That was the LESSER
+   HALF: the foreign-port guard walks the WORKING TREE via `rglob`, not tracked
+   files, so gitignoring it changes nothing. RC's block is 8888-8895 and three of
+   those are in `FORBIDDEN`, so the next note delivered as `.json` or `.ps1`
+   rather than `.md` would have failed the suite on content Red Moon does not
+   own. Latent, not live - `.md` is not a scanned suffix. Fixed in
+   `SKIPPED_DIR_PARTS`, proven red by planting a real `.json` in the inbox.
+
+2. **`tools/precommit_gate.py`, two defects, both found while probing something
+   else.** Frozen file, changed under explicit operator approval.
+   - It tested `"git commit" in command`, so any command merely QUOTING the
+     phrase was gated against whatever happened to be staged. It denied this
+     session's own headless probe for exactly that reason.
+   - **The structural one: `main()` called `check_staged()` with no argument**,
+     so it inspected the hardcoded main tree no matter where the command ran. A
+     commit inside a WORKTREE was gated against MAIN's staging area while its own
+     was never read. Every headless design on offer is worktree-based, which made
+     the Claude-side gate decorative in precisely the runs it exists to guard.
+   Five characterization tests red first, then verified END TO END against a live
+   worktree - a phrase-mention returns nothing, and both a `cwd`-based and a
+   `git -C` worktree commit return a deny naming the worktree's own file. Both
+   would have passed before.
+
+3. **Port 8770 for the headless control plane**, on the FLOOR of the block.
+   `core/ports.py` is frozen; operator-approved. ADR-003 amended with the block
+   reservation 8770-8789 and the split - infrastructure 8770-8776, game services
+   8777 and up. `RmPorts.g.cs` verified unchanged: the generator emits only the
+   two bridge ports.
+
+4. **Red Moon joined the machine-wide slot governor.** `ops/loop/slots.py`
+   vendored BYTE-IDENTICAL and pinned by a SHA256 file digest (not a commit
+   hash) in `tests/test_slots.py`. Its project-neutrality was VERIFIED rather
+   than trusted, and it passes RM's ruff
+   and ASCII gates unmodified. `CLAUDE.md`'s standalone claim was FALSE the
+   moment this landed and was corrected in the same commit rather than left to
+   rot: RM now shares one file of code and one directory of data, and still
+   shares no keys, no ports and no task namespace.
+
+WHAT WAS MEASURED AND CAME BACK NEGATIVE.
+
+**Phase 0 of the headless plan is INCONCLUSIVE, not passed.** The probe never
+reached its question: `claude -p --permission-mode bypassPermissions` exits 1
+because headless is NOT AUTHENTICATED on this box and `C:\RedMoon` is NOT A
+TRUSTED WORKSPACE, which discards all 13 `permissions.allow` entries. RC's
+measurement that PreToolUse hooks die headless is RC's, on RC's machine, and is
+recorded as UNREPRODUCED here. The trust finding is the sharper one: a headless
+worker would run under a DIFFERENT permission set than the interactive session
+that wrote its prompt.
+
+THE LESSONS, each paid for.
+
+- **A void closure returns a verdict to neutral, not to good.** A 119-item
+  MCP re-triage inherited from RC was re-scored for RM and adversarially
+  challenged: 119/119 reviewed, **37 overturns, every one downward, nothing
+  above 5**. The scoring agents correctly voided RC's closes that cited
+  RC-only assets, then treated "RC's reason was wrong" as evidence the tool was
+  right. Four falsifications killed most of it - `.claude/` is five files,
+  `ops/runtime/` and `logs/` do not exist, `core` plus `tools` is 2,730 lines,
+  and `precommit_gate.py` already fires PreToolUse.
+- **The corpus addressed the wrong axis entirely.** All 119 entries are
+  developer tooling; cycle 3 is blocked on measuring a game binary. Verdict:
+  adopt nothing.
+- **A fix can reintroduce the bug it fixes.** Tokenizing with
+  `shlex.split(posix=True)` eats backslashes, so `git -C C:\RedMoon` resolves to
+  a nonexistent `C:RedMoon` and falls back to the main tree - defect 2 restored
+  through the fix for defect 1. Caught by a failing test, not by review.
+- **Two of RM's own claims were wrong and a sibling caught both.** 8781/8782
+  were "the free ones" - true only about the interior of the used region; the
+  block floor 8770-8776 was never allocated at all. And RM proposed N=3 for the
+  bucket, sound in general and wrong for this machine: LegionWallpaper is the
+  only GPU-heavy participant and its GPU mutex was DECLARED BUT ACQUIRED BY
+  NOTHING, so a third lane permitted unserialized CUDA. Withdrawn the same day.
+- **A guard fired correctly twice mid-session**, which is the system working:
+  the memory-seed mirror refused two unseeded entries, and ADR-003's consistency
+  test refused an undocumented port.
+
+RESIDUE, deliberately open. Phase 0's two preflight checks (assert
+authenticated, assert workspace trusted) are unbuilt and are the next action on
+that track. The shared `slots.py` docstring still says TWO repos; correcting it
+needs a coordinated three-tree re-pin and RM will not move first. RC's copy of
+the governor is still unhashed by RC - two of three digests confirmed.
+
 ## 003f - The orphaned-hook guard, and the fresh-clone ceiling (2026-07-26)
 
 Commits `8f632b6` (the guard test), `9a624c3` (gc and the latent LFS risk) and

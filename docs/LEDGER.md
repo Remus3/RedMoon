@@ -16,7 +16,8 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003m - The experiment did not run, and the three things blocking it did (2026-08-01)
 
-Commit `<pending>`. **NO ROADMAP ITEM CLOSED, AND THE MAIN TRACK WAS NOT
+Commits `ca96397` (the series layer, the target lister, the quarantine fix) and
+`5b7aad6` (the living docs and this entry). **NO ROADMAP ITEM CLOSED, AND THE MAIN TRACK WAS NOT
 ATTEMPTED.** The session was scoped to the section 3.3 power-stat experiment at
 the V Rising CLIENT. Neither bridge port answered and no V Rising process was
 running; the run needs a human in-world to equip, slot, target and cast about

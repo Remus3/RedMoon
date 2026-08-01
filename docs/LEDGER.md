@@ -14,6 +14,62 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003n - Link ingest stage 4: the binary-RE pair dived, and both demoted (2026-08-01)
+
+Commit `<pending>`. NON-ROADMAP track, per `docs/research/LINK_INGEST.md`. Docs
+only - no code change, Tier 0. `python -m pytest` **544 passed, exit 0**
+(unchanged, as a doc change should leave it), `python tools/ascii_guard.py`
+exit 0.
+
+Stage 4 goes from 1 of 21 survivors dived to **3 of 21, 16 owed, zero adopted.**
+`CCR-35` pyghidra-lite DEMOTED 8 to 4 and `CCR-89` x64dbg DEMOTED 7 to 5, both
+on the two checks stage 4 had named in advance. Sources read at
+`claudemarketplaces.com`; every RM-side fact re-measured on this machine.
+
+**THE FINDING THAT MATTERS IS NOT ABOUT EITHER TOOL.** Stage 2b overturned the
+pair upward on one shared argument - RM's hardest problem class is binary reverse
+engineering, and the cited instance was ROADMAP gap 8, "a global ECS constant
+that has never been read". **"Never been read" had been carried through three
+documents as though it meant "hard to read".** MEASURED from the saved phase 1
+payload rather than from the prose describing it: `ProjectM.ResistanceData` is a
+non-buffer component among the 150 enumerated on the Dracula entity, present on
+the prefab AND the instance (`BRIDGE_SPIKES.md:1043`), and all 11 of its fields
+including `FireResistance_DamageReductionPerRating` are declared `System.Single`
+- plain floats. The plugin already reads `UnitStats.FireResistance` off that same
+entity with a typed accessor. Gap 8 is an unwritten reader, not an RE job. Sized
+in ROADMAP; the gap stays OPEN because the value is still unread, but what
+closing it takes has changed.
+
+**CCR-35, check 1 fails.** 9 tools, ELF/Mach-O/PE, auto-detects Swift,
+Objective-C and Hermes/React Native, requires Ghidra 11.x and JDK 21+ locally,
+MIT. **IL2CPP, Unity and .NET are not mentioned at all.** Ghidra loads
+`GameAssembly.dll` fine - that was never the difficulty. The structure worth
+recovering lives in `global-metadata.dat`, VERIFIED present on this install, and
+recovering it is what Il2CppDumper is for. RM is also on the wrong side of the
+process boundary for it to matter: it reads from inside via BepInEx against 172
+interop files carrying real type and field names.
+
+**CCR-89, check 2 answered - on blast radius, not anti-cheat.** A search of the
+install tree to depth 2 finds NO EasyAntiCheat binary, so the ban-risk objection
+is unsupported for this modded local install, and that scope is stated rather
+than generalized. The problem is the surface: the 23 tools include memory write,
+allocate, protect, byte patching, PE dumping and anti-debug hiding. The 2.3.0
+hardening is about the plugin's own listener on 127.0.0.1:27042, not the target.
+The RM need it would serve - the phase 1 generic value reader that hard-crashed
+the dedicated server twice - is real and RETIRED: RM banned that approach in
+favour of typed accessors, so this would diagnose a crash RM has decided never
+to re-cause again.
+
+**Fourth instance of the same shape**, after ability_stats 1474 versus 1818, the
+corpus 119 versus 146, and `vblood_damage_modifier` range versus binary. Here the
+uncounted thing was RM's OWN capability, asserted in RM's own document, which is
+the harder case.
+
+Stage 3's survivor table is deliberately NOT retro-edited - the cull was chosen
+from the distribution as it stood, and rewriting the inputs to a threshold after
+the fact is the unchecked-count failure this track exists to correct. A note
+under the table says so and points at the stage 4 scores.
+
 ## 003m - The experiment did not run, and the three things blocking it did (2026-08-01)
 
 Commits `ca96397` (the series layer, the target lister, the quarantine fix) and

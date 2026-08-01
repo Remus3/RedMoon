@@ -118,12 +118,16 @@ Reusing RC's stage shape because the shape is sound, with RM's own gate at each.
 - Stage 1 COMPLETE, 146 of 146 extracted.
 - Stage 2 COMPLETE, 146 of 146 scored.
 - Stage 3 COMPLETE: threshold 6+, 21 survivors, 125 culled.
-- Stage 4 deep-dive OPENED 2026-08-01, 1 of 21 survivors dived (`CCR-146`,
-  REFUTED for RM, see below), 1 attempted and unreachable (`CCR-135`), 1 read at
-  source during the cycle 4 concept work and corrected in three places
-  (`CCR-120`). 18 still owed. No survivor may be adopted until its actual source
-  has been read - every score is otherwise against a one-line summary written by
-  someone else for someone else.
+- Stage 4 deep-dive OPENED 2026-08-01. **3 of 21 survivors dived**, 1 attempted
+  and unreachable (`CCR-135`, a Reddit post), 1 read at source during the cycle 4
+  concept work and corrected in three places (`CCR-120`). **16 still owed.** No
+  survivor may be adopted until its actual source has been read - every score is
+  otherwise against a one-line summary written by someone else for someone else.
+
+  **Three dived, three verdicts, zero adoptions.** `CCR-146` REFUTED for RM's
+  setup. `CCR-35` DEMOTED 8 to 4 and `CCR-89` DEMOTED 7 to 5, both on checks
+  stage 4 had named in advance. That is the dive working as designed: the scores
+  it was testing were the ones it moved.
 
 Nothing is adopted until stage 6 names it with an acceptance criterion.
 
@@ -376,6 +380,13 @@ Counted from the rows above: 1 at nine, 3 at eight, 9 at seven, 8 at six.
 **21.** CCR-39 and CCR-84 are two distinct entries reaching the same source and
 are listed separately rather than merged, so the count reconciles.
 
+**The scores in this table are STAGE 3 scores and are deliberately not rewritten
+as stage 4 moves them.** `CCR-35` reads 8 here and is 4 after its dive; `CCR-89`
+reads 7 here and is 5. The cull was chosen from the distribution as it stood, and
+retro-editing the inputs to a threshold after the fact is exactly the unchecked
+count this document exists to correct. Post-dive scores live in stage 4, and the
+survivor list stays 21 so the arithmetic above keeps reconciling.
+
 ## Stage 4 - the deep dive, OPENED 2026-08-01
 
 Started with `CCR-146` on operator direction, because it is a correctness
@@ -425,15 +436,146 @@ finding must say which produced it. And RM's headless model resolution is
 CLEAN - `claude -p` with no `--model` returns correctly, exit 0 - so the
 `rc-main` alias LW still sees is not machine-wide and RM is unaffected.
 
+### CCR-35 pyghidra-lite and CCR-89 x64dbg - the binary-RE pair. BOTH DEMOTED, and the reason is not about the tools.
+
+Dived 2026-08-01, together, because stage 2b overturned them together on one
+shared argument: "a League coaching dashboard has no binary to reverse; Red
+Moon's hardest problem class is nothing else." **That argument does not survive
+a check of what RM's hardest problems actually are.** Sources read at
+`claudemarketplaces.com`; every RM-side fact below was re-measured on this
+machine rather than taken from a document.
+
+#### The root error: gap 8 is not a binary-RE problem
+
+Stage 2b scored the pair on RM's need to read
+`ProjectM.ResistanceData.FireResistance_DamageReductionPerRating` - ROADMAP
+gap 8, the one resistance that varies across the 65 bosses and the one RM cannot
+price. The phrase carried through three documents is "a global ECS constant that
+has never been read", and "never been read" was silently treated as "hard to
+read". MEASURED, from the saved phase 1 payload
+`_scratch/rmprobe/c3/CHAR_Vampire_Dracula_VBlood.json` rather than from the prose
+describing it:
+
+```
+ProjectM.ResistanceData        buffer False   zero_sized False
+  FireResistance_DamageReductionPerRating      System.Single
+  HolyResistance_DamageReductionPerRating      System.Single
+  SilverResistance_DamageReductionPerRating    System.Single
+  GarlicResistance_DamageReductionPerRating    System.Single
+  ... 11 fields, every one System.Single
+```
+
+`ResistanceData` is one of the 150 components enumerated on the Dracula entity
+and `docs/BRIDGE_SPIKES.md:1043` records it as present on the PREFAB AND the
+INSTANCE. The field is a plain float on a component the dumper already walks, and
+the plugin already reads `UnitStats.FireResistance` off the same entity with a
+typed accessor. **The constant is an unwritten reader, not a reverse-engineering
+job.** Neither tool is on the path to it, and a tool adoption argued from that
+need was argued from a premise nobody had checked.
+
+Stated precisely, because "unwritten reader" is not "already done": adding it
+still costs a plugin change, a rebuild, a deploy to both hosts and a live run.
+What it does not cost is Ghidra, a debugger, or a per-patch RE budget.
+
+#### CCR-35 pyghidra-lite - check 1 FAILS. 8 -> 4.
+
+**The check stage 4 owed: does it handle IL2CPP-flavoured PE?** No evidence that
+it does. The server exposes 9 tools (`load`, `delete`, `binaries`, `info`,
+`functions`, `code`, `xrefs`, `search`, and `annotate` behind `--allow-write`),
+supports ELF, Mach-O and PE, and auto-detects Swift, Objective-C and
+Hermes/React Native runtimes. **IL2CPP, Unity and .NET are not mentioned at
+all.** It requires Ghidra 11.x and JDK 21+ installed locally, and defaults to a
+"fast" profile that disables 20 analyzers to fit MCP timeouts. MIT.
+
+Ghidra will happily load `GameAssembly.dll` as a PE - it is native code. That is
+not the difficulty. The structure worth recovering from an IL2CPP build lives in
+`VRising_Data/il2cpp_data/Metadata/global-metadata.dat`, which is PRESENT on
+this install (verified), and recovering it is what Il2CppDumper and
+Il2CppInspector are for. pyghidra-lite does not do that step and does not claim
+to. Auto-detecting Hermes and Objective-C while saying nothing about IL2CPP is
+the shape of a tool built for a different corpus.
+
+**And RM is on the wrong side of the process boundary for it to matter.** RM
+reads the game from INSIDE, through BepInEx, against 172 generated interop files
+carrying real type and field names (169 DLLs; `BRIDGE_SPIKES.md:63` already
+reconciles the two counts). That is why cycle 2 could enumerate 67 `Tier`-shaped
+fields across 169 assemblies and PROVE `items.tier` had no source. Ghidra
+operates from outside on stripped native code to recover names RM already has.
+
+Rescored **4** - adjacent, RM would have to bend the tool or itself. The one
+thing that would raise it again is `BACKLOG.md`'s offline ECS-blob parser
+(`ContentArchives`, `EntityScenes`), rejected for cycle 1 on per-patch RE cost.
+That rejection stands, and if it is ever reopened this entry is re-dived, not
+re-scored from this line.
+
+#### CCR-89 x64dbg - check 2 is ANSWERED UNFAVOURABLY on blast radius, not on anti-cheat. 7 -> 5.
+
+**The check stage 4 owed: is driving x64dbg safe against a live game process?**
+Two halves, and they come apart.
+
+*The anti-cheat half is not the problem here, measured.* A search of the install
+tree to depth 2 finds NO EasyAntiCheat binary of any kind. Scope stated rather
+than generalized: that is a fact about this BepInEx-modded local install, which
+is the only host RM ever drives, and says nothing about official servers.
+
+*The blast-radius half is the problem.* The 23 tools are not a reading surface.
+They include memory write, allocate and protect, byte patching, PE dumping,
+import-table fixing, and anti-debug hiding, alongside the reads. The 2.3.0
+hardening the page advertises is about the plugin's own HTTP listener on
+`127.0.0.1:27042` - "a malformed HTTP request can no longer crash x64dbg" - not
+about the target. The docs assume an already-open debugging session and do not
+address attaching to a running process at all, which is precisely the mode RM
+would need. MIT, fully local, TypeScript bridge over a C++ x64dbg plugin.
+
+**The RM need it would serve is real and is also retired.** Cycle 3 phase 1 had
+a generic value reader HARD CRASH the dedicated server twice, and the diagnosis
+stopped at "GetComponentBoxed does not hand back chunk-backed memory" - a guess a
+debugger would have turned into an observation. But RM's response was to BAN the
+approach: "DO NOT BUILD A GENERIC VALUE READER... use TYPED accessors", recorded
+twice as a failure. A debugger that would diagnose a crash RM has decided never
+to re-cause is not urgent.
+
+Rescored **5** - a genuine capability with no current RM problem that needs it,
+parked with a reason.
+
+#### What this dive is actually evidence of
+
+The pair was called "the single clearest case of RC's frame hiding RM's need"
+and "the sharpest overturn in the corpus". The overturn reasoned from RM's
+PROBLEM CLASS - RM reverse-engineers a game, therefore RE tools score high -
+without checking whether the specific problem cited was already reachable by a
+route RM owns. It was: a typed accessor on an enumerated component, one grep and
+one saved payload away.
+
+**This is the fourth instance of the same shape in this project** - after
+ability_stats 1474 versus 1818, the corpus 119 versus 146, and
+`vblood_damage_modifier` range versus binary. Each time a plausible statement
+was reasoned about rather than counted. Here the uncounted thing was RM's own
+capability, which is the harder case, because the document making the claim was
+RM's.
+
+Both entries stay in the corpus with their new scores. Neither is culled
+retroactively - stage 3's threshold was chosen from the distribution as it stood,
+and rewriting it now would be exactly the unchecked-count failure this document
+exists to correct. They are recorded as DIVED AND DEMOTED.
+
 ### Still owed at stage 4
 
-The binary-RE pair `CCR-35` (pyghidra-lite, 8) and `CCR-89` (x64dbg, 7), which
-is the sharpest overturn in the corpus and needs two specific checks: that
-pyghidra-lite handles IL2CPP-flavoured PE, and that driving x64dbg is safe
-against a live game process. Then the gap 7 plumbing entries `CCR-39`/`CCR-84`
-and `CCR-123` - now partly overtaken, since the operator has ruled the anchor is
-a bridge-side health series rather than a narrated recording, which demotes
-`CCR-123` from plumbing-for-the-anchor to a cross-check route at most.
+The binary-RE pair is DONE, above, and both were demoted. Still owed, 16 of 21:
+
+The gap 7 plumbing entries `CCR-39`/`CCR-84` (MediaWiki, an independent second
+source for boss numbers) and `CCR-123` (talkthrough) - the latter partly
+overtaken, since the operator has ruled the anchor is a bridge-side health series
+rather than a narrated recording, which demotes it from plumbing-for-the-anchor
+to a cross-check route at most. `CCR-39`/`CCR-84` are now the strongest remaining
+undived entries: RM has exactly one source for every number it publishes, its own
+dumper, and the run that would falsify a computed figure has still not been
+taken.
+
+Then `CCR-143` (red-handed, 9, the highest-scored entry in the corpus and still
+undived), `CCR-74`/`CCR-50`/`CCR-80` (the drift-validation family), `CCR-81`,
+`CCR-110`, `CCR-127`, `CCR-55`, `CCR-121`, `CCR-129`, `CCR-120`, `CCR-75`,
+`CCR-76` and `CCR-144`.
 
 `CCR-135` (Codeman) could NOT be read at source - it is a Reddit post. Its
 information design fed the cycle 4 concepts through its one-line summary only,

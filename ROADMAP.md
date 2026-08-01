@@ -220,6 +220,22 @@ an explicit `modification` on every entry.
    gap 1's shape one level down: declared, named, and never sourced. No surface
    may render a fire resistance as a percentage or a survival time.
 
+   **SIZED 2026-08-01, and it is much smaller than three documents implied.**
+   The phrase "never been read" had been carried as though it meant "hard to
+   read". MEASURED from the saved phase 1 payload rather than from the prose:
+   `ProjectM.ResistanceData` is a non-buffer component among the 150 enumerated
+   on the Dracula entity, present on the PREFAB AND the INSTANCE
+   (`BRIDGE_SPIKES.md:1043`), and all 11 of its fields including
+   `FireResistance_DamageReductionPerRating` are declared `System.Single` - plain
+   floats, not `ModifiableFloat`, not blobs. The plugin already reads
+   `UnitStats.FireResistance` off that same entity with a typed accessor. **So
+   this is an unwritten reader, not a reverse-engineering problem**, and the
+   binary-RE tooling scored against it in `docs/research/LINK_INGEST.md` was
+   scored against a premise nobody had checked. The remaining cost is a plugin
+   change, a rebuild, a deploy to both hosts and one live run - real, but
+   ordinary. The gap stays OPEN because the value is still unread; what changed
+   is what closing it takes.
+
 9. **BOSS LEVEL, POWER AND HEALTH ARE DIFFICULTY-SCALED, and `vbloods.json` is
    implicitly a NORMAL table.** Added 2026-08-01, found while adjudicating the
    cycle 4 concepts and missed by every earlier pass.
@@ -308,8 +324,11 @@ loop itself does not exist** - that is the next action on this track.
 **RM's own link ingest**, `docs/research/LINK_INGEST.md`. Stages 1 to 3 done:
 146 of 146 extracted and scored against an RM rubric, 21 survivors above a 6+
 threshold chosen from the observed distribution. The corpus is 146 entries, not
-the 119 every earlier pass reported. Stage 4 deep-dive has NOT run and nothing
-is adopted until stage 6 names an acceptance criterion.
+the 119 every earlier pass reported. **Stage 4 is RUNNING: 3 of 21 dived, 16
+owed, ZERO adopted.** `CCR-146` refuted, `CCR-35` demoted 8 to 4 and `CCR-89`
+demoted 7 to 5 - the binary-RE pair, on the two checks stage 4 had named in
+advance, plus the discovery that gap 8 was never a binary-RE problem at all.
+Nothing is adopted until stage 6 names an acceptance criterion.
 
 CONSEQUENCE for the spec: cycle 3 cannot open by writing combat math. It opens
 by settling where the boss stat line and the ability coefficients come from -

@@ -51,6 +51,14 @@ There is no bind-time race and no mandated start order.
 
 ## Hard rules
 
+- **Apache-2.0, and the repo is public.** Text in `LICENSE`, attribution and
+  the Stunlock disclaimer in `NOTICE`, summary in `README.md`; upstream is
+  `github.com/Remus3/RedMoon`. Two consequences: never vendor third-party code
+  under an Apache-2.0-incompatible license (GPL, AGPL, no-license snippets),
+  and never commit game assets or extracted game data - `data/rmdata/` is
+  regenerated locally by `tools/rmdata_extract.py`, and `NOTICE` states that
+  nothing of Stunlock's is redistributed. Any new packaging metadata declares
+  `license = "Apache-2.0"`.
 - **No em-dashes or en-dashes, ever. 7-bit ASCII in all authored content:**
   code, comments, docstrings, `.md`, commit messages, chat output. Use ` - `
   for a clause break, `-` otherwise. Also avoid smart quotes (U+2018 U+2019

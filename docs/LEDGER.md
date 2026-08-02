@@ -14,6 +14,47 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003u - Red Moon is licensed Apache-2.0 (2026-08-01)
+
+Commits `cce7219` (LICENSE, NOTICE, README) and `5a74674` (the CLAUDE.md hard
+rule), plus `PENDING-DOCS` for this entry and the living docs. Suite **598
+passed in 27.89s, exit 0** (598 at open, +0 - no test touched), `ascii_guard`
+exit 0. No code change, no C# change, `ENGINE_VERSION` untouched. **NO ROADMAP
+ITEM CLOSED**; licensing appears nowhere in `ROADMAP.md` or `BACKLOG.md` and
+never did.
+
+**The defect it closes is that the repo was public and unlicensed.** Verified
+live rather than assumed, `api.github.com/repos/Remus3/RedMoon` returning
+`private=False` and, after the push, `license.spdx_id=Apache-2.0`. An absent
+LICENSE is not a permissive default - it is all rights reserved, so for the
+life of the repo nobody could legally fork, run or contribute to code that was
+readable by anyone. The one-file fix had been sitting behind nobody noticing.
+
+`LICENSE` is the canonical text fetched verbatim from
+`apache.org/licenses/LICENSE-2.0.txt`, 202 lines, **appendix placeholder left
+intact**. Retyping or "filling in" that text is how a license silently stops
+being the license it claims to be; GitHub's detector matches against the
+canonical body, and `license.spdx_id` coming back `Apache-2.0` is the
+confirmation that it matched. Attribution goes in `NOTICE` instead, which is
+where Apache-2.0 puts it.
+
+**`NOTICE` carries the part that is actually specific to this project.** Red
+Moon reads Stunlock's game data, so the file states that V Rising and its
+assets remain Stunlock's and that nothing of theirs is redistributed. The
+claim is structurally true rather than merely asserted: `data/rmdata/` is
+gitignored at `.gitignore:16` and `git ls-files data/rmdata` returns **0**,
+which was probed before the sentence was written rather than after.
+
+`CLAUDE.md` gained a hard rule as its FIRST entry, so it loads every turn - the
+license, the public upstream, and the two constraints that follow and that a
+future session could otherwise violate silently: never vendor
+Apache-2.0-incompatible code, and never commit game assets. Cost 8 lines
+against a 60 KB budget; the file is 10,031 bytes.
+
+Recorded as pending: there is no `pyproject.toml`, so no packaging metadata
+declares a license today. Whoever adds one declares `license = "Apache-2.0"`
+or the two sources of truth disagree on day one.
+
 ## 003t - rm_facts states whether its two build lines agree (2026-08-01)
 
 Commits `90c819e` (the change) and `e10a19a` (the living docs and this

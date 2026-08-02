@@ -24,9 +24,10 @@ CONTEXT, do not re-derive.
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above, never from a hash written in a doc.
-- Last verified, one run each: pytest 598 passed in 31.04s exit 0 (551 at the
-  start of last session, +47), ruff clean, ascii_guard exit 0. NO C# change last
-  session, so the deployed DLLs still match. There is NO .sln - build
+- Last verified, one run each: pytest 598 passed in 27.89s exit 0 (598 at the
+  start of last session, +0 - it was a docs-only session), ruff clean,
+  ascii_guard exit 0. NO C# change last session, so the deployed DLLs still
+  match. There is NO .sln - build
   bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj. csproj has
   EnableDefaultCompileItems=false, so a NEW .cs file must be added to the
   ItemGroup by hand or it silently will not compile.
@@ -47,6 +48,13 @@ CONTEXT, do not re-derive.
   13, ability_stats 1818 (schema 1). 3,038 rows, 0 nulls.
 - ops/loop/slots.py is byte-identical across three repos, pinned in
   tests/test_slots.py. MAX_CONCURRENT_SLOTS = 3. Nothing in RM calls it yet.
+- THE REPO IS PUBLIC (api.github.com reports private=False) and is now licensed
+  Apache-2.0 - LICENSE is the canonical text fetched verbatim, attribution and
+  the Stunlock disclaimer are in NOTICE, and CLAUDE.md carries it as its FIRST
+  hard rule. Two live constraints: never vendor Apache-2.0-incompatible code
+  (GPL, AGPL, unlicensed snippets), and never commit game assets or extracted
+  game data. If you ever add a pyproject.toml it declares
+  license = "Apache-2.0"; nothing declares it today.
 
 THREE GATES LANDED LAST SESSION THAT WILL CHANGE HOW YOUR TOOLS BEHAVE. None is
 a defect; each will look like one the first time it fires.
@@ -287,10 +295,16 @@ Operator standing execution mode: keep the inline session free, perform work wit
 headlessly-orchestrated multi-agent parallel self-adjudicated adversarial
 looping, and print a paste-ready block at /done. Subagents DO receive CLAUDE.md's
 hard rules as a system-reminder injection, so do not re-paste them. RE-RUN ANY
-AGENT'S CLAIMED COUNTS, BUILDS AND FILE EXISTENCE YOURSELF. Last session ran
-INLINE rather than fanning out, correctly per R9 - four items over six files with
-no parallel slices - and still found three defects in its own work by re-running
-its own numbers.
+AGENT'S CLAIMED COUNTS, BUILDS AND FILE EXISTENCE YOURSELF. The last two
+sessions both ran INLINE rather than fanning out, correctly per R9 - four items
+over six files, then a four-file docs change - and the earlier of the two still
+found three defects in its own work by re-running its own numbers.
+
+ONE MORE FROM THE LICENSE SESSION: NO GATE IN THIS PROJECT LOOKS OUTWARD. The
+repo sat public with no LICENSE, meaning all rights reserved, for its whole
+life, and 598 tests plus every hook had nothing to say about it because they all
+check the code against itself. When something feels like it should already have
+been caught, ask whether any instrument here was ever pointed at it.
 
 End with /done, and print the next-session prompt inline.
 ```

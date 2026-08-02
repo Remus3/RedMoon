@@ -3,6 +3,47 @@
 Last two or three sessions at full fidelity. Archive older entries to
 `docs/history_notes.md`.
 
+## 2026-08-01 (tenth stretch) - The repo has a license, which it had been public without
+
+Ledger 003u. Commits `cce7219` and `5a74674`. Suite **598 passed in 27.89s exit
+0** (598 at open, +0 - no test touched), `ascii_guard` exit 0. No Python change,
+no C# change, `ENGINE_VERSION` untouched. **NO ROADMAP ITEM CLOSED** - licensing
+appears nowhere in `ROADMAP.md` or `BACKLOG.md` and never did.
+
+A short, entirely non-technical session, taken on operator instruction: Apache
+2.0. It is here at full fidelity mainly because of what the probe found.
+
+**THE REPO WAS PUBLIC AND UNLICENSED.** Verified rather than assumed -
+`api.github.com/repos/Remus3/RedMoon` returns `private=False`, and after the
+push `license.spdx_id=Apache-2.0`. An absent LICENSE is not a permissive
+default; it is all rights reserved. For the entire life of the repo the code
+was readable by anyone and legally usable by nobody, and no gate, doc or session
+had ever raised it. Nothing in the project's own machinery was ever going to:
+every gate RM has checks the code against itself.
+
+**The LICENSE text was fetched verbatim, not retyped**, 202 lines from
+`apache.org/licenses/LICENSE-2.0.txt`, appendix placeholder left intact.
+Retyping is how a license quietly stops being the license it names, and the
+detector matching `Apache-2.0` is the confirmation the body is canonical.
+Attribution belongs in `NOTICE`, which is where Apache-2.0 puts it.
+
+**`NOTICE` makes a claim, so the claim was probed first.** It states that
+V Rising's assets stay Stunlock's and that RM redistributes none of them.
+`.gitignore:16` ignores `data/rmdata/` and `git ls-files data/rmdata` returns 0
+- checked BEFORE the sentence was written. This is the same habit as the S7.2
+predicate import, in a place where the cost of being wrong is legal rather than
+a failing test.
+
+`CLAUDE.md` gained a hard rule as its first entry, 8 lines, file now 10,031
+bytes against the 60 KB budget. Not for the license fact but for the two
+consequences a future session could violate silently and permanently: no
+vendored Apache-2.0-incompatible code, no committed game assets.
+
+**Left open deliberately:** there is no `pyproject.toml`, so nothing declares
+`license = "Apache-2.0"` in packaging metadata. Recorded in the ledger as
+pending rather than fixed, because inventing packaging metadata to hold one
+field is a larger change than this session was asked for.
+
 ## 2026-08-01 (ninth stretch) - Stage 7 ships and the link ingest track closes, with the run deferred a third time
 
 Ledger 003s. Commit `8684aa0`. Suite **588 passed in 26.29s exit 0** (551 at
@@ -158,50 +199,3 @@ exemption.
   The 2026-07-26 console probe filtered for `cmd.exe`, polled 120 s against a
   once-per-session event, and used `Win32_Process`, which has no window field at
   all. Memory corrected rather than deleted.
-
-## 2026-08-01 (seventh stretch) - The run did not happen, and the three things blocking it did
-
-Ledger 003m. Suite **544 passed in 20.02s exit 0** (526 before, +18), ruff clean,
-ascii_guard exit 0. No C# change, no rebuild, no redeploy. **NO ROADMAP ITEM
-CLOSED.**
-
-**THE MAIN TRACK WAS NOT ATTEMPTED, DELIBERATELY.** The session was scoped to
-the power-stat experiment at the CLIENT. Neither bridge port answered and no
-V Rising process was running. The run needs a human in-world - equip a weapon so
-the two power stats diverge, slot Ward of the Damned, find a survivable
-non-V Blood target, cast about 30 times in isolation - and the operator was not
-available. It is deferred intact rather than approximated. `P(G)` is still
-undefined.
-
-**WHAT IS DIFFERENT NEXT TIME.** Three things that would have cost time mid-run
-are now closed:
-
-1. **`tools/find_target.py`.** `ANCHOR_RUNS.md` said "find the target's prefab
-   guid" without saying how. It lists SPAWNED units over
-   `/dump/components?instanced=1` and MARKS V Bloods and prefab rows rather than
-   dropping them - a tool that silently filters teaches the operator the list was
-   complete.
-2. **The caster-side precondition is a CHECK, not a warning.** The arm response
-   is the first and only place `PhysicalPower` versus `SpellPower` is
-   observable. `ANCHOR_RUNS.md` now says STOP and re-gear rather than describing
-   the failure after the fact.
-3. **`bloodforge/series.py`.** The engine no longer imports a `tools/` script.
-   The re-export is asserted BY IDENTITY, plus an AST check that nothing under
-   `bloodforge/` imports from `tools/` - the layering rule, not the one module
-   that broke it. Duplicating the two functions was the worse option: two copies
-   of the isolation rule can drift, which is what this protocol exists to catch.
-
-**A DATA FIX THAT ALSO RECOVERED THE BROKEN STATE.** `rmdata_ingest` promoted by
-copying and left `tables/_incoming/` populated, so promoted and pending were
-indistinguishable on disk. Promotion now empties it on the SUCCESS path only -
-refused and validated-but-unaccepted runs still leave the rows for inspection.
-The six stale files were SHA256-compared against their promoted copies,
-identical on all six, and removed.
-
-**Doc drift, found by looking rather than reported.** `ARCHITECTURE.md` listed
-the engine as `agents/bloodforge/`, a path that has never existed. Fixed, and
-the module map now names all six real modules. Historical specs and plans keep
-the old name; they are history.
-
-Inbox clean at open: all 14 `moon_sync_inbox/` files timestamped 10:19 or
-earlier against a 13:00 HEAD.

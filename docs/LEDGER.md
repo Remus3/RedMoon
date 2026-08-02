@@ -17,7 +17,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 ## 003u - Red Moon is licensed Apache-2.0 (2026-08-01)
 
 Commits `cce7219` (LICENSE, NOTICE, README) and `5a74674` (the CLAUDE.md hard
-rule), plus `PENDING-DOCS` for this entry and the living docs. Suite **598
+rule), plus `a6fde06` for this entry and the living docs. Suite **598
 passed in 27.89s, exit 0** (598 at open, +0 - no test touched), `ascii_guard`
 exit 0. No code change, no C# change, `ENGINE_VERSION` untouched. **NO ROADMAP
 ITEM CLOSED**; licensing appears nowhere in `ROADMAP.md` or `BACKLOG.md` and

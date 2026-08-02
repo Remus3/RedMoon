@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003v - pyproject.toml declares the license, and a test holds it (2026-08-01)
 
-Commit `PENDING-DOCS`. Suite **606 passed in 27.84s, exit 0** (598 before, +8),
+Commit `82337eb`. Suite **606 passed in 27.84s, exit 0** (598 before, +8),
 ruff clean, `ascii_guard` exit 0. No C# change, `ENGINE_VERSION` untouched.
 **NO ROADMAP ITEM CLOSED.** Closes the pending item recorded in 003u.
 

@@ -27,5 +27,20 @@ Wrap this session.
     pastes into it, so the prompt must be copy-pasteable straight out of the
     chat. This applies whenever this ritual runs, whether `/done` was invoked
     explicitly or merely inferred from the operator wrapping up.
+11. Publish the same prompt to the Desktop, which is where the operator pastes
+    it from:
+
+    ```
+    python tools/publish_next_session.py
+    ```
+
+    It reads the fenced block out of `NEXT_SESSION_PROMPT.md` - never a retyped
+    copy, so the two cannot disagree - and writes
+    `Desktop/RM-NEXT-SESSION.txt` atomically, then reads it back. It REFUSES on
+    a missing or duplicated fence, a block under 2000 bytes, any non-ASCII, or
+    an absent Desktop, and it writes no other filename: `LW-NEXT-SESSION.txt`
+    and `RC-NEXT-SESSION.txt` on that same Desktop belong to sibling projects.
+    Report the byte count it prints. A refusal is a failure of the ritual - fix
+    `NEXT_SESSION_PROMPT.md` and re-run it, never hand-write the Desktop copy.
 
 Run independent steps in parallel.

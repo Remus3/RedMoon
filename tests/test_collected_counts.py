@@ -64,6 +64,7 @@ PINNED = {
     "tests/test_licensing.py": 8,
     "tests/test_ports.py": 10,
     "tests/test_powerstat.py": 23,
+    "tests/test_publish_next_session.py": 12,
     "tests/test_register_tasks.py": 7,
     "tests/test_rmdata_extract.py": 22,
     "tests/test_rmdata_ingest.py": 24,

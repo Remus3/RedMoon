@@ -45,6 +45,30 @@ only, no `[build-system]`, because Red Moon is modules run in place and a build
 backend over a flat eight-directory layout produces a package that fails the
 first time anyone believes it.
 
+**Then two more, and the first was a validation that came back NO.** Ledger
+003w, suite 606 to **618**. Asked whether `/done` updated
+`Desktop/RM-NEXT-SESSION.txt`, guarded: it did not update it at all - ten steps
+in `.claude/commands/done.md`, none of them the Desktop. The file was 13,918
+bytes dated 11:18 and described a **382-test** suite and an `ENGINE_VERSION`
+that did not exist yet. Both sibling projects write theirs. **A stale hand-off
+reads as current, which makes it worse than an absent one.**
+
+`tools/publish_next_session.py` is step 11 now and is all guard, because it is
+the only writer in the project that leaves the repo: the Desktop is SHARED, so
+`TARGET_NAME` is a constant and a test asserts the LW and RC hand-offs come back
+byte-identical; the source is the repo file's fenced block rather than a retyped
+copy; a block under 2000 bytes is refused because a truncation reads like a
+hand-off; non-ASCII is refused at the one point the text leaves the toolchain;
+and the write is atomic into the DESTINATION directory, then read back.
+
+**The guard fired on its own test.** The non-ASCII case held a literal em dash,
+so `ascii_guard` failed the repo - a test file is authored content too. `chr()`
+now, with the incident in a comment.
+
+`README.md` was rewritten outward for the first time. It also corrected real
+drift: "Cycle 1 of 8, no runtime services yet" while the bridge has served both
+hosts for two cycles.
+
 **The field alone would have been the wrong deliverable.** A third place
 stating the license is a third place to be wrong, so `tests/test_licensing.py`
 (written first, 6 failed 2 passed, then 8 passed) checks the SPDX id against

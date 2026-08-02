@@ -14,6 +14,53 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003w - the Desktop hand-off gets a writer, and README turns outward (2026-08-01)
+
+Commit `PENDING-DOCS`. Suite **618 passed in 29.01s, exit 0** (606 before,
++12), ruff clean, `ascii_guard` exit 0. No C# change, `ENGINE_VERSION`
+untouched. **NO ROADMAP ITEM CLOSED.**
+
+**THE VALIDATION ANSWER WAS NO.** The operator asked whether `/done` updates
+`Desktop/RM-NEXT-SESSION.txt`, guarded. It did not update it at all:
+`.claude/commands/done.md` had ten steps and none of them mentioned the
+Desktop. The file on disk was **13,918 bytes dated 11:18**, roughly ten hours
+stale, and its content described a **382-test** suite, an unsettled gap 7 and
+an `ENGINE_VERSION` that "has NO definition anywhere in code" - all three long
+since false. **A stale hand-off is worse than an absent one, because it reads
+as current.** Both sibling projects write theirs; RM was the one that did not.
+
+`tools/publish_next_session.py` now does, as step 11, and every part of it is a
+guard because this is the only writer in the project that leaves the repo:
+
+- **The Desktop is SHARED.** `LW-NEXT-SESSION.txt` and `RC-NEXT-SESSION.txt`
+  sit beside ours. `TARGET_NAME` is a constant never derived from an argument,
+  and a test publishes into a fixture Desktop holding both siblings and asserts
+  they come back byte-identical.
+- **The source is the repo file's fenced block**, never a retyped copy, so the
+  Desktop cannot disagree with `NEXT_SESSION_PROMPT.md`. Missing fence and
+  duplicated fence are separate refusals.
+- **A block under 2000 bytes is REFUSED.** A truncation and a good hand-off
+  both look like a hand-off.
+- **Non-ASCII is REFUSED** at the exact point the text leaves the toolchain for
+  Notepad, which is the hard rule's original reason for existing.
+- **Atomic write, temp file in the DESTINATION directory** - `os.replace` is
+  only atomic within a filesystem and the Desktop need not share one with the
+  repo - then read back and compared before it reports success.
+
+**THE GUARD FIRED ON ITS OWN TEST FILE.** The non-ASCII case originally
+contained a literal em dash, so `ascii_guard` failed the repo: a test file is
+authored content too. Built with `chr(0x2014)` now, and the incident is
+recorded in a comment where the next reader will meet it.
+
+`README.md` was rewritten for a stranger landing on a public repo - the first
+outward-facing document this project has had. Cycle numbers, ledger references
+and doctrine are gone; a status table names the dashboard as not built, and a
+section explains that the power stat and boss `max_health` are WITHHELD rather
+than defaulted, because a missing number is recoverable and a confident wrong
+one is not. It also corrected real drift: the old text said "Cycle 1 of 8 ... no
+runtime services yet" while the bridge plugin has been serving in both hosts
+for two cycles. Every linked doc was checked to exist before the link shipped.
+
 ## 003v - pyproject.toml declares the license, and a test holds it (2026-08-01)
 
 Commit `82337eb`. Suite **606 passed in 27.84s, exit 0** (598 before, +8),

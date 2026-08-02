@@ -24,10 +24,11 @@ CONTEXT, do not re-derive.
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above, never from a hash written in a doc.
-- Last verified, one run each: pytest 606 passed in 27.84s exit 0 (598 at the
-  start of last session, +8, all from tests/test_licensing.py), ruff clean,
-  ascii_guard exit 0. NO C# change last session, so the deployed DLLs still
-  match. There is NO .sln - build
+- Last verified, one run each: pytest 618 passed in 29.01s exit 0 (598 at the
+  start of last session, +20: 8 from tests/test_licensing.py and 12 from
+  tests/test_publish_next_session.py), ruff clean, ascii_guard exit 0. NO C#
+  change last session, so the deployed DLLs still match. There is NO .sln -
+  build
   bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj. csproj has
   EnableDefaultCompileItems=false, so a NEW .cs file must be added to the
   ItemGroup by hand or it silently will not compile.
@@ -60,6 +61,21 @@ CONTEXT, do not re-derive.
   pytest.ini and ruff.toml both win over it. tests/test_licensing.py (8 tests)
   refuses those sections and checks LICENSE against the canonical Apache body
   rather than against another string reading "Apache-2.0".
+- README.md IS NOW OUTWARD-FACING. It is written for a stranger landing on a
+  public repo, not for you: no cycle numbers, no ledger, no doctrine. Keep it
+  that way. The internal state lives in ROADMAP.md, WAKEUP_NOTES.md and
+  docs/. It states plainly that the dashboard does not exist and that the
+  power stat and boss max_health are WITHHELD rather than defaulted, so do not
+  quietly make it claim more than ships.
+- STEP 11 OF /done PUBLISHES THE PROMPT TO THE DESKTOP:
+  python tools/publish_next_session.py. It reads the FENCED BLOCK out of
+  NEXT_SESSION_PROMPT.md - so keep that file at EXACTLY TWO ``` lines - and
+  writes Desktop/RM-NEXT-SESSION.txt atomically, then reads it back. It
+  refuses on a missing or duplicated fence, a block under 2000 bytes, any
+  non-ASCII, or an absent Desktop, and it writes no other filename because
+  LW-NEXT-SESSION.txt and RC-NEXT-SESSION.txt on that Desktop belong to
+  sibling projects. Before this existed the Desktop copy was 10 hours stale
+  and described a 382-test suite.
 
 THREE GATES LANDED LAST SESSION THAT WILL CHANGE HOW YOUR TOOLS BEHAVE. None is
 a defect; each will look like one the first time it fires.

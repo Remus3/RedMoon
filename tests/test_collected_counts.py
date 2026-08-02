@@ -61,6 +61,7 @@ PINNED = {
     "tests/test_hook_consoles.py": 7,
     "tests/test_hooks.py": 31,
     "tests/test_install_bepinex.py": 22,
+    "tests/test_licensing.py": 8,
     "tests/test_ports.py": 10,
     "tests/test_powerstat.py": 23,
     "tests/test_register_tasks.py": 7,

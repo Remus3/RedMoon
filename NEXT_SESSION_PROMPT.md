@@ -24,8 +24,8 @@ CONTEXT, do not re-derive.
 
 - Repo C:\RedMoon, branch master, clean and pushed, ONE worktree. Confirm HEAD
   from the git log above, never from a hash written in a doc.
-- Last verified, one run each: pytest 598 passed in 27.89s exit 0 (598 at the
-  start of last session, +0 - it was a docs-only session), ruff clean,
+- Last verified, one run each: pytest 606 passed in 27.84s exit 0 (598 at the
+  start of last session, +8, all from tests/test_licensing.py), ruff clean,
   ascii_guard exit 0. NO C# change last session, so the deployed DLLs still
   match. There is NO .sln - build
   bridge/src/RedMoon.Bridge/RedMoon.Bridge.csproj. csproj has
@@ -53,8 +53,13 @@ CONTEXT, do not re-derive.
   the Stunlock disclaimer are in NOTICE, and CLAUDE.md carries it as its FIRST
   hard rule. Two live constraints: never vendor Apache-2.0-incompatible code
   (GPL, AGPL, unlicensed snippets), and never commit game assets or extracted
-  game data. If you ever add a pyproject.toml it declares
-  license = "Apache-2.0"; nothing declares it today.
+  game data.
+- pyproject.toml exists and is METADATA ONLY - license = "Apache-2.0", version
+  pinned BY TEST to the release part of bloodforge.ENGINE_VERSION, NO
+  [build-system], and NO [tool.pytest.ini_options] or [tool.ruff] because
+  pytest.ini and ruff.toml both win over it. tests/test_licensing.py (8 tests)
+  refuses those sections and checks LICENSE against the canonical Apache body
+  rather than against another string reading "Apache-2.0".
 
 THREE GATES LANDED LAST SESSION THAT WILL CHANGE HOW YOUR TOOLS BEHAVE. None is
 a defect; each will look like one the first time it fires.

@@ -1,0 +1,23 @@
+# Metadata only. Red Moon is not a distributable package - it is a set of
+# top-level modules run in place on one machine - so there is deliberately no
+# [build-system] table and nothing here is meant to be pip-installed. The file
+# exists so the license is declared where packaging tools look for it.
+#
+# pytest.ini and ruff.toml hold the real configuration and BOTH take precedence
+# over this file. Do not add a [tool.pytest.ini_options] or [tool.ruff] section
+# here; tests/test_licensing.py refuses them, because a section no tool reads
+# drifts into a lie without ever failing.
+#
+# version is the release part of bloodforge.ENGINE_VERSION, pinned to it by
+# test. The local part naming the game build stays out of this file so it does
+# not become another site for tests/test_drift_anchors.py to hold.
+
+[project]
+name = "redmoon"
+version = "0.1.0"
+description = "V Rising coaching and analysis - bridge reader, Bloodforge engine, local dashboard."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Moonbeam" }]

@@ -39,10 +39,22 @@ bytes against the 60 KB budget. Not for the license fact but for the two
 consequences a future session could violate silently and permanently: no
 vendored Apache-2.0-incompatible code, no committed game assets.
 
-**Left open deliberately:** there is no `pyproject.toml`, so nothing declares
-`license = "Apache-2.0"` in packaging metadata. Recorded in the ledger as
-pending rather than fixed, because inventing packaging metadata to hold one
-field is a larger change than this session was asked for.
+**And then it was closed in the same session** - ledger 003v, suite 598 to
+**606**. The operator asked for the `pyproject.toml`, so it exists: metadata
+only, no `[build-system]`, because Red Moon is modules run in place and a build
+backend over a flat eight-directory layout produces a package that fails the
+first time anyone believes it.
+
+**The field alone would have been the wrong deliverable.** A third place
+stating the license is a third place to be wrong, so `tests/test_licensing.py`
+(written first, 6 failed 2 passed, then 8 passed) checks the SPDX id against
+the CANONICAL Apache body rather than against another string reading
+`Apache-2.0`; pins `version` to `ENGINE_VERSION.split("+")[0]`; REFUSES
+`[tool.pytest.ini_options]` and `[tool.ruff]`, since `pytest.ini` and
+`ruff.toml` win over pyproject and a section no tool reads drifts into a lie;
+and checks NOTICE's redistribution claim against `git ls-files data/rmdata`
+rather than against NOTICE. The build pin is deliberately absent from the file
+- writing it would have created a 121st site for `test_drift_anchors`.
 
 ## 2026-08-01 (ninth stretch) - Stage 7 ships and the link ingest track closes, with the run deferred a third time
 

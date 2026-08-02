@@ -14,6 +14,49 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ---
 
+## 003v - pyproject.toml declares the license, and a test holds it (2026-08-01)
+
+Commit `PENDING-DOCS`. Suite **606 passed in 27.84s, exit 0** (598 before, +8),
+ruff clean, `ascii_guard` exit 0. No C# change, `ENGINE_VERSION` untouched.
+**NO ROADMAP ITEM CLOSED.** Closes the pending item recorded in 003u.
+
+TDD: `tests/test_licensing.py` was written first and run first - **6 failed, 2
+passed**. The two that passed were the LICENSE-body and NOTICE checks, which
+already had their subjects on disk; the six that failed all named the absent
+`pyproject.toml`. Then the file, then 8 passed.
+
+**The file is METADATA ONLY and says so in its own header.** No
+`[build-system]`: Red Moon is a set of top-level modules run in place, not a
+distributable, and declaring a build backend for a flat layout with eight
+top-level directories would produce a package that fails the first time anyone
+believed it. What it declares is `license = "Apache-2.0"` plus
+`license-files = ["LICENSE", "NOTICE"]`.
+
+**A THIRD PLACE THAT STATES THE LICENSE IS A THIRD PLACE TO BE WRONG**, which
+is the whole reason the tests exist rather than the field alone:
+
+- The SPDX id is checked against the CANONICAL Apache body - four markers
+  including `TERMS AND CONDITIONS` and `END OF TERMS AND CONDITIONS` - not
+  against another string reading `Apache-2.0`. A truncated or retyped license
+  is still a file named LICENSE, and comparing two declarations to each other
+  is the same shape as entry 003t's two-sentinel MATCH.
+- `version` is pinned to `ENGINE_VERSION.split("+")[0]`, so the release part
+  cannot drift from the engine. The local part naming the game build is
+  deliberately ABSENT from the file: writing it would create a 121st build-pin
+  site for `test_drift_anchors` to hold, for no gain.
+- `[tool.pytest.ini_options]` and `[tool.ruff]` are REFUSED. `pytest.ini` and
+  `ruff.toml` both take precedence over `pyproject.toml`, so a section there is
+  read by nothing and drifts silently - a config file that lies without ever
+  failing.
+- NOTICE's redistribution claim is checked against the TREE, not against
+  NOTICE: `git ls-files data/rmdata` must return empty. That claim is legal
+  rather than technical, so it gets an instrument.
+
+The count pin moved `test_collected_counts.py` by one key, 8 tests - the gate
+behaving as designed on a new module. `CLAUDE.md`'s license rule and
+`NEXT_SESSION_PROMPT.md` were corrected in the same commit: both said nothing
+declared a license in packaging metadata, which this change made false.
+
 ## 003u - Red Moon is licensed Apache-2.0 (2026-08-01)
 
 Commits `cce7219` (LICENSE, NOTICE, README) and `5a74674` (the CLAUDE.md hard

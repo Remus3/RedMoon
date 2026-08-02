@@ -57,8 +57,11 @@ There is no bind-time race and no mandated start order.
   under an Apache-2.0-incompatible license (GPL, AGPL, no-license snippets),
   and never commit game assets or extracted game data - `data/rmdata/` is
   regenerated locally by `tools/rmdata_extract.py`, and `NOTICE` states that
-  nothing of Stunlock's is redistributed. Any new packaging metadata declares
-  `license = "Apache-2.0"`.
+  nothing of Stunlock's is redistributed. `pyproject.toml` declares
+  `license = "Apache-2.0"` and is METADATA ONLY - no `[build-system]`, and no
+  `[tool.pytest.ini_options]` or `[tool.ruff]`, because `pytest.ini` and
+  `ruff.toml` win over it and a section no tool reads drifts into a lie.
+  `tests/test_licensing.py` holds all of this.
 - **No em-dashes or en-dashes, ever. 7-bit ASCII in all authored content:**
   code, comments, docstrings, `.md`, commit messages, chat output. Use ` - `
   for a clause break, `-` otherwise. Also avoid smart quotes (U+2018 U+2019

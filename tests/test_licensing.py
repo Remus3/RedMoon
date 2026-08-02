@@ -19,9 +19,10 @@ Two claims here are not about metadata agreeing with metadata:
 from __future__ import annotations
 
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
+
+from bloodforge import ENGINE_VERSION
 
 REPO = Path(__file__).resolve().parents[1]
 PYPROJECT = REPO / "pyproject.toml"
@@ -66,9 +67,6 @@ def test_the_license_body_is_the_canonical_apache_text():
 
 
 def test_the_project_version_is_the_public_part_of_the_engine_version():
-    sys.path.insert(0, str(REPO))
-    from bloodforge import ENGINE_VERSION
-
     # ENGINE_VERSION carries a local part naming the game build. The project
     # version must be its release part and nothing else - repeating the build
     # pin here would add a 121st site for tests/test_drift_anchors.py to hold.

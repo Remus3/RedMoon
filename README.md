@@ -24,3 +24,12 @@ yet. See `ROADMAP.md`.
 python -m pytest
 python tools/rmdata_extract.py
 ```
+
+## License
+
+Licensed under the Apache License, Version 2.0. See `LICENSE` and `NOTICE`.
+
+Copyright 2026 Moonbeam.
+
+V Rising is a trademark of Stunlock Studios. This project is not affiliated
+with or endorsed by Stunlock Studios, and redistributes no game assets.

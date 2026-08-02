@@ -16,7 +16,7 @@ What shipped, the verification that proved it, and the commit or merge hash.
 
 ## 003w - the Desktop hand-off gets a writer, and README turns outward (2026-08-01)
 
-Commit `PENDING-DOCS`. Suite **618 passed in 29.01s, exit 0** (606 before,
+Commit `1b5dd58`. Suite **618 passed in 29.01s, exit 0** (606 before,
 +12), ruff clean, `ascii_guard` exit 0. No C# change, `ENGINE_VERSION`
 untouched. **NO ROADMAP ITEM CLOSED.**
 
